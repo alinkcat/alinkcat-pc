@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntApp, theme as antTheme, Modal, Button, Typography, Space } from 'antd';
-import zhCN from 'antd/locale/zh_CN';
 import { useThemeStore } from './store/themeStore';
+import { useI18nStore } from './i18n/useI18nStore';
 import { APP_VERSION } from './config';
 import { clientVersionApi } from './api/clientVersionApi';
 import { initLogger } from './utils/logger';
@@ -47,6 +47,7 @@ function markSeen(id: number) {
 
 export default function App() {
   const { mode, hydrate } = useThemeStore();
+  const antdLocale = useI18nStore((s) => s.antdLocale);
   const [gate, setGate] = useState<Gate | null>(null);
   const [allowed, setAllowed] = useState(false);
   const checked = useRef(false);
@@ -115,7 +116,7 @@ export default function App() {
 
   return (
     <ConfigProvider
-      locale={zhCN}
+      locale={antdLocale}
       theme={{
         algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
         token: { colorPrimary: '#4F6EF7' },
