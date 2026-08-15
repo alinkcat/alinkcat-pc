@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Spin, Typography, Result, Button } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { setTokens } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 
 const { Text } = Typography;
 
 export default function OAuthCallback() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { fetchProfile } = useAuthStore();
@@ -27,7 +29,7 @@ export default function OAuthCallback() {
 
     if (!token) {
       setStatus('error');
-      setErrorMsg('未收到授权令牌，请重新登录');
+      setErrorMsg(t('oauth.noToken'));
       return;
     }
 
@@ -52,9 +54,9 @@ export default function OAuthCallback() {
       <div className="auth-background" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
         <Result
           status="error"
-          title="授权失败"
-          subTitle={errorMsg || '请稍后重试'}
-          extra={<Button type="primary" onClick={handleBack}>返回登录</Button>}
+          title={t('oauth.authorizeFailed')}
+          subTitle={errorMsg || t('oauth.retryLater')}
+          extra={<Button type="primary" onClick={handleBack}>{t('oauth.backToLogin')}</Button>}
         />
       </div>
     );
@@ -65,9 +67,9 @@ export default function OAuthCallback() {
       <div style={{ textAlign: 'center' }}>
         <Spin size="large" />
         <div style={{ marginTop: 16, marginBottom: 24 }}>
-          <Text type="secondary">{status === 'processing' ? '正在完成授权...' : '登录成功，即将跳转...'}</Text>
+          <Text type="secondary">{status === 'processing' ? t('oauth.processing') : t('oauth.loginSuccess')}</Text>
         </div>
-        <Button onClick={handleBack}>返回登录</Button>
+        <Button onClick={handleBack}>{t('oauth.backToLogin')}</Button>
       </div>
     </div>
   );

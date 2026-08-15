@@ -1,16 +1,18 @@
 import { useNavigate } from 'react-router-dom';
 import { Button, Typography, Divider } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 
 const { Title, Text, Paragraph } = Typography;
 
-const SECTIONS = [
+// 法律正文保留中文原文，标题通过 titleKey 指向 i18n 翻译
+const SECTIONS: { titleKey: string; content: string | string[] }[] = [
   {
-    title: '一、服务条款接受',
+    titleKey: 'terms.section1',
     content: '欢迎您使用艾联猫（以下简称"本平台"）提供的软硬件联动及主题包市场服务。请您在使用本平台前仔细阅读并充分理解本《服务条款》（以下简称"本条款"）。当您注册、登录、下载或使用本平台的任何软件、插件及在线服务时，即表示您已阅读、理解并同意接受本条款及本平台公布的各项规则、政策、公告等内容的约束。若您不同意本条款的任何内容，请您立即停止使用本平台服务。',
   },
   {
-    title: '二、账号注册与安全',
+    titleKey: 'terms.section2',
     content: [
       '您应按照本平台注册页面的提示提供真实、准确、完整、合法有效的注册资料，并应保证其及时更新。您设置的账号、密码不得以任何方式转让、赠予、继承或分享给他人使用。',
       '您应对您账号项下的所有行为（包括但不限于主题上传、下载、评论、设备联动绑定等）负全部责任。如因您主动泄露、保管不当导致账号被盗用，由此产生的损失由您自行承担。',
@@ -18,7 +20,7 @@ const SECTIONS = [
     ],
   },
   {
-    title: '三、用户行为与内容规范',
+    titleKey: 'terms.section3',
     content: [
       '您承诺遵守国家法律法规及本平台各项规则，不得利用本平台从事任何违法违规活动，包括但不限于传播色情、暴力、赌博、诈骗、侵权、反动等信息。',
       '您不得利用本平台从事危害网络安全、破坏平台正常运营、恶意占用资源、非法抓取数据或干扰多端 WebSocket 正常通信的行为。',
@@ -26,7 +28,7 @@ const SECTIONS = [
     ],
   },
   {
-    title: '四、主题包与版权声明（避风港原则）',
+    titleKey: 'terms.section4',
     content: [
       '本平台是一个第三方主题包分享与技术交流平台。本平台不对用户上传的所有主题包、个性化配置及第三方资源的合法性、安全性做实质性审查。',
       '【避风港声明】 如权利人认为本平台上的某个主题包或内容侵犯其知识产权或其他合法权益，可向本平台发出书面权利通知。本平台在收到符合法律规定的有效通知后，有权依法采取断开链接、下架作品等措施，不承担因此产生的任何违约或赔偿责任。',
@@ -34,7 +36,7 @@ const SECTIONS = [
     ],
   },
   {
-    title: '五、付费与虚拟资产服务',
+    titleKey: 'terms.section5',
     content: [
       '本平台提供的会员套餐、高级功能或积分兑换等属于虚拟数字商品。您在购买前应仔细核对套餐内容、价格及有效期。',
       '【不支持无理由退款说明】 虚拟服务一经购买即视为服务交付成立，除法律法规另有规定或平台明确承诺外，已支付的费用原则上不予退还。',
@@ -43,7 +45,7 @@ const SECTIONS = [
     ],
   },
   {
-    title: '六、隐私保护与数据收集',
+    titleKey: 'terms.section6',
     content: [
       '本平台重视并依法保护您的个人信息安全，将按照相关法律法规及隐私政策收集、使用和存储必要的数据。',
       '【局域网与设备联动数据说明】 为实现 PC 端与移动端的硬件监控（CPU/内存）、音乐媒体同步及 WebSocket 状态互联，相关运行数据仅在您的局域网或授权通道内传输，本平台不会恶意窃取您的私密文件。',
@@ -51,7 +53,7 @@ const SECTIONS = [
     ],
   },
   {
-    title: '七、责任限制与特有风险免责声明',
+    titleKey: 'terms.section7',
     content: [
       '【软硬件联动及环境免责】 本平台提供的多端协同、硬件监控及自动控制功能依赖于特定的操作系统、网络环境及第三方软件（如本地播放器等）。因用户电脑/手机权限设置、杀毒软件拦截、第三方软件版本更新、局域网网络波动或硬件老化等原因导致控制指令失效、数据同步延迟、息屏唤醒失败的，本平台不承担任何法律责任。',
       '【 Root 与电池管理免责】 若您使用本平台配合 Root 权限进行设备常驻保活、充电阈值管理（如限制充放电）等极客功能，您应自行评估潜在风险。因设备长时间运行、电池自然损耗或内核脚本异常导致的硬件损坏、电池鼓包或设备故障，本平台概不负责。',
@@ -59,7 +61,7 @@ const SECTIONS = [
     ],
   },
   {
-    title: '八、协议修改与生效',
+    titleKey: 'terms.section8',
     content: [
       '本平台有权根据法律法规的变化、业务发展需求或技术迭代，对本条款进行不定期修订。',
       '修改后的条款将在平台显著位置予以公告。若您在公告发布并生效后继续使用本平台服务，即视为您已接受修订后的条款；如您不同意修订内容，您有权主动停止使用本平台服务并注销账号。',
@@ -68,6 +70,7 @@ const SECTIONS = [
 ];
 
 export default function Terms() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   return (
@@ -78,16 +81,16 @@ export default function Terms() {
           onClick={() => navigate(-1)}
           style={{ marginBottom: 16 }}
         >
-          返回
+          {t('terms.back')}
         </Button>
         <div style={{ background: '#fff', borderRadius: 8, padding: '32px 40px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <Title level={2} style={{ textAlign: 'center', marginBottom: 4 }}>艾联猫《服务条款》</Title>
+          <Title level={2} style={{ textAlign: 'center', marginBottom: 4 }}>{t('terms.title')}</Title>
           <div style={{ textAlign: 'center', color: '#999', fontSize: 13, marginBottom: 24 }}>
-            <Text type="secondary">更新日期：2026年8月7日 &nbsp;·&nbsp; 生效日期：2026年8月7日</Text>
+            <Text type="secondary">{t('terms.updatedAt')} &nbsp;·&nbsp; {t('terms.effectiveAt')}</Text>
           </div>
           {SECTIONS.map((sec, idx) => (
             <div key={idx} style={{ marginBottom: 24 }}>
-              <Title level={4} style={{ marginBottom: 8 }}>{sec.title}</Title>
+              <Title level={4} style={{ marginBottom: 8 }}>{t(sec.titleKey)}</Title>
               {Array.isArray(sec.content) ? (
                 sec.content.map((p, i) => (
                   <Paragraph key={i} style={{ fontSize: 14, lineHeight: 1.8, color: '#444', marginBottom: 8, textIndent: '2em' }}>
@@ -103,7 +106,7 @@ export default function Terms() {
           ))}
           <Divider />
           <div style={{ textAlign: 'center', color: '#999', fontSize: 12 }}>
-            艾联猫 · ailinkcat
+            {t('terms.footer')}
           </div>
         </div>
       </div>

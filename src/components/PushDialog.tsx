@@ -1,53 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Modal, Select, Space, Typography, Button, Progress, Tag, Empty } from 'antd';
 import { MobileOutlined, SendOutlined, ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../utils/tauri';
 import { useThemePush } from '../hooks/useThemePush';
 import type { ClientInfo } from '../types/theme';
 
 const { Text } = Typography;
 
-const T_TITLE = '\u63a8\u9001\u5230\u624b\u673a';
-const T_DEVICE = '\u76ee\u6807\u8bbe\u5907';
-const T_NO_DEVICE = '\u65e0\u53ef\u7528\u8bbe\u5907';
-const T_THEME = '\u4e3b\u9898\u5305';
-const T_PROGRESS = '\u63a8\u9001\u8fdb\u5ea6';
-const T_SENT = '\u5df2\u53d1\u9001';
-const T_SPEED = '\u901f\u5ea6';
-const T_STATUS = '\u72b6\u6001';
-const T_PACKING = '\u6b63\u5728\u6253\u5305...';
-const T_WAITING = '\u7b49\u5f85\u624b\u673a\u786e\u8ba4...';
-const T_PUSHING = '\u6b63\u5728\u63a8\u9001...';
-const T_COMPLETED = '\u63a8\u9001\u5b8c\u6210';
-const T_FAILED = '\u63a8\u9001\u5931\u8d25';
-const T_CANCELLED = '\u5df2\u53d6\u6d88';
-const T_IDLE = '\u51c6\u5907\u4e2d';
-const T_START = '\u5f00\u59cb\u63a8\u9001';
-const T_CANCEL = '\u53d6\u6d88';
-const T_RETRY = '\u91cd\u4f20';
-const T_RESUME = '\u7ee7\u7eed';
-const T_CLOSE = '\u5173\u95ed';
-const T_CONNECTED = '\u5df2\u8fde\u63a5';
-const T_NEED_START = '\u8bf7\u5148\u542f\u52a8\u670d\u52a1\u5e76\u8fde\u63a5\u8bbe\u5907';
-const T_INTERRUPTED = '\u4f20\u8f93\u5df2\u4e2d\u65ad\uff08\u5df2\u4f20\u8f93';
-const T_ASK_CONTINUE = '\uff09\uff0c\u662f\u5426\u7ee7\u7eed\uff1f';
-
 function formatBytes(n: number): string {
   if (n < 1024) return `${n}B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)}KB`;
   return `${(n / (1024 * 1024)).toFixed(1)}MB`;
-}
-
-function statusLabel(status: string): string {
-  switch (status) {
-    case 'packing': return T_PACKING;
-    case 'awaiting_confirm': return T_WAITING;
-    case 'pushing': return T_PUSHING;
-    case 'completed': return T_COMPLETED;
-    case 'failed': return T_FAILED;
-    case 'cancelled': return T_CANCELLED;
-    default: return T_IDLE;
-  }
 }
 
 interface Props {
@@ -59,6 +23,7 @@ interface Props {
 }
 
 export default function PushDialog({ themeId, themeName, themeVersion, open, onClose }: Props) {
+  const { t } = useTranslation();
   const [devices, setDevices] = useState<ClientInfo[]>([]);
   const [deviceId, setDeviceId] = useState<string>('');
   const { state, startPush, resumePush, retryPush, cancelPush, reset } = useThemePush();
@@ -80,27 +45,27 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
 
   return (
     <Modal
-      title={<span><MobileOutlined style={{ marginRight: 8 }} />{T_TITLE}</span>}
+      title={<span><MobileOutlined style={{ marginRight: 8 }} />{t('push.dialog.title')}</span>}
       open={open}
       onCancel={onClose}
       footer={
         <Space>
           {active ? (
-            <Button danger onClick={cancelPush}>{T_CANCEL}</Button>
+            <Button danger onClick={cancelPush}>{t('push.dialog.cancel')}</Button>
           ) : failed ? (
             <>
               {canResume && (
-                <Button type="primary" icon={<PlayCircleOutlined />} onClick={resumePush}>{T_RESUME}</Button>
+                <Button type="primary" icon={<PlayCircleOutlined />} onClick={resumePush}>{t('push.dialog.resume')}</Button>
               )}
-              <Button icon={<ReloadOutlined />} onClick={retryPush}>{T_RETRY}</Button>
-              <Button onClick={onClose}>{T_CLOSE}</Button>
+              <Button icon={<ReloadOutlined />} onClick={retryPush}>{t('push.dialog.retry')}</Button>
+              <Button onClick={onClose}>{t('push.dialog.close')}</Button>
             </>
           ) : (
             <>
               <Button type="primary" icon={<SendOutlined />} disabled={!canStart} onClick={() => startPush(themeId, deviceId)}>
-                {T_START}
+                {t('push.dialog.start')}
               </Button>
-              <Button onClick={onClose}>{T_CLOSE}</Button>
+              <Button onClick={onClose}>{t('push.dialog.close')}</Button>
             </>
           )}
         </Space>
@@ -110,20 +75,20 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
     >
       <Space orientation="vertical" size={12} style={{ width: '100%' }}>
         {devices.length === 0 ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={T_NEED_START} />
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('push.dialog.needStart')} />
         ) : (
           <div>
-            <Text style={{ display: 'block', marginBottom: 6 }}>{T_DEVICE}</Text>
+            <Text style={{ display: 'block', marginBottom: 6 }}>{t('push.dialog.device')}</Text>
             <Select
               value={deviceId || undefined}
               onChange={setDeviceId}
-              placeholder={T_NO_DEVICE}
+              placeholder={t('push.dialog.noDevice')}
               style={{ width: '100%' }}
               options={devices.map((d) => ({
                 value: d.client_id,
                 label: (
                   <span>
-                    {d.device_name || '\u672a\u77e5\u8bbe\u5907'} <Tag color="green" style={{ marginLeft: 4 }}>{T_CONNECTED}</Tag>
+                    {d.device_name || t('push.dialog.unknownDevice')} <Tag color="green" style={{ marginLeft: 4 }}>{t('push.dialog.connected')}</Tag>
                   </span>
                 ),
               }))}
@@ -132,44 +97,44 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
         )}
 
         <div>
-          <Text style={{ display: 'block', marginBottom: 4 }}>{T_THEME}</Text>
+          <Text style={{ display: 'block', marginBottom: 4 }}>{t('push.dialog.theme')}</Text>
           <Text strong>{themeName} <Text type="secondary">v{themeVersion}</Text></Text>
         </div>
 
         {active && state.totalSize > 0 && (
           <div>
-            <Text style={{ display: 'block', marginBottom: 6 }}>{T_PROGRESS}</Text>
+            <Text style={{ display: 'block', marginBottom: 6 }}>{t('push.dialog.progress')}</Text>
             <Progress
               percent={Math.round(state.progress)}
               status={state.status === 'awaiting_confirm' || state.stage === 'start' ? 'normal' : 'active'}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-              <Text type="secondary">{T_SENT}: {formatBytes(state.sentSize)} / {formatBytes(state.totalSize)}</Text>
-              <Text type="secondary">{T_SPEED}: {Math.round(state.speed)} KB/s</Text>
+              <Text type="secondary">{t('push.dialog.sent')}: {formatBytes(state.sentSize)} / {formatBytes(state.totalSize)}</Text>
+              <Text type="secondary">{t('push.dialog.speed')}: {Math.round(state.speed)} KB/s</Text>
             </div>
             <div style={{ marginTop: 6 }}>
-              <Text type="secondary">{T_STATUS}: </Text>
+              <Text type="secondary">{t('push.dialog.status')}: </Text>
               <Tag color={state.status === 'awaiting_confirm' || state.stage === 'start' ? 'warning' : 'processing'}>
-                {statusLabel(state.status)}
+                {t(`push.status.${state.status}`)}
               </Tag>
             </div>
           </div>
         )}
 
-        {state.status === 'completed' && <Text type="success">{T_COMPLETED} ✓</Text>}
+        {state.status === 'completed' && <Text type="success">{t('push.status.completed')} ✓</Text>}
 
         {failed && (
           <div>
             {canResume && (
               <Text type="warning" style={{ display: 'block', marginBottom: 4 }}>
-                {T_INTERRUPTED} {interruptedPct}%{T_ASK_CONTINUE}
+                {t('push.dialog.interrupted', { pct: interruptedPct })}
               </Text>
             )}
             <Text type="danger" style={{ display: 'block' }}>
-              {T_FAILED}: {state.errorMessage || '\u672a\u77e5\u9519\u8bef'}
+              {t('push.status.failed')}: {state.errorMessage || t('push.dialog.unknownError')}
             </Text>
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-              {'\u53ef\u70b9\u51fb\u7ee7\u7eed\u4ece\u4e2d\u65ad\u5904\u7ee7\u7eed\uff0c\u6216\u91cd\u4f20\u4ece\u5934\u5f00\u59cb'}
+              {t('push.dialog.resumeHint')}
             </Text>
           </div>
         )}

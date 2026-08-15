@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Tree, Typography, Space, Empty } from 'antd';
 import { FolderOutlined, FileOutlined, FileImageOutlined, FileTextOutlined } from '@ant-design/icons';
 import { tauriInvoke } from '../utils/tauri';
@@ -94,6 +95,7 @@ interface Props {
 }
 
 export default function ThemeFileManager({ themeId, open, onClose }: Props) {
+  const { t } = useTranslation();
   const [files, setFiles] = useState<ThemeFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
@@ -122,19 +124,19 @@ export default function ThemeFileManager({ themeId, open, onClose }: Props) {
 
   return (
     <Modal
-      title={`主题文件 - ${themeId}`}
+      title={t('common.themeFiles', { id: themeId })}
       open={open}
       onCancel={onClose}
       footer={null}
       width={520}
     >
       <div style={{ marginBottom: 12, fontSize: 12, color: '#999' }}>
-        共 {totalFiles} 个文件，总计 {formatSize(totalSize)}
+        {t('common.fileCount', { totalFiles, totalSize: formatSize(totalSize) })}
       </div>
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40 }}>加载中...</div>
+        <div style={{ textAlign: 'center', padding: 40 }}>{t('common.loading')}</div>
       ) : treeData.length === 0 ? (
-        <Empty description="暂无文件" />
+        <Empty description={t('common.noFiles')} />
       ) : (
         <Tree
           treeData={treeData}

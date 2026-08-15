@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Card, Row, Col, Statistic, Button, Table, Typography, Space, Progress, Modal, Checkbox,
@@ -24,6 +25,7 @@ function formatSize(bytes: number): string {
 
 export default function MyCloud() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { isLoggedIn } = useAuthStore();
   const { message: msg } = useMessage();
   const [files, setFiles] = useState<CloudFile[]>([]);
@@ -61,7 +63,7 @@ export default function MyCloud() {
   };
 
   const handleUpload = async () => {
-    if (selectedIds.length === 0) return msg.warning('请至少选择一个主题包');
+    if (selectedIds.length === 0) return msg.warning(t('cloud.selectAtLeastOne'));
     setUploading(true);
     let success = 0;
     for (const themeId of selectedIds) {
@@ -73,10 +75,10 @@ export default function MyCloud() {
         fd.append('file', themeFile);
         await cloudApi.upload(fd);
         success++;
-      } catch (e) { msg.error(`「${themeId}」上传失败: ${String(e)}`); }
+      } catch (e) { msg.error(t('cloud.uploadFailed', { id: themeId, error: String(e) })); }
     }
     if (success > 0) {
-      msg.success(`${success} 个主题包已备份到云盘`);
+      msg.success(t('cloud.uploadSuccess', { count: success }));
       fetchData();
     }
     setUploading(false);
@@ -85,12 +87,12 @@ export default function MyCloud() {
 
   const handleDelete = (id: number, name: string) => {
     Modal.confirm({
-      title: '删除备份',
-      content: `确定删除云盘备份「${name}」吗？仅删除云端备份，不影响本地主题包。`,
+      title: t('cloud.deleteConfirmTitle'),
+      content: t('cloud.deleteConfirmContent', { name }),
       onOk: async () => {
         try {
           await cloudApi.delete(id);
-          msg.success('已删除');
+          msg.success(t('cloud.deleted'));
           fetchData();
         } catch (e) { msg.error(String(e)); }
       },
@@ -105,10 +107,10 @@ export default function MyCloud() {
         const filename = item.originalName || item.fileName;
         const filePath = await tauriInvoke<string>('download_theme_file', { url: resp.data, filename });
         await tauriInvoke('import_theme_from_file', { path: filePath });
-        msg.success('已从云盘恢复并导入');
+        msg.success(t('cloud.restored'));
         fetchData();
       } else {
-        msg.warning('获取下载链接失败');
+        msg.warning(t('cloud.downloadFailed'));
       }
     } catch (e) { msg.error(String(e)); }
   };
@@ -116,22 +118,22 @@ export default function MyCloud() {
   if (!isLoggedIn) {
     return (
       <div className="page-container">
-        <div className="page-header"><h1 className="page-title">主题云备份</h1></div>
-        <Card style={{ textAlign: 'center', padding: 40 }}><Button type="primary" onClick={() => navigate('/auth')}>去登录</Button></Card>
+        <div className="page-header"><h1 className="page-title">{t('cloud.title')}</h1></div>
+        <Card style={{ textAlign: 'center', padding: 40 }}><Button type="primary" onClick={() => navigate('/auth')}>{t('cloud.loginRequired')}</Button></Card>
       </div>
     );
   }
 
   const columns = [
-    { title: '主题包', dataIndex: 'originalName', ellipsis: true, render: (v: string) => (v || '').replace(/\.alc$/, '') || '未知主题', },
-    { title: '大小', dataIndex: 'fileSize', width: 100, render: (s: number) => formatSize(s) },
-    { title: '备份时间', dataIndex: 'createdAt', width: 170, render: (v: string) => new Date(v).toLocaleString() },
+    { title: t('cloud.themeName'), dataIndex: 'originalName', ellipsis: true, render: (v: string) => (v || '').replace(/\.alc$/, '') || t('cloud.unknownTheme'), },
+    { title: t('cloud.size'), dataIndex: 'fileSize', width: 100, render: (s: number) => formatSize(s) },
+    { title: t('cloud.backupTime'), dataIndex: 'createdAt', width: 170, render: (v: string) => new Date(v).toLocaleString() },
     {
-      title: '操作', width: 160,
+      title: t('cloud.actions'), width: 160,
       render: (_: unknown, r: CloudFile) => (
         <Space>
-          <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(r)}>恢复</Button>
-          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r.id, r.fileName)}>删除</Button>
+          <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(r)}>{t('cloud.restore')}</Button>
+          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r.id, r.fileName)}>{t('cloud.delete')}</Button>
         </Space>
       ),
     },
@@ -140,18 +142,18 @@ export default function MyCloud() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">主题云备份</h1>
-        <p className="page-subtitle">将本地主题包备份到云端，防止丢失</p>
+        <h1 className="page-title">{t('cloud.title')}</h1>
+        <p className="page-subtitle">{t('cloud.subtitle')}</p>
       </div>
       <Row gutter={[16, 16]}>
         <Col xs={24} md={8}>
           <Card>
-            <Statistic title="已备份主题" value={space?.totalFiles ?? 0} prefix={<AppstoreOutlined />} />
+            <Statistic title={t('cloud.backupCount')} value={space?.totalFiles ?? 0} prefix={<AppstoreOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={16}>
           <Card>
-            <div style={{ marginBottom: 8 }}><Text type="secondary">云盘空间</Text></div>
+            <div style={{ marginBottom: 8 }}><Text type="secondary">{t('cloud.cloudSpace')}</Text></div>
             <Progress
               percent={space ? Math.round((space.totalBytes / Math.max(space.maxTotalBytes, 1)) * 100) : 0}
               format={() => `${formatSize(space?.totalBytes ?? 0)} / ${formatSize(space?.maxTotalBytes ?? 0)}`}
@@ -160,11 +162,11 @@ export default function MyCloud() {
         </Col>
       </Row>
       <Card
-        title="备份列表"
+        title={t('cloud.backupList')}
         style={{ marginTop: 16 }}
         extra={
           <Button type="primary" icon={<CloudUploadOutlined />} onClick={openUploadModal}>
-            备份到云盘
+            {t('cloud.backupToCloud')}
           </Button>
         }
       >
@@ -175,21 +177,21 @@ export default function MyCloud() {
           loading={loading}
           size="small"
           pagination={{ pageSize: 10 }}
-          locale={{ emptyText: '暂无云端备份，点击右上角"备份到云盘"上传本地主题包' }}
+          locale={{ emptyText: t('cloud.emptyTable') }}
         />
       </Card>
 
       <Modal
-        title="选择要备份的本地主题包"
+        title={t('cloud.selectThemeTitle')}
         open={uploadOpen}
         onCancel={() => setUploadOpen(false)}
         onOk={handleUpload}
-        okText={`备份 (${selectedIds.length})`}
+        okText={t('cloud.selectTheme', { count: selectedIds.length })}
         confirmLoading={uploading}
         width={520}
       >
         {localThemes.length === 0 ? (
-          <Text type="secondary">暂无本地主题包</Text>
+          <Text type="secondary">{t('cloud.noLocalThemes')}</Text>
         ) : (
           <div style={{ maxHeight: 400, overflow: 'auto' }}>
             {localThemes.map((t) => (

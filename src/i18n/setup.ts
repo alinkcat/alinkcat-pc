@@ -18,21 +18,19 @@ export function saveStoredLang(code: string) {
   localStorage.setItem(STORAGE_KEY, code);
 }
 
-// 同步加载兜底中文资源
-import zhCommon from './locales/zh-CN/common.json';
-import zhLayout from './locales/zh-CN/layout.json';
-import zhSettings from './locales/zh-CN/settings.json';
+// 同步加载兜底中文资源（全部合入 common 命名空间）
+import zhResources from './locales/zh-CN/index';
 
 i18n.use(initReactI18next).init({
   resources: {
     'zh-CN': {
-      common: zhCommon,
-      layout: zhLayout,
-      settings: zhSettings,
+      common: zhResources,
     },
   },
   lng: loadStoredLang(),
   fallbackLng: 'zh-CN',
+  defaultNS: 'common',
+  ns: ['common'],
   interpolation: {
     escapeValue: false,
   },
@@ -46,14 +44,9 @@ export async function setAppLanguage(code: string) {
 
   saveStoredLang(code);
 
-  // 非中文语言懒加载
-  if (!i18n.hasResourceBundle(code, 'common')) {
-    const resources = (await def.loadResources()) as Record<string, object>;
-    Object.entries(resources).forEach(([ns, bundle]) => {
-      i18n.addResourceBundle(code, ns, bundle, true, true);
-    });
-  }
-
+  const resources = (await def.loadResources()) as Record<string, object>;
+  // 替换整个 common 命名空间
+  i18n.addResourceBundle(code, 'common', resources, true, true);
   await i18n.changeLanguage(code);
 }
 

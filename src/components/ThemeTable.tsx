@@ -1,5 +1,6 @@
 import { Table, Button, Tag, Space, Typography } from 'antd';
 import { EditOutlined, SwapOutlined, ExportOutlined, DeleteOutlined, MobileOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import ThemeCover from './ThemeCover';
 import { getThemeSource, sourceLabel, sourceTagColor } from '../utils/themeSource';
 import type { ThemeSummary } from '../types/theme';
@@ -17,65 +18,66 @@ interface Props {
 }
 
 export default function ThemeTable({ themes, activeId, onEdit, onActivate, onExport, onDelete, onPush }: Props) {
+  const { t } = useTranslation();
   const columns = [
     {
-      title: '封面',
+      title: t('themes.cover'),
       dataIndex: 'id',
       key: 'cover',
       width: 90,
-      render: (_: string, t: ThemeSummary) => (
+      render: (_: string, record: ThemeSummary) => (
         <div style={{ width: 64, height: 40, borderRadius: 4, overflow: 'hidden' }}>
-          <ThemeCover themeId={t.id} themeName={t.name} coverUrl={t.cover_url} hasCover={t.has_cover} />
+          <ThemeCover themeId={record.id} themeName={record.name} coverUrl={record.cover_url} hasCover={record.has_cover} />
         </div>
       ),
     },
     {
-      title: '名称',
+      title: t('themes.name'),
       dataIndex: 'name',
       key: 'name',
       sorter: (a: ThemeSummary, b: ThemeSummary) => a.name.localeCompare(b.name),
-      render: (name: string, t: ThemeSummary) => (
+      render: (name: string, record: ThemeSummary) => (
         <Space>
           <Text strong>{name}</Text>
-          {t.id === activeId && <Tag color="#4F6EF7">已激活</Tag>}
+          {record.id === activeId && <Tag color="#4F6EF7">{t('themes.activated')}</Tag>}
         </Space>
       ),
     },
     {
-      title: '版本',
+      title: t('themes.version'),
       dataIndex: 'version',
       key: 'version',
       width: 90,
     },
     {
-      title: '作者',
+      title: t('themes.author'),
       dataIndex: 'author',
       key: 'author',
       width: 110,
       render: (v: string) => v || '-',
     },
     {
-      title: '来源',
+      title: t('themes.source'),
       key: 'source',
       width: 90,
-      render: (_: unknown, t: ThemeSummary) => {
-        const src = getThemeSource(t);
+      render: (_: unknown, record: ThemeSummary) => {
+        const src = getThemeSource(record);
         return <Tag color={sourceTagColor(src)}>{sourceLabel(src)}</Tag>;
       },
     },
     {
-      title: '操作',
+      title: t('themes.actions'),
       key: 'actions',
       width: 220,
-      render: (_: unknown, t: ThemeSummary) => (
+      render: (_: unknown, record: ThemeSummary) => (
         <Space size={0} wrap>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => onEdit(t.id)}>编辑</Button>
-          <Button type="link" size="small" icon={<MobileOutlined />} onClick={() => onPush(t)}>推送</Button>
-          <Button type="link" size="small" icon={<SwapOutlined />} disabled={t.id === activeId} onClick={() => onActivate(t.id)}>
-            {t.id === activeId ? '已激活' : '切换'}
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => onEdit(record.id)}>{t('themes.edit')}</Button>
+          <Button type="link" size="small" icon={<MobileOutlined />} onClick={() => onPush(record)}>{t('themes.push')}</Button>
+          <Button type="link" size="small" icon={<SwapOutlined />} disabled={record.id === activeId} onClick={() => onActivate(record.id)}>
+            {record.id === activeId ? t('themes.activated') : t('themes.activate')}
           </Button>
-          <Button type="link" size="small" icon={<ExportOutlined />} onClick={() => onExport(t)}>导出</Button>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => onDelete(t.id, t.name)}>删除</Button>
+          <Button type="link" size="small" icon={<ExportOutlined />} onClick={() => onExport(record)}>{t('themes.export')}</Button>
+          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => onDelete(record.id, record.name)}>{t('themes.delete')}</Button>
         </Space>
       ),
     },
@@ -88,7 +90,7 @@ export default function ThemeTable({ themes, activeId, onEdit, onActivate, onExp
       rowKey="id"
       pagination={{ pageSize: 10, showSizeChanger: false }}
       size="middle"
-      locale={{ emptyText: '暂无主题包' }}
+      locale={{ emptyText: t('themes.emptyText') }}
     />
   );
 }

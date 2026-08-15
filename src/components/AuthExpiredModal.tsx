@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal, Button, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { clearTokens } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 
@@ -13,6 +14,7 @@ const { Text } = Typography;
 export default function AuthExpiredModal() {
   const [visible, setVisible] = useState(false);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const handler = () => {
@@ -35,15 +37,15 @@ export default function AuthExpiredModal() {
       closable={false}
       mask={{ closable: false }}
       footer={[
-        <Button key="login" type="primary" onClick={handleLogin}>去登录</Button>,
+        <Button key="login" type="primary" onClick={handleLogin}>{t('auth.goLogin')}</Button>,
       ]}
       width={400}
     >
       <div style={{ textAlign: 'center', padding: '16px 0' }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
-        <Text strong style={{ fontSize: 16 }}>登录已过期</Text>
+        <Text strong style={{ fontSize: 16 }}>{t('auth.sessionExpired')}</Text>
         <div style={{ marginTop: 8, color: '#999' }}>
-          您的登录状态已失效，请重新登录以继续使用
+          {t('auth.sessionExpiredDesc')}
         </div>
       </div>
     </Modal>

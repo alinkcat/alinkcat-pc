@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n/setup';
 import { useNavigate } from 'react-router-dom';
 import {
   Card, Row, Col, Statistic, Button, Table, Tag, Tabs, Empty, Modal,
@@ -12,18 +14,19 @@ import { useAuthStore } from '../store/authStore';
 import { useMessage } from '../hooks/useMessage';
 
 const RECORD_TYPES: Record<number, { label: string; color: string }> = {
-  1: { label: '签到', color: 'cyan' },
-  2: { label: '邀请', color: 'magenta' },
-  3: { label: '下载', color: 'green' },
-  4: { label: '评分', color: 'gold' },
-  5: { label: '收藏', color: 'orange' },
-  6: { label: '工单', color: 'blue' },
-  7: { label: '邀请奖励', color: 'purple' },
-  8: { label: '会员', color: 'gold' },
-  9: { label: '兑换', color: 'red' },
+  1: { label: i18n.t('points.record_type_1'), color: 'cyan' },
+  2: { label: i18n.t('points.record_type_2'), color: 'magenta' },
+  3: { label: i18n.t('points.record_type_3'), color: 'green' },
+  4: { label: i18n.t('points.record_type_4'), color: 'gold' },
+  5: { label: i18n.t('points.record_type_5'), color: 'orange' },
+  6: { label: i18n.t('points.record_type_6'), color: 'blue' },
+  7: { label: i18n.t('points.record_type_7'), color: 'purple' },
+  8: { label: i18n.t('points.record_type_8'), color: 'gold' },
+  9: { label: i18n.t('points.record_type_9'), color: 'red' },
 };
 
 export default function Points() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { isLoggedIn } = useAuthStore();
   const { message: msg } = useMessage();
@@ -47,32 +50,32 @@ export default function Points() {
     return (
       <div className="page-container">
         <div className="page-header">
-          <h1 className="page-title">积分中心</h1>
-          <p className="page-subtitle">签到赚积分，兑换会员与特权</p>
+          <h1 className="page-title">{t('points.title')}</h1>
+          <p className="page-subtitle">{t('points.subtitle')}</p>
         </div>
         <Card style={{ textAlign: 'center', padding: 40 }}>
           <TrophyOutlined style={{ fontSize: 48, color: '#faad14', marginBottom: 16 }} />
-          <div style={{ marginBottom: 16 }}>登录后可签到、查看积分流水和兑换权益</div>
-          <Button type="primary" icon={<LoginOutlined />} onClick={() => navigate('/auth')}>去登录</Button>
+          <div style={{ marginBottom: 16 }}>{t('points.loginHint')}</div>
+          <Button type="primary" icon={<LoginOutlined />} onClick={() => navigate('/auth')}>{t('points.loginRequired')}</Button>
         </Card>
         <Card style={{ marginTop: 16 }}>
           <Tabs
             items={[
-              { key: 'rules', label: '积分规则', children: rules.length === 0 ? <Empty description="暂无规则" /> : (
+              { key: 'rules', label: t('points.pointsRules'), children: rules.length === 0 ? <Empty description={t('points.noRules')} /> : (
                 <Table dataSource={rules} rowKey="id" size="small" pagination={false}
                   columns={[
-                    { title: '类型', dataIndex: 'actionType', render: (t: number) => RECORD_TYPES[t]?.label || t },
-                    { title: '基础积分', dataIndex: 'basePoints' },
-                    { title: '每日上限', dataIndex: 'dailyLimit' },
-                    { title: '倍率', dataIndex: 'multiplier', render: (v: number) => v > 1 ? `${v}x` : '-' },
+                    { title: t('points.actionType'), dataIndex: 'actionType', render: (type: number) => RECORD_TYPES[type]?.label || type },
+                    { title: t('points.basePoints'), dataIndex: 'basePoints' },
+                    { title: t('points.dailyLimit'), dataIndex: 'dailyLimit' },
+                    { title: t('points.multiplier'), dataIndex: 'multiplier', render: (v: number) => v > 1 ? t('points.multiplierValue', { value: v }) : '-' },
                   ]} />
               )},
-              { key: 'rank', label: '排行榜', children: rank.length === 0 ? <Empty description="暂无数据" /> : (
+              { key: 'rank', label: t('points.rank'), children: rank.length === 0 ? <Empty description={t('points.noRecords')} /> : (
                 <Table dataSource={rank} rowKey="userId" size="small" pagination={false}
                   columns={[
-                    { title: '排名', render: (_, __, i) => i + 1, width: 60 },
-                    { title: '用户', dataIndex: 'username' },
-                    { title: '总积分', dataIndex: 'totalEarned', render: (v: number) => <span style={{ color: '#faad14', fontWeight: 600 }}>{v}</span> },
+                    { title: t('points.rankNo'), render: (_, __, i) => i + 1, width: 60 },
+                    { title: t('points.username'), dataIndex: 'username' },
+                    { title: t('points.totalPoints'), dataIndex: 'totalEarned', render: (v: number) => <span style={{ color: '#faad14', fontWeight: 600 }}>{v}</span> },
                   ]} />
               )},
             ]}
@@ -85,32 +88,32 @@ export default function Points() {
   const handleCheckin = async () => {
     try {
       const r = await checkin();
-      msg.success(`签到成功！+${r.points} 积分，连续 ${r.streak} 天`);
+      msg.success(t('points.checkinSuccess', { points: r.points, streak: r.streak }));
     } catch (e) { msg.error(String(e)); }
   };
 
   const handleMallExchange = async (item: typeof mallItems[0]) => {
     if (!balance || balance.balance < item.pointsCost) {
-      return msg.warning(`积分不足，需要 ${item.pointsCost} 积分`);
+      return msg.warning(t('points.insufficientPoints', { points: item.pointsCost }));
     }
     if (item.stock === 0) {
-      return msg.warning('该商品已售罄');
+      return msg.warning(t('points.itemOutOfStock'));
     }
     Modal.confirm({
-      title: '确认兑换',
+      title: t('points.confirmExchange'),
       content: (
         <div>
-          <p>确定要使用 <b style={{ color: '#faad14' }}>{item.pointsCost}</b> 积分兑换「<b>{item.name}</b>」吗？</p>
-          <p style={{ fontSize: 12, color: '#999' }}>当前余额：{balance.balance} 积分</p>
+          <p>{t('points.confirmExchangeContent', { points: item.pointsCost, name: item.name })}</p>
+          <p style={{ fontSize: 12, color: '#999' }}>{t('points.currentBalance', { balance: balance.balance })}</p>
         </div>
       ),
-      okText: '确认兑换',
-      cancelText: '取消',
+      okText: t('points.exchangeConfirm'),
+      cancelText: t('points.cancel'),
       onOk: async () => {
         try {
           const r = await exchange(item.exchangeType, item.id);
           if (r.success) {
-            msg.success(r.message || `兑换成功，当前余额 ${r.newBalance} 积分`);
+            msg.success(r.message || t('points.exchangeSuccess', { balance: r.newBalance }));
             fetchBalance().catch(() => {});
             fetchMall().catch(() => {});
           } else {
@@ -123,51 +126,51 @@ export default function Points() {
 
   const recordColumns = [
     {
-      title: '类型', dataIndex: 'type', width: 80,
-      render: (t: number) => { const info = RECORD_TYPES[t] || { label: '未知', color: 'default' }; return <Tag color={info.color}>{info.label}</Tag>; },
+      title: t('points.type'), dataIndex: 'type', width: 80,
+      render: (type: number) => { const info = RECORD_TYPES[type] || { label: t('points.unknownType'), color: 'default' }; return <Tag color={info.color}>{info.label}</Tag>; },
     },
-    { title: '描述', dataIndex: 'description', ellipsis: true },
-    { title: '积分', dataIndex: 'amount', width: 80, render: (v: number) => <span style={{ color: v > 0 ? '#52c41a' : '#ff4d4f' }}>{v > 0 ? '+' : ''}{v}</span> },
-    { title: '余额', dataIndex: 'balance', width: 80 },
-    { title: '时间', dataIndex: 'createdAt', width: 160, render: (v: string) => new Date(v).toLocaleString() },
+    { title: t('points.description'), dataIndex: 'description', ellipsis: true },
+    { title: t('points.points'), dataIndex: 'amount', width: 80, render: (v: number) => <span style={{ color: v > 0 ? '#52c41a' : '#ff4d4f' }}>{v > 0 ? '+' : ''}{v}</span> },
+    { title: t('points.balance'), dataIndex: 'balance', width: 80 },
+    { title: t('points.time'), dataIndex: 'createdAt', width: 160, render: (v: string) => new Date(v).toLocaleString() },
   ];
 
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">积分中心</h1>
-        <p className="page-subtitle">签到赚积分，兑换会员与特权</p>
+        <h1 className="page-title">{t('points.title')}</h1>
+        <p className="page-subtitle">{t('points.subtitle')}</p>
       </div>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} md={6}>
           <Card>
-            <Statistic title="可用积分" value={balance?.balance ?? 0} prefix={<TrophyOutlined style={{ color: '#faad14' }} />} />
+            <Statistic title={t('points.availablePoints')} value={balance?.balance ?? 0} prefix={<TrophyOutlined style={{ color: '#faad14' }} />} />
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card>
-            <Statistic title="累计获得" value={balance?.totalEarned ?? 0} styles={{ content: { color: '#52c41a' } }} />
+            <Statistic title={t('points.totalEarned')} value={balance?.totalEarned ?? 0} styles={{ content: { color: '#52c41a' } }} />
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card>
-            <Statistic title="本月获得" value={balance?.monthlyEarned ?? 0} />
+            <Statistic title={t('points.monthlyEarned')} value={balance?.monthlyEarned ?? 0} />
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card hoverable onClick={handleCheckin} style={{ textAlign: 'center' }}>
             {balance?.checkedInToday ? (
-              <Statistic title="今日签到" value="已签到" prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />} />
+              <Statistic title={t('points.dailyCheckin')} value={t('points.checkedIn')} prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />} />
             ) : (
               <div>
-                <div style={{ fontSize: 14, color: 'rgba(0,0,0,0.45)', marginBottom: 4 }}>每日签到</div>
-                <Button type="primary" icon={<CheckCircleOutlined />}>签到 +10</Button>
+                <div style={{ fontSize: 14, color: 'rgba(0,0,0,0.45)', marginBottom: 4 }}>{t('points.dailyCheckin')}</div>
+                <Button type="primary" icon={<CheckCircleOutlined />}>{t('points.checkin')}</Button>
               </div>
             )}
             {balance && balance.checkinStreak > 0 && (
               <div style={{ marginTop: 8, fontSize: 12, color: '#faad14' }}>
-                <FireOutlined /> 连续 {balance.checkinStreak} 天
+                <FireOutlined /> {t('points.checkinStreak', { count: balance.checkinStreak })}
               </div>
             )}
           </Card>
@@ -179,22 +182,22 @@ export default function Points() {
           items={[
             {
               key: 'records',
-              label: '积分流水',
+              label: t('points.pointsRecords'),
               children: (
                 <Table
                   dataSource={records}
                   columns={recordColumns}
                   rowKey="id"
                   size="small"
-                  pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条` }}
+                  pagination={{ pageSize: 10, showTotal: (total) => t('points.totalCount', { total }) }}
                 />
               ),
             },
             {
               key: 'exchange',
-              label: '积分兑换',
+              label: t('points.pointsExchange'),
               children: mallItems.length === 0 ? (
-                <Empty description="暂无可兑换商品" />
+                <Empty description={t('points.noMallItems')} />
               ) : (
                 <Row gutter={[16, 16]}>
                   {mallItems.map((item) => (
@@ -210,8 +213,8 @@ export default function Points() {
                           <div style={{ fontSize: 12, color: '#999', marginTop: 4, minHeight: 32 }}>{item.description}</div>
                         )}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                          <span style={{ color: '#faad14', fontWeight: 600 }}>{item.pointsCost} 积分</span>
-                          {item.stock === 0 ? <Tag color="red">已售罄</Tag> : item.stock === -1 ? <Tag color="green">不限量</Tag> : <Tag>库存 {item.stock}</Tag>}
+                          <span style={{ color: '#faad14', fontWeight: 600 }}>{t('points.pointsCost', { points: item.pointsCost })}</span>
+                          {item.stock === 0 ? <Tag color="red">{t('points.outOfStock')}</Tag> : item.stock === -1 ? <Tag color="green">{t('points.unlimited')}</Tag> : <Tag>{t('points.stock', { count: item.stock })}</Tag>}
                         </div>
                       </Card>
                     </Col>
@@ -221,35 +224,35 @@ export default function Points() {
             },
             {
               key: 'rules',
-              label: '积分规则',
-              children: rules.length === 0 ? <Empty description="暂无规则" /> : (
+              label: t('points.pointsRules'),
+              children: rules.length === 0 ? <Empty description={t('points.noRules')} /> : (
                 <Table
                   dataSource={rules}
                   rowKey="id"
                   size="small"
                   pagination={false}
                   columns={[
-                    { title: '类型', dataIndex: 'actionType', render: (t: number) => RECORD_TYPES[t]?.label || t },
-                    { title: '基础积分', dataIndex: 'basePoints' },
-                    { title: '每日上限', dataIndex: 'dailyLimit' },
-                    { title: '倍率', dataIndex: 'multiplier', render: (v: number) => v > 1 ? `${v}x` : '-' },
+                    { title: t('points.actionType'), dataIndex: 'actionType', render: (type: number) => RECORD_TYPES[type]?.label || type },
+                    { title: t('points.basePoints'), dataIndex: 'basePoints' },
+                    { title: t('points.dailyLimit'), dataIndex: 'dailyLimit' },
+                    { title: t('points.multiplier'), dataIndex: 'multiplier', render: (v: number) => v > 1 ? t('points.multiplierValue', { value: v }) : '-' },
                   ]}
                 />
               ),
             },
             {
               key: 'rank',
-              label: '排行榜',
-              children: rank.length === 0 ? <Empty description="暂无数据" /> : (
+              label: t('points.rank'),
+              children: rank.length === 0 ? <Empty description={t('points.noRecords')} /> : (
                 <Table
                   dataSource={rank}
                   rowKey="userId"
                   size="small"
                   pagination={false}
                   columns={[
-                    { title: '排名', render: (_, __, i) => i + 1, width: 60 },
-                    { title: '用户', dataIndex: 'username' },
-                    { title: '总积分', dataIndex: 'totalEarned', render: (v: number) => <span style={{ color: '#faad14', fontWeight: 600 }}>{v}</span> },
+                    { title: t('points.rankNo'), render: (_, __, i) => i + 1, width: 60 },
+                    { title: t('points.username'), dataIndex: 'username' },
+                    { title: t('points.totalPoints'), dataIndex: 'totalEarned', render: (v: number) => <span style={{ color: '#faad14', fontWeight: 600 }}>{v}</span> },
                   ]}
                 />
               ),

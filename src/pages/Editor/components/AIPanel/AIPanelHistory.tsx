@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
 import { Drawer, Button, Typography, Space, Empty, List, Modal } from 'antd';
 import { DeleteOutlined, PlusOutlined, ExportOutlined } from '@ant-design/icons';
@@ -7,6 +8,7 @@ import { exportHistory } from '../../../../utils/aiHistory';
 const { Text } = Typography;
 
 export default function AIPanelHistory() {
+  const { t } = useTranslation();
   const {
     historyOpen, toggleHistory, messages, themeId,
     sessions, currentSessionId,
@@ -19,8 +21,8 @@ export default function AIPanelHistory() {
 
   const handleNewSession = () => {
     Modal.confirm({
-      title: '新建会话',
-      content: '当前对话将自动保存，确认新建？',
+      title: t('editor.aiPanel.newSession'),
+      content: t('editor.aiPanel.newSessionContent'),
       onOk: newSession,
     });
   };
@@ -28,8 +30,8 @@ export default function AIPanelHistory() {
   const handleDeleteSession = (sessionId: string) => {
     if (sessionId === currentSessionId) {
       Modal.confirm({
-        title: '删除当前会话',
-        content: '当前会话将被删除，确认？',
+        title: t('editor.aiPanel.deleteSession'),
+        content: t('editor.aiPanel.deleteSessionContent'),
         onOk: () => deleteSession(sessionId),
       });
     } else {
@@ -40,28 +42,28 @@ export default function AIPanelHistory() {
   const handleRestoreSession = (sessionId: string) => {
     if (sessionId === currentSessionId) return;
     Modal.confirm({
-      title: '切换会话',
-      content: '当前对话将自动保存，切换到选中的会话？',
+      title: t('editor.aiPanel.switchSession'),
+      content: t('editor.aiPanel.switchSessionContent'),
       onOk: () => loadSession(sessionId),
     });
   };
 
   return (
     <Drawer
-      title="对话历史"
+      title={t('editor.aiPanel.historyTitle')}
       open={historyOpen}
       onClose={toggleHistory}
       size="large"
       extra={
         <Space size={4}>
-          <Button size="small" icon={<PlusOutlined />} onClick={handleNewSession}>新建</Button>
+          <Button size="small" icon={<PlusOutlined />} onClick={handleNewSession}>{t('editor.aiPanel.newBtn')}</Button>
           <Button size="small" icon={<ExportOutlined />} onClick={() => exportHistory(themeId, messages)} />
           <Button size="small" danger icon={<DeleteOutlined />} onClick={clearHistory} />
         </Space>
       }
     >
       {sessions.length === 0 ? (
-        <Empty description="暂无对话历史" />
+        <Empty description={t('editor.aiPanel.emptyHistory')} />
       ) : (
         <List
           dataSource={sessions}
@@ -82,7 +84,7 @@ export default function AIPanelHistory() {
                     disabled={isActive}
                     onClick={() => handleRestoreSession(s.id)}
                   >
-                    {isActive ? '当前' : '恢复'}
+                    {isActive ? t('editor.aiPanel.current') : t('editor.aiPanel.restore')}
                   </Button>,
                   <Button
                     key="del"
@@ -91,7 +93,7 @@ export default function AIPanelHistory() {
                     size="small"
                     onClick={() => handleDeleteSession(s.id)}
                   >
-                    删除
+                    {t('editor.aiPanel.delete')}
                   </Button>,
                 ]}
               >
@@ -103,7 +105,7 @@ export default function AIPanelHistory() {
                   }
                   description={
                     <Text type="secondary" style={{ fontSize: 11 }}>
-                      {s.messageCount} 条消息 · {new Date(s.createdAt).toLocaleString()}
+                      {t('editor.aiPanel.messageCount', { count: s.messageCount })} · {new Date(s.createdAt).toLocaleString()}
                     </Text>
                   }
                 />

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { Button, Space, Typography, Modal, Form, Input, Select, Slider, message } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../../utils/tauri';
 import ThemeFileManager from '../../components/ThemeFileManager';
 import { useEditorStore, editorToThemeMeta } from './store/editorStore';
@@ -21,21 +22,22 @@ import { useAIStore } from '../../store/aiStore';
 const { Text } = Typography;
 
 const LIB_LABELS: Record<string, string> = {
-  'lib-button': '🔘 快捷操作', 'lib-gauge': '📊 数据表盘',
-  'lib-snippet-list': '📝 便签', 'lib-text': '🔤 文本标签', 'lib-shape': '⬛ 形状', 'lib-system-monitor': '📊 系统监控', 'lib-media-control': '🎵 媒体控制', 'lib-quick-action': '⚡ 快捷面板', 'lib-launcher': '🚀 应用启动', 'lib-webview': '🌐 网页视图', 'lib-image': '🖼️ 图片',
+  'lib-button': 'editor.controlLibrary.button', 'lib-gauge': 'editor.controlLibrary.gauge',
+  'lib-snippet-list': 'editor.controlLibrary.snippet-list', 'lib-text': 'editor.controlLibrary.text', 'lib-shape': 'editor.controlLibrary.shape', 'lib-system-monitor': 'editor.controlLibrary.system-monitor', 'lib-media-control': 'editor.controlLibrary.media-control', 'lib-quick-action': 'editor.controlLibrary.quick-action', 'lib-launcher': 'editor.controlLibrary.launcher', 'lib-webview': 'editor.controlLibrary.webview', 'lib-image': 'editor.controlLibrary.image',
 };
 
 function AddPageModal({ open, onOk, onCancel }: {
   open: boolean; onOk: (label: string, mode: 'grid' | 'free') => void; onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   return (
-    <Modal title="添加页面" open={open} onCancel={onCancel} destroyOnHidden width={400}
+    <Modal title={t('editor.addPageModal.title')} open={open} onCancel={onCancel} destroyOnHidden width={400}
       onOk={() => form.validateFields().then(v => { onOk(v.label, v.mode); form.resetFields(); })}>
-      <Form form={form} layout="vertical" initialValues={{ label: '新页面', mode: 'grid' }}>
-        <Form.Item name="label" label="页面名称" rules={[{ required: true }]}><Input /></Form.Item>
-        <Form.Item name="mode" label="布局模式">
-          <Select options={[{ label: '网格布局', value: 'grid' }, { label: '自由布局', value: 'free' }]} />
+      <Form form={form} layout="vertical" initialValues={{ label: t('editor.addPageModal.newPage'), mode: 'grid' }}>
+        <Form.Item name="label" label={t('editor.addPageModal.pageName')} rules={[{ required: true }]}><Input /></Form.Item>
+        <Form.Item name="mode" label={t('editor.addPageModal.layoutMode')}>
+          <Select options={[{ label: t('editor.addPageModal.gridLayout'), value: 'grid' }, { label: t('editor.addPageModal.freeLayout'), value: 'free' }]} />
         </Form.Item>
       </Form>
     </Modal>
@@ -43,6 +45,7 @@ function AddPageModal({ open, onOk, onCancel }: {
 }
 
 export default function Editor() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isNew = !id || id === 'new';
@@ -119,8 +122,8 @@ export default function Editor() {
   };
 
   const handleSave = useCallback(async () => {
-    if (!theme.id) return message.warning('请填写主题 ID');
-    if (!theme.name) return message.warning('请填写主题名称');
+    if (!theme.id) return message.warning(t('editor.messages.needThemeId'));
+    if (!theme.name) return message.warning(t('editor.messages.needThemeName'));
     setSaving(true);
     try {
       // 将 base64 图片迁移到 assets/ 目录，引用改为相对路径
@@ -135,7 +138,7 @@ export default function Editor() {
         coverData = null;
       }
       await tauriInvoke('save_theme', { theme: themeMeta, coverPath: null, coverData });
-      message.success('主题包已保存');
+      message.success(t('editor.messages.saved'));
     } catch (e) { message.error(String(e)); }
     finally { setSaving(false); }
   }, [theme, setSaving]);
@@ -158,13 +161,13 @@ export default function Editor() {
       const { save } = await import('@tauri-apps/plugin-dialog');
       const path = await save({
         defaultPath: `${theme.name || theme.id}_${theme.version || '1.0.0'}.alc`,
-        filters: [{ name: '主题包 (.alc)', extensions: ['alc'] }],
+        filters: [{ name: t('editor.toolbar.alcFilter'), extensions: ['alc'] }],
       });
       if (!path) return;
       setExporting(true);
       try {
         await tauriInvoke('export_theme', { id: theme.id, outputPath: path });
-        message.success('导出成功');
+        message.success(t('editor.messages.exported'));
       } finally {
         setExporting(false);
       }
@@ -176,16 +179,16 @@ export default function Editor() {
   return (
     <div className="editor-root">
       <div className="editor-toolbar">
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/themes')}>返回</Button>
-        <Text strong style={{ fontSize: 14, color: '#e0e0e0' }}>{isNew ? '新建主题包' : `编辑: ${theme.name || theme.id}`}</Text>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/themes')}>{t('editor.toolbar.back')}</Button>
+        <Text strong style={{ fontSize: 14, color: '#e0e0e0' }}>{isNew ? t('editor.toolbar.newTheme') : t('editor.toolbar.editing', { name: theme.name || theme.id })}</Text>
         <Space>
           <Button size="small" icon={orientation === 'portrait' ? <MobileOutlined /> : <TabletOutlined />} onClick={toggleOrientation}>
-            {orientation === 'portrait' ? '竖屏' : '横屏'}
+            {orientation === 'portrait' ? t('editor.toolbar.portrait') : t('editor.toolbar.landscape')}
           </Button>
           <Slider min={50} max={150} value={zoom} onChange={setZoom} style={{ width: 100 }} tooltip={{ formatter: v => `${v}%` }} />
-          <Button icon={<ExportOutlined />} loading={exporting} onClick={handleExport} disabled={!theme.id}>导出</Button>
-          <Button icon={<FolderOutlined />} onClick={() => setFileMgrOpen(true)} disabled={!theme.id}>文件</Button>
-          <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}>保存</Button>
+          <Button icon={<ExportOutlined />} loading={exporting} onClick={handleExport} disabled={!theme.id}>{t('editor.toolbar.export')}</Button>
+          <Button icon={<FolderOutlined />} onClick={() => setFileMgrOpen(true)} disabled={!theme.id}>{t('editor.toolbar.file')}</Button>
+          <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}>{t('editor.toolbar.save')}</Button>
         </Space>
       </div>
 
@@ -200,16 +203,16 @@ export default function Editor() {
           </div>
         </div>
         <DragOverlay dropAnimation={null}>
-          {activeId && LIB_LABELS[activeId] && <div className="drag-preview">{LIB_LABELS[activeId]}</div>}
+          {activeId && LIB_LABELS[activeId] && <div className="drag-preview">{t(LIB_LABELS[activeId])}</div>}
         </DragOverlay>
       </DndContext>
 
       <AIPanel />
       <PageTabs onAddPage={() => setAddPageOpen(true)} />
       <div className="editor-statusbar">
-        <span>控件: {totalWidgets}</span>
-        <span>页面: {theme.pages.length}</span>
-        <span>{orientation === 'portrait' ? '竖屏 9:16' : '横屏 16:9'}</span>
+        <span>{t('editor.statusbar.widgets', { count: totalWidgets })}</span>
+        <span>{t('editor.statusbar.pages', { count: theme.pages.length })}</span>
+        <span>{orientation === 'portrait' ? t('editor.statusbar.portrait') : t('editor.statusbar.landscape')}</span>
       </div>
 
       <AddPageModal open={addPageOpen} onOk={(label, mode) => { addPage(label, mode); setAddPageOpen(false); }} onCancel={() => setAddPageOpen(false)} />

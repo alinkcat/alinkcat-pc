@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Card,
   Button,
@@ -43,6 +44,7 @@ function saveSnippets(snippets: Snippet[]) {
 }
 
 export default function Snippets() {
+  const { t } = useTranslation();
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [filterTheme, setFilterTheme] = useState<string>('');
   const [searchText, setSearchText] = useState('');
@@ -101,7 +103,7 @@ export default function Snippets() {
       setSnippets(updated);
       saveSnippets(updated);
       setModalOpen(false);
-      message.success(editing ? '已更新' : '已添加');
+      message.success(editing ? t('snippets.updated') : t('snippets.added'));
     } catch {
       // validation failed
     }
@@ -111,7 +113,7 @@ export default function Snippets() {
     const updated = snippets.filter((s) => s.id !== id);
     setSnippets(updated);
     saveSnippets(updated);
-    message.success('已删除');
+    message.success(t('snippets.deleted'));
   };
 
   const handleExport = () => {
@@ -124,7 +126,7 @@ export default function Snippets() {
     a.download = 'snippets.json';
     a.click();
     URL.revokeObjectURL(url);
-    message.success('导出成功');
+    message.success(t('snippets.exportSuccess'));
   };
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,9 +143,9 @@ export default function Snippets() {
         const updated = [...snippets, ...valid];
         setSnippets(updated);
         saveSnippets(updated);
-        message.success(`导入 ${valid.length} 条片段`);
+        message.success(t('snippets.importSuccess', { count: valid.length }));
       } catch {
-        message.error('导入失败：文件格式无效');
+        message.error(t('snippets.importFailed'));
       }
     };
     reader.readAsText(file);
@@ -155,18 +157,18 @@ export default function Snippets() {
       <div className="page-header">
         <Flex justify="space-between" align="flex-start" wrap="wrap" gap={12}>
           <div>
-            <h1 className="page-title">快捷输入</h1>
-            <p className="page-subtitle">管理快捷输入片段和模板</p>
+            <h1 className="page-title">{t('snippets.title')}</h1>
+            <p className="page-subtitle">{t('snippets.subtitle')}</p>
           </div>
           <Space>
             <Button icon={<ImportOutlined />} onClick={() => importRef.current?.click()}>
-              导入
+              {t('snippets.import')}
             </Button>
             <Button icon={<ExportOutlined />} onClick={handleExport} disabled={snippets.length === 0}>
-              导出
+              {t('snippets.export')}
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
-              新增片段
+              {t('snippets.add')}
             </Button>
           </Space>
         </Flex>
@@ -174,21 +176,21 @@ export default function Snippets() {
 
       <div className="snippet-toolbar">
         <Input
-          placeholder="搜索标签或内容..."
+          placeholder={t('snippets.searchPlaceholder')}
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           allowClear
         />
         <Select
-          placeholder="按主题筛选"
+          placeholder={t('snippets.filterTheme')}
           value={filterTheme || undefined}
           onChange={(v) => setFilterTheme(v || '')}
           allowClear
           options={themeIds.map((id) => ({ label: id, value: id }))}
         />
         <Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto' }}>
-          共 {filtered.length} 条
+          {t('snippets.totalCount', { count: filtered.length })}
         </Text>
       </div>
 
@@ -203,12 +205,12 @@ export default function Snippets() {
       {filtered.length === 0 ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={snippets.length === 0 ? '暂无快捷输入片段' : '无匹配结果'}
+          description={snippets.length === 0 ? t('snippets.empty') : t('snippets.noMatch')}
           style={{ padding: '80px 0' }}
         >
           {snippets.length === 0 && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openAdd}>
-              新增片段
+              {t('snippets.add')}
             </Button>
           )}
         </Empty>
@@ -240,7 +242,7 @@ export default function Snippets() {
                   </Paragraph>
                 </div>
                 <Space size={0} style={{ flexShrink: 0 }}>
-                  <Tooltip title="编辑">
+                  <Tooltip title={t('snippets.edit')}>
                     <Button
                       type="text"
                       size="small"
@@ -249,12 +251,12 @@ export default function Snippets() {
                     />
                   </Tooltip>
                   <Popconfirm
-                    title="确定删除该片段？"
+                    title={t('snippets.deleteConfirm')}
                     onConfirm={() => handleDelete(snippet.id)}
-                    okText="删除"
-                    cancelText="取消"
+                    okText={t('snippets.deleteOk')}
+                    cancelText={t('snippets.deleteCancel')}
                   >
-                    <Tooltip title="删除">
+                    <Tooltip title={t('snippets.delete')}>
                       <Button
                         type="text"
                         size="small"
@@ -271,31 +273,31 @@ export default function Snippets() {
       )}
 
       <Modal
-        title={editing ? '编辑片段' : '新增片段'}
+        title={editing ? t('snippets.editSnippet') : t('snippets.addSnippet')}
         open={modalOpen}
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
-        okText="保存"
-        cancelText="取消"
+        okText={t('snippets.save')}
+        cancelText={t('snippets.cancel')}
         destroyOnHidden
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
             name="label"
-            label="标签"
-            rules={[{ required: true, message: '请输入标签' }]}
+            label={t('snippets.label')}
+            rules={[{ required: true, message: t('snippets.labelRequired') }]}
           >
-            <Input placeholder="例如：邮箱签名" />
+            <Input placeholder={t('snippets.labelPlaceholder')} />
           </Form.Item>
           <Form.Item
             name="content"
-            label="内容"
-            rules={[{ required: true, message: '请输入内容' }]}
+            label={t('snippets.content')}
+            rules={[{ required: true, message: t('snippets.contentRequired') }]}
           >
-            <Input.TextArea rows={4} placeholder="要粘贴的文本内容" />
+            <Input.TextArea rows={4} placeholder={t('snippets.contentPlaceholder')} />
           </Form.Item>
-          <Form.Item name="theme_id" label="所属主题（可选）">
-            <Input placeholder="关联的主题 ID，留空表示全局" />
+          <Form.Item name="theme_id" label={t('snippets.themeId')}>
+            <Input placeholder={t('snippets.themeIdPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>

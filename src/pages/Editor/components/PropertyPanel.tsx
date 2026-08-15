@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Form, Input, Select, InputNumber, Tag, Button, Slider, Radio, Switch, message } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useEditorStore } from '../store/editorStore';
@@ -7,7 +8,6 @@ import { Typography } from 'antd';
 import { tauriInvoke } from '../../../utils/tauri';
 
 const { Text } = Typography;
-const TYPE_LABELS: Record<string, string> = { button: '快捷操作', gauge: '数据表盘', 'snippet-list': '便签', text: '文本标签', shape: '形状', 'system-monitor': '系统监控', 'quick-action': '快捷面板', launcher: '应用启动', 'media-control': '媒体控制', webview: '网页视图', image: '图片', clock: '时钟', date: '日期', calendar: '日历' };
 
 function ColorInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
@@ -20,56 +20,63 @@ function ColorInput({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 function SnippetEditor({ value, onChange }: { value?: SnippetItem[]; onChange?: (v: SnippetItem[]) => void }) {
+  const { t } = useTranslation();
   const items = value || [];
   return (
     <div className="pp-snippet-editor">
       {items.map((item, idx) => (
         <div key={item.id} className="pp-snippet-row">
-          <Input size="small" placeholder="标签" value={item.label} style={{ width: 80 }}
+          <Input size="small" placeholder={t('editor.propertyPanel.snippet.label')} value={item.label} style={{ width: 80 }}
             onChange={e => onChange?.(items.map((s, i) => i === idx ? { ...s, label: e.target.value } : s))} />
-          <Input size="small" placeholder="内容" value={item.content}
+          <Input size="small" placeholder={t('editor.propertyPanel.snippet.content')} value={item.content}
             onChange={e => onChange?.(items.map((s, i) => i === idx ? { ...s, content: e.target.value } : s))} />
           <Button size="small" type="text" danger icon={<DeleteOutlined />}
             onClick={() => onChange?.(items.filter((_, i) => i !== idx))} />
         </div>
       ))}
       <Button size="small" type="dashed" icon={<PlusOutlined />} block
-        onClick={() => onChange?.([...items, { id: `s-${Date.now()}`, label: '', content: '' }])}>添加便签条目</Button>
+        onClick={() => onChange?.([...items, { id: `s-${Date.now()}`, label: '', content: '' }])}>{t('editor.propertyPanel.snippet.addItem')}</Button>
     </div>
   );
 }
 
 function CommonStyleFields({ widget, up }: { widget: Record<string, unknown>; up: (k: string, v: unknown) => void }) {
+  const { t } = useTranslation();
   return (
     <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-      <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>样式</Text>
-      <Form.Item label="背景颜色" style={{ marginBottom: 8 }}>
+      <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.common.style')}</Text>
+      <Form.Item label={t('editor.propertyPanel.common.backgroundColor')} style={{ marginBottom: 8 }}>
         <ColorInput value={(widget.backgroundColor as string) || '#f0f2f5'} onChange={v => up('backgroundColor', v)} />
       </Form.Item>
-      <Form.Item label="背景透明度" style={{ marginBottom: 8 }}>
+      <Form.Item label={t('editor.propertyPanel.common.backgroundOpacity')} style={{ marginBottom: 8 }}>
         <Slider min={0} max={100} value={(widget.backgroundOpacity as number) ?? 100} onChange={v => up('backgroundOpacity', v)} />
       </Form.Item>
-      <Form.Item label="圆角" style={{ marginBottom: 8 }}>
+      <Form.Item label={t('editor.propertyPanel.common.borderRadius')} style={{ marginBottom: 8 }}>
         <Slider min={0} max={20} value={(widget.borderRadius as number) ?? 6} onChange={v => up('borderRadius', v)} />
       </Form.Item>
-      <Form.Item label="文字颜色" style={{ marginBottom: 8 }}>
+      <Form.Item label={t('editor.propertyPanel.common.textColor')} style={{ marginBottom: 8 }}>
         <ColorInput value={(widget.textColor as string) || '#333333'} onChange={v => up('textColor', v)} />
       </Form.Item>
-      <Form.Item label="文字大小" style={{ marginBottom: 8 }}>
+      <Form.Item label={t('editor.propertyPanel.common.fontSize')} style={{ marginBottom: 8 }}>
         <Slider min={12} max={48} value={(widget.fontSize as number) ?? 12} onChange={v => up('fontSize', v)} />
       </Form.Item>
-      <Form.Item label="文字粗细" style={{ marginBottom: 0 }}>
+      <Form.Item label={t('editor.propertyPanel.common.fontWeight')} style={{ marginBottom: 0 }}>
         <Select value={(widget.fontWeight as string) || 'normal'} onChange={v => up('fontWeight', v)}
-          options={[{ label: '正常', value: 'normal' }, { label: '加粗', value: 'bold' }, { label: '更粗', value: 'bolder' }]} />
+          options={[
+            { label: t('editor.propertyPanel.common.fontWeightNormal'), value: 'normal' },
+            { label: t('editor.propertyPanel.common.fontWeightBold'), value: 'bold' },
+            { label: t('editor.propertyPanel.common.fontWeightBolder'), value: 'bolder' },
+          ]} />
       </Form.Item>
     </div>
   );
 }
 
 function PageProperties() {
+  const { t } = useTranslation();
   const { theme, activePageIdx, updatePage } = useEditorStore();
   const page = theme.pages[activePageIdx];
-  if (!page) return <Text style={{ color: '#888', fontSize: 12 }}>请先添加页面</Text>;
+  if (!page) return <Text style={{ color: '#888', fontSize: 12 }}>{t('editor.propertyPanel.page.noPage')}</Text>;
 
   const handleBgUpload = () => {
     const input = document.createElement('input');
@@ -86,42 +93,47 @@ function PageProperties() {
 
   return (
     <Form layout="vertical" size="small">
-      <Form.Item label="页面名称"><Input value={page.label} onChange={e => updatePage(activePageIdx, { label: e.target.value })} /></Form.Item>
-      <Form.Item label="布局模式">
+      <Form.Item label={t('editor.propertyPanel.page.pageName')}><Input value={page.label} onChange={e => updatePage(activePageIdx, { label: e.target.value })} /></Form.Item>
+      <Form.Item label={t('editor.propertyPanel.page.layoutMode')}>
         <Select value={page.layoutMode} onChange={v => updatePage(activePageIdx, { layoutMode: v })}
-          options={[{ label: '网格布局', value: 'grid' }, { label: '自由布局', value: 'free' }]} />
+          options={[{ label: t('editor.propertyPanel.page.gridLayout'), value: 'grid' }, { label: t('editor.propertyPanel.page.freeLayout'), value: 'free' }]} />
       </Form.Item>
       {page.layoutMode === 'grid' && (
         <div style={{ display: 'flex', gap: 12 }}>
-          <Form.Item label="列数"><InputNumber value={page.columns} min={2} max={8} onChange={v => updatePage(activePageIdx, { columns: v ?? 4 })} /></Form.Item>
-          <Form.Item label="行数"><InputNumber value={page.rows} min={1} max={10} onChange={v => updatePage(activePageIdx, { rows: v ?? 6 })} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.page.columns')}><InputNumber value={page.columns} min={2} max={8} onChange={v => updatePage(activePageIdx, { columns: v ?? 4 })} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.page.rows')}><InputNumber value={page.rows} min={1} max={10} onChange={v => updatePage(activePageIdx, { rows: v ?? 6 })} /></Form.Item>
         </div>
       )}
       {page.layoutMode === 'free' && (
         <Text style={{ color: '#888', fontSize: 11, display: 'block', marginBottom: 8 }}>
-          自由布局：控件可放置在任意位置，显示十字居中参考线
+          {t('editor.propertyPanel.page.freeLayoutDesc')}
         </Text>
       )}
       <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-        <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>页面背景</Text>
-        <Form.Item label="背景颜色" style={{ marginBottom: 8 }}>
+        <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.page.pageBackground')}</Text>
+        <Form.Item label={t('editor.propertyPanel.page.backgroundColor')} style={{ marginBottom: 8 }}>
           <ColorInput value={page.backgroundColor || '#ffffff'} onChange={v => updatePage(activePageIdx, { backgroundColor: v })} />
         </Form.Item>
-        <Form.Item label="背景图片" style={{ marginBottom: 8 }}>
+        <Form.Item label={t('editor.propertyPanel.page.backgroundImage')} style={{ marginBottom: 8 }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <Button size="small" onClick={handleBgUpload}>上传</Button>
+            <Button size="small" onClick={handleBgUpload}>{t('editor.propertyPanel.page.upload')}</Button>
             {page.backgroundImage && <>
-              <Tag color="blue">已设置</Tag>
-              <Button size="small" type="link" danger onClick={() => updatePage(activePageIdx, { backgroundImage: undefined })}>清除</Button>
+              <Tag color="blue">{t('editor.propertyPanel.page.set')}</Tag>
+              <Button size="small" type="link" danger onClick={() => updatePage(activePageIdx, { backgroundImage: undefined })}>{t('editor.propertyPanel.page.clear')}</Button>
             </>}
           </div>
         </Form.Item>
         {page.backgroundImage && (<>
-          <Form.Item label="背景模式" style={{ marginBottom: 8 }}>
+          <Form.Item label={t('editor.propertyPanel.page.backgroundMode')} style={{ marginBottom: 8 }}>
             <Select value={page.backgroundMode || 'cover'} onChange={v => updatePage(activePageIdx, { backgroundMode: v })}
-              options={[{ label: '填充', value: 'cover' }, { label: '适应', value: 'contain' }, { label: '拉伸', value: 'stretch' }, { label: '平铺', value: 'repeat' }]} />
+              options={[
+                { label: t('editor.propertyPanel.page.modeCover'), value: 'cover' },
+                { label: t('editor.propertyPanel.page.modeContain'), value: 'contain' },
+                { label: t('editor.propertyPanel.page.modeStretch'), value: 'stretch' },
+                { label: t('editor.propertyPanel.page.modeRepeat'), value: 'repeat' },
+              ]} />
           </Form.Item>
-          <Form.Item label="透明度" style={{ marginBottom: 0 }}>
+          <Form.Item label={t('editor.propertyPanel.page.opacity')} style={{ marginBottom: 0 }}>
             <Slider min={0} max={100} value={page.backgroundOpacity ?? 100} onChange={v => updatePage(activePageIdx, { backgroundOpacity: v })} />
           </Form.Item>
         </>)}
@@ -131,6 +143,7 @@ function PageProperties() {
 }
 
 function WidgetProperties() {
+  const { t } = useTranslation();
   const { theme, activePageIdx, selectedWidgetId, updateWidget } = useEditorStore();
   const page = theme.pages[activePageIdx];
   const widget = page?.widgets.find(w => w.id === selectedWidgetId);
@@ -154,22 +167,22 @@ function WidgetProperties() {
 
   return (
     <Form layout="vertical" size="small">
-      <Form.Item label="类型"><Tag color="blue">{TYPE_LABELS[widget.type] || '未知'}</Tag></Form.Item>
-      <Form.Item label="标签"><Input value={widget.label} onChange={e => up('label', e.target.value)} /></Form.Item>
+      <Form.Item label={t('editor.propertyPanel.widget.type')}><Tag color="blue">{t(`editor.controlLibrary.${widget.type}`) || t('editor.propertyPanel.widget.unknown')}</Tag></Form.Item>
+      <Form.Item label={t('editor.propertyPanel.widget.label')}><Input value={widget.label} onChange={e => up('label', e.target.value)} /></Form.Item>
 
       {isGrid ? (
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <Form.Item label="列" style={{ marginBottom: 0, flex: 1 }}><InputNumber value={widget.gridCol} min={0} max={page!.columns - 1} size="small" style={{ width: '100%' }} onChange={v => up('gridCol', v ?? 0)} /></Form.Item>
-          <Form.Item label="行" style={{ marginBottom: 0, flex: 1 }}><InputNumber value={widget.gridRow} min={0} max={page!.rows - 1} size="small" style={{ width: '100%' }} onChange={v => up('gridRow', v ?? 0)} /></Form.Item>
-          <Form.Item label="宽" style={{ marginBottom: 0, flex: 1 }}><InputNumber value={widget.gridW} min={1} max={page!.columns} size="small" style={{ width: '100%' }} onChange={v => up('gridW', v ?? 1)} /></Form.Item>
-          <Form.Item label="高" style={{ marginBottom: 0, flex: 1 }}><InputNumber value={widget.gridH} min={1} max={page!.rows} size="small" style={{ width: '100%' }} onChange={v => up('gridH', v ?? 1)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.gridCol')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={widget.gridCol} min={0} max={page!.columns - 1} size="small" style={{ width: '100%' }} onChange={v => up('gridCol', v ?? 0)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.gridRow')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={widget.gridRow} min={0} max={page!.rows - 1} size="small" style={{ width: '100%' }} onChange={v => up('gridRow', v ?? 0)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.gridW')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={widget.gridW} min={1} max={page!.columns} size="small" style={{ width: '100%' }} onChange={v => up('gridW', v ?? 1)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.gridH')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={widget.gridH} min={1} max={page!.rows} size="small" style={{ width: '100%' }} onChange={v => up('gridH', v ?? 1)} /></Form.Item>
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <Form.Item label="X%" style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeX)} min={0} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeX', v ?? 0)} /></Form.Item>
-          <Form.Item label="Y%" style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeY)} min={0} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeY', v ?? 0)} /></Form.Item>
-          <Form.Item label="W%" style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeW)} min={5} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeW', v ?? 30)} /></Form.Item>
-          <Form.Item label="H%" style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeH)} min={5} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeH', v ?? 15)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.freeX')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeX)} min={0} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeX', v ?? 0)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.freeY')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeY)} min={0} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeY', v ?? 0)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.freeW')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeW)} min={5} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeW', v ?? 30)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.freeH')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeH)} min={5} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeH', v ?? 15)} /></Form.Item>
         </div>
       )}
 
@@ -177,186 +190,210 @@ function WidgetProperties() {
 
       {widget.type === 'button' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>快捷操作</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.button.section')}</Text>
         </div>
-        <Form.Item label="图标"><Input value={(v.icon as string) || ''} onChange={e => up('icon', e.target.value)} style={{ width: 80 }} /></Form.Item>
-        <Form.Item label="动作类型">
+        <Form.Item label={t('editor.propertyPanel.button.icon')}><Input value={(v.icon as string) || ''} onChange={e => up('icon', e.target.value)} style={{ width: 80 }} /></Form.Item>
+        <Form.Item label={t('editor.propertyPanel.button.actionType')}>
           <Select value={(v.action as Record<string, unknown>)?.type as string || 'keyboard'}
             onChange={val => up('action', { type: val, keys: [], path: '', url: '' })}
-            options={[{ label: '键盘按键', value: 'keyboard' }, { label: '打开应用', value: 'open' }, { label: '打开 URL', value: 'url' }]} />
+            options={[
+              { label: t('editor.propertyPanel.button.keyboard'), value: 'keyboard' },
+              { label: t('editor.propertyPanel.button.openApp'), value: 'open' },
+              { label: t('editor.propertyPanel.button.openUrl'), value: 'url' },
+            ]} />
         </Form.Item>
         {((v.action as Record<string, unknown>)?.type === 'keyboard') && (
-          <Form.Item label="按键 (逗号分隔)"><Input value={((v.action as Record<string, unknown>)?.keys as string[])?.join(',') || ''}
+          <Form.Item label={t('editor.propertyPanel.button.keys')}><Input value={((v.action as Record<string, unknown>)?.keys as string[])?.join(',') || ''}
             onChange={e => up('action', { ...(v.action as Record<string, unknown>), keys: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} placeholder="ctrl,c" /></Form.Item>
         )}
         {((v.action as Record<string, unknown>)?.type === 'open') && (
-          <Form.Item label="应用路径"><Input value={(v.action as Record<string, unknown>)?.path as string || ''}
+          <Form.Item label={t('editor.propertyPanel.button.path')}><Input value={(v.action as Record<string, unknown>)?.path as string || ''}
             onChange={e => up('action', { ...(v.action as Record<string, unknown>), path: e.target.value })} placeholder="notepad" /></Form.Item>
         )}
         {((v.action as Record<string, unknown>)?.type === 'url') && (
-          <Form.Item label="URL"><Input value={(v.action as Record<string, unknown>)?.url as string || ''}
+          <Form.Item label={t('editor.propertyPanel.button.urlLabel')}><Input value={(v.action as Record<string, unknown>)?.url as string || ''}
             onChange={e => up('action', { ...(v.action as Record<string, unknown>), url: e.target.value })} placeholder="https://..." /></Form.Item>
         )}
       </>)}
 
       {widget.type === 'gauge' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>数据表盘</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.gauge.section')}</Text>
         </div>
-        <Form.Item label="数据源">
+        <Form.Item label={t('editor.propertyPanel.gauge.dataSource')}>
           <Select value={(v.dataSource as string) || 'system.cpu.usage'} onChange={val => up('dataSource', val)}
             options={[
-              { label: 'CPU 使用率', value: 'system.cpu.usage' },
-              { label: '内存使用率', value: 'system.memory.usage' },
-              { label: '磁盘使用率', value: 'system.disk.usage' },
-              { label: '网络上传', value: 'system.network.upload' },
-              { label: '网络下载', value: 'system.network.download' },
-              { label: '运行时间', value: 'system.uptime' },
+              { label: t('editor.propertyPanel.gauge.cpuUsage'), value: 'system.cpu.usage' },
+              { label: t('editor.propertyPanel.gauge.memoryUsage'), value: 'system.memory.usage' },
+              { label: t('editor.propertyPanel.gauge.diskUsage'), value: 'system.disk.usage' },
+              { label: t('editor.propertyPanel.gauge.networkUpload'), value: 'system.network.upload' },
+              { label: t('editor.propertyPanel.gauge.networkDownload'), value: 'system.network.download' },
+              { label: t('editor.propertyPanel.gauge.uptime'), value: 'system.uptime' },
             ]} />
         </Form.Item>
-        <Form.Item label="显示样式">
+        <Form.Item label={t('editor.propertyPanel.gauge.displayStyle')}>
           <Select value={(v.gaugeStyle as string) || 'ring'} onChange={val => up('gaugeStyle', val)}
-            options={[{ label: '环形进度', value: 'ring' }, { label: '数字显示', value: 'number' }, { label: '水平进度条', value: 'bar' }]} />
+            options={[
+              { label: t('editor.propertyPanel.gauge.ring'), value: 'ring' },
+              { label: t('editor.propertyPanel.gauge.number'), value: 'number' },
+              { label: t('editor.propertyPanel.gauge.bar'), value: 'bar' },
+            ]} />
         </Form.Item>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Form.Item label="最小值" style={{ flex: 1, marginBottom: 8 }}><InputNumber value={(v.minValue as number) ?? 0} style={{ width: '100%' }} onChange={val => up('minValue', val ?? 0)} /></Form.Item>
-          <Form.Item label="最大值" style={{ flex: 1, marginBottom: 8 }}><InputNumber value={(v.maxValue as number) ?? 100} style={{ width: '100%' }} onChange={val => up('maxValue', val ?? 100)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.gauge.minValue')} style={{ flex: 1, marginBottom: 8 }}><InputNumber value={(v.minValue as number) ?? 0} style={{ width: '100%' }} onChange={val => up('minValue', val ?? 0)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.gauge.maxValue')} style={{ flex: 1, marginBottom: 8 }}><InputNumber value={(v.maxValue as number) ?? 100} style={{ width: '100%' }} onChange={val => up('maxValue', val ?? 100)} /></Form.Item>
         </div>
-        <Form.Item label="单位"><Input value={(v.unit as string) || ''} onChange={e => up('unit', e.target.value)} style={{ width: 80 }} placeholder="%" /></Form.Item>
-        <Form.Item label="环粗细"><Slider min={1} max={6} value={(v.ringWidth as number) ?? 3} onChange={val => up('ringWidth', val)} /></Form.Item>
-        <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 4 }}>环颜色（按数值分段）</Text>
+        <Form.Item label={t('editor.propertyPanel.gauge.unit')}><Input value={(v.unit as string) || ''} onChange={e => up('unit', e.target.value)} style={{ width: 80 }} placeholder="%" /></Form.Item>
+        <Form.Item label={t('editor.propertyPanel.gauge.ringWidth')}><Slider min={1} max={6} value={(v.ringWidth as number) ?? 3} onChange={val => up('ringWidth', val)} /></Form.Item>
+        <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 4 }}>{t('editor.propertyPanel.gauge.ringColors')}</Text>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <div style={{ flex: 1 }}><Text style={{ fontSize: 10, color: '#888' }}>低</Text><ColorInput value={(v.ringColorLow as string) || '#52c41a'} onChange={val => up('ringColorLow', val)} /></div>
-          <div style={{ flex: 1 }}><Text style={{ fontSize: 10, color: '#888' }}>中</Text><ColorInput value={(v.ringColorMid as string) || '#faad14'} onChange={val => up('ringColorMid', val)} /></div>
-          <div style={{ flex: 1 }}><Text style={{ fontSize: 10, color: '#888' }}>高</Text><ColorInput value={(v.ringColorHigh as string) || '#ff4d4f'} onChange={val => up('ringColorHigh', val)} /></div>
+          <div style={{ flex: 1 }}><Text style={{ fontSize: 10, color: '#888' }}>{t('editor.propertyPanel.gauge.low')}</Text><ColorInput value={(v.ringColorLow as string) || '#52c41a'} onChange={val => up('ringColorLow', val)} /></div>
+          <div style={{ flex: 1 }}><Text style={{ fontSize: 10, color: '#888' }}>{t('editor.propertyPanel.gauge.mid')}</Text><ColorInput value={(v.ringColorMid as string) || '#faad14'} onChange={val => up('ringColorMid', val)} /></div>
+          <div style={{ flex: 1 }}><Text style={{ fontSize: 10, color: '#888' }}>{t('editor.propertyPanel.gauge.high')}</Text><ColorInput value={(v.ringColorHigh as string) || '#ff4d4f'} onChange={val => up('ringColorHigh', val)} /></div>
         </div>
       </>)}
 
       {widget.type === 'snippet-list' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>便签</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.snippet.section')}</Text>
         </div>
-        <Form.Item label="组件模式">
+        <Form.Item label={t('editor.propertyPanel.snippet.mode')}>
           <Select value={(v.mode as string) || 'note'} onChange={val => up('mode', val)}
             options={[
-              { label: '普通便签', value: 'note' },
-              { label: '快捷输入', value: 'snippet' },
+              { label: t('editor.propertyPanel.snippet.note'), value: 'note' },
+              { label: t('editor.propertyPanel.snippet.snippet'), value: 'snippet' },
             ]} />
         </Form.Item>
-        <Form.Item label="便签列表"><SnippetEditor value={(v.snippets as SnippetItem[]) || []} onChange={val => up('snippets', val)} /></Form.Item>
+        <Form.Item label={t('editor.propertyPanel.snippet.list')}><SnippetEditor value={(v.snippets as SnippetItem[]) || []} onChange={val => up('snippets', val)} /></Form.Item>
       </>)}
 
       {widget.type === 'image' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>图片</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.image.section')}</Text>
         </div>
-        <Form.Item label="图片">
+        <Form.Item label={t('editor.propertyPanel.image.image')}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <Button size="small" onClick={handleImageUpload}>上传图片</Button>
-            {(v.src as string) && <Tag color="blue">已设置</Tag>}
+            <Button size="small" onClick={handleImageUpload}>{t('editor.propertyPanel.image.upload')}</Button>
+            {(v.src as string) && <Tag color="blue">{t('editor.propertyPanel.image.set')}</Tag>}
           </div>
         </Form.Item>
-        <Form.Item label="缩放模式">
+        <Form.Item label={t('editor.propertyPanel.image.objectFit')}>
           <Select value={(v.objectFit as string) || 'cover'} onChange={val => up('objectFit', val)}
-            options={[{ label: '填充', value: 'cover' }, { label: '适应', value: 'contain' }, { label: '拉伸', value: 'fill' }]} />
+            options={[
+              { label: t('editor.propertyPanel.image.cover'), value: 'cover' },
+              { label: t('editor.propertyPanel.image.contain'), value: 'contain' },
+              { label: t('editor.propertyPanel.image.fill'), value: 'fill' },
+            ]} />
         </Form.Item>
       </>)}
 
       {widget.type === 'text' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>文本标签</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.text.section')}</Text>
         </div>
-        <Form.Item label="文本内容">
-          <Input.TextArea value={(v.content as string) || ''} onChange={e => up('content', e.target.value)} rows={3} placeholder="输入文字内容" />
+        <Form.Item label={t('editor.propertyPanel.text.content')}>
+          <Input.TextArea value={(v.content as string) || ''} onChange={e => up('content', e.target.value)} rows={3} placeholder={t('editor.propertyPanel.text.contentPlaceholder')} />
         </Form.Item>
-        <Form.Item label="字体大小">
+        <Form.Item label={t('editor.propertyPanel.text.fontSize')}>
           <Slider min={12} max={72} value={(v.fontSize as number) ?? 16} onChange={val => up('fontSize', val)} />
         </Form.Item>
-        <Form.Item label="字体粗细">
+        <Form.Item label={t('editor.propertyPanel.text.fontWeight')}>
           <Select value={(v.fontWeight as string) || 'normal'} onChange={val => up('fontWeight', val)}
-            options={[{ label: '常规', value: 'normal' }, { label: '加粗', value: 'bold' }, { label: '更粗', value: 'bolder' }, { label: '更细', value: 'lighter' }]} />
+            options={[
+              { label: t('editor.propertyPanel.text.fontWeightNormal'), value: 'normal' },
+              { label: t('editor.propertyPanel.text.fontWeightBold'), value: 'bold' },
+              { label: t('editor.propertyPanel.text.fontWeightBolder'), value: 'bolder' },
+              { label: t('editor.propertyPanel.text.fontWeightLighter'), value: 'lighter' },
+            ]} />
         </Form.Item>
-        <Form.Item label="字体颜色">
+        <Form.Item label={t('editor.propertyPanel.text.color')}>
           <ColorInput value={(v.color as string) || '#333333'} onChange={val => up('color', val)} />
         </Form.Item>
-        <Form.Item label="对齐方式">
+        <Form.Item label={t('editor.propertyPanel.text.textAlign')}>
           <Select value={(v.textAlign as string) || 'left'} onChange={val => up('textAlign', val)}
-            options={[{ label: '左对齐', value: 'left' }, { label: '居中', value: 'center' }, { label: '右对齐', value: 'right' }]} />
+            options={[
+              { label: t('editor.propertyPanel.text.alignLeft'), value: 'left' },
+              { label: t('editor.propertyPanel.text.alignCenter'), value: 'center' },
+              { label: t('editor.propertyPanel.text.alignRight'), value: 'right' },
+            ]} />
         </Form.Item>
-        <Form.Item label="背景颜色">
+        <Form.Item label={t('editor.propertyPanel.text.backgroundColor')}>
           <ColorInput value={(v.backgroundColor as string) || 'transparent'} onChange={val => up('backgroundColor', val)} />
         </Form.Item>
-        <Form.Item label="背景透明度">
+        <Form.Item label={t('editor.propertyPanel.text.backgroundOpacity')}>
           <Slider min={0} max={100} value={(v.backgroundOpacity as number) ?? 0} onChange={val => up('backgroundOpacity', val)} />
         </Form.Item>
-        <Form.Item label="内边距">
+        <Form.Item label={t('editor.propertyPanel.text.padding')}>
           <Slider min={0} max={20} value={(v.padding as number) ?? 4} onChange={val => up('padding', val)} />
         </Form.Item>
-        <Form.Item label="圆角">
+        <Form.Item label={t('editor.propertyPanel.text.borderRadius')}>
           <Slider min={0} max={20} value={(v.borderRadius as number) ?? 0} onChange={val => up('borderRadius', val)} />
         </Form.Item>
       </>)}
 
       {widget.type === 'shape' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>形状</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.shape.section')}</Text>
         </div>
-        <Form.Item label="形状类型">
+        <Form.Item label={t('editor.propertyPanel.shape.shapeType')}>
           <Select value={(v.shapeType as string) || 'rect'} onChange={val => up('shapeType', val)}
             options={[
-              { label: '矩形', value: 'rect' },
-              { label: '圆角矩形', value: 'rounded-rect' },
-              { label: '圆形', value: 'circle' },
-              { label: '三角形', value: 'triangle' },
-              { label: '菱形', value: 'diamond' },
+              { label: t('editor.propertyPanel.shape.rect'), value: 'rect' },
+              { label: t('editor.propertyPanel.shape.roundedRect'), value: 'rounded-rect' },
+              { label: t('editor.propertyPanel.shape.circle'), value: 'circle' },
+              { label: t('editor.propertyPanel.shape.triangle'), value: 'triangle' },
+              { label: t('editor.propertyPanel.shape.diamond'), value: 'diamond' },
             ]} />
         </Form.Item>
-        <Form.Item label="填充类型">
+        <Form.Item label={t('editor.propertyPanel.shape.fillType')}>
           <Select value={(v.fillType as string) || 'solid'} onChange={val => up('fillType', val)}
-            options={[{ label: '纯色', value: 'solid' }, { label: '渐变', value: 'gradient' }]} />
+            options={[
+              { label: t('editor.propertyPanel.shape.solid'), value: 'solid' },
+              { label: t('editor.propertyPanel.shape.gradient'), value: 'gradient' },
+            ]} />
         </Form.Item>
         {(v.fillType as string) === 'solid' ? (
-          <Form.Item label="填充颜色">
+          <Form.Item label={t('editor.propertyPanel.shape.fillColor')}>
             <ColorInput value={(v.fillColor as string) || '#d9d9d9'} onChange={val => up('fillColor', val)} />
           </Form.Item>
         ) : (<>
-          <Form.Item label="渐变起始色">
+          <Form.Item label={t('editor.propertyPanel.shape.gradientStart')}>
             <ColorInput value={(v.gradientStart as string) || '#4F6EF7'} onChange={val => up('gradientStart', val)} />
           </Form.Item>
-          <Form.Item label="渐变结束色">
+          <Form.Item label={t('editor.propertyPanel.shape.gradientEnd')}>
             <ColorInput value={(v.gradientEnd as string) || '#52c41a'} onChange={val => up('gradientEnd', val)} />
           </Form.Item>
-          <Form.Item label="渐变角度">
+          <Form.Item label={t('editor.propertyPanel.shape.gradientAngle')}>
             <Slider min={0} max={360} value={(v.gradientAngle as number) ?? 90} onChange={val => up('gradientAngle', val)} />
           </Form.Item>
         </>)}
-        <Form.Item label="边框颜色">
+        <Form.Item label={t('editor.propertyPanel.shape.borderColor')}>
           <ColorInput value={(v.borderColor as string) || 'transparent'} onChange={val => up('borderColor', val)} />
         </Form.Item>
-        <Form.Item label="边框宽度">
+        <Form.Item label={t('editor.propertyPanel.shape.borderWidth')}>
           <Slider min={0} max={10} value={(v.borderWidth as number) ?? 0} onChange={val => up('borderWidth', val)} />
         </Form.Item>
         {(v.shapeType as string) === 'rounded-rect' && (
-          <Form.Item label="圆角大小">
+          <Form.Item label={t('editor.propertyPanel.shape.borderRadius')}>
             <Slider min={0} max={50} value={(v.borderRadius as number) ?? 0} onChange={val => up('borderRadius', val)} />
           </Form.Item>
         )}
-        <Form.Item label="整体透明度">
+        <Form.Item label={t('editor.propertyPanel.shape.opacity')}>
           <Slider min={0} max={100} value={(v.opacity as number) ?? 100} onChange={val => up('opacity', val)} />
         </Form.Item>
       </>)}
 
       {widget.type === 'webview' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>网页视图</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.webview.section')}</Text>
         </div>
 
-        <Form.Item label="预设模板">
+        <Form.Item label={t('editor.propertyPanel.webview.preset')}>
           <div className="pp-preset-cards">
             {[
-              { value: 'none', icon: '🌐', label: '无预设', desc: '网页/RSS/JSON' },
-              { value: 'bilibili', icon: '📺', label: 'B站直播', desc: '直播状态卡片' },
-              { value: 'weather', icon: '🌤️', label: '天气', desc: '实时天气+预报' },
+              { value: 'none', icon: '🌐', label: t('editor.propertyPanel.webview.none'), desc: t('editor.propertyPanel.webview.noneDesc') },
+              { value: 'bilibili', icon: '📺', label: t('editor.propertyPanel.webview.bilibili'), desc: t('editor.propertyPanel.webview.bilibiliDesc') },
+              { value: 'weather', icon: '🌤️', label: t('editor.propertyPanel.webview.weather'), desc: t('editor.propertyPanel.webview.weatherDesc') },
             ].map(p => (
               <div
                 key={p.value}
@@ -372,88 +409,91 @@ function WidgetProperties() {
         </Form.Item>
 
         {(v.preset as string) === 'bilibili' && (<>
-          <Form.Item label="直播间 ID">
-            <Input value={(v.bilibiliRoomId as string) || ''} onChange={e => up('bilibiliRoomId', e.target.value)} placeholder="例如 22625025" />
+          <Form.Item label={t('editor.propertyPanel.webview.roomId')}>
+            <Input value={(v.bilibiliRoomId as string) || ''} onChange={e => up('bilibiliRoomId', e.target.value)} placeholder={t('editor.propertyPanel.webview.roomIdPlaceholder')} />
           </Form.Item>
-          <Form.Item label="刷新间隔（秒）">
+          <Form.Item label={t('editor.propertyPanel.webview.refreshInterval')}>
             <InputNumber min={10} max={3600} value={(v.refreshInterval as number) || 30} style={{ width: '100%' }}
               onChange={val => up('refreshInterval', val ?? 30)} />
           </Form.Item>
         </>)}
 
         {(v.preset as string) === 'weather' && (<>
-          <Form.Item label="城市名称">
-            <Input value={(v.weatherCity as string) || ''} onChange={e => up('weatherCity', e.target.value)} placeholder="例如 Beijing" />
+          <Form.Item label={t('editor.propertyPanel.webview.city')}>
+            <Input value={(v.weatherCity as string) || ''} onChange={e => up('weatherCity', e.target.value)} placeholder={t('editor.propertyPanel.webview.cityPlaceholder')} />
           </Form.Item>
-          <Form.Item label="API Key">
-            <Input.Password value={(v.weatherApiKey as string) || ''} onChange={e => up('weatherApiKey', e.target.value)} placeholder="OpenWeatherMap API Key" />
+          <Form.Item label={t('editor.propertyPanel.webview.apiKey')}>
+            <Input.Password value={(v.weatherApiKey as string) || ''} onChange={e => up('weatherApiKey', e.target.value)} placeholder={t('editor.propertyPanel.webview.apiKeyPlaceholder')} />
           </Form.Item>
-          <Form.Item label="温度单位">
+          <Form.Item label={t('editor.propertyPanel.webview.tempUnit')}>
             <Radio.Group value={(v.weatherUnit as string) || 'c'} onChange={e => up('weatherUnit', e.target.value)}>
-              <Radio.Button value="c">℃ 摄氏</Radio.Button>
-              <Radio.Button value="f">℉ 华氏</Radio.Button>
+              <Radio.Button value="c">{t('editor.propertyPanel.webview.celsius')}</Radio.Button>
+              <Radio.Button value="f">{t('editor.propertyPanel.webview.fahrenheit')}</Radio.Button>
             </Radio.Group>
           </Form.Item>
-          <Form.Item label="刷新间隔（秒）">
+          <Form.Item label={t('editor.propertyPanel.webview.refreshInterval')}>
             <InputNumber min={60} max={86400} value={(v.refreshInterval as number) || 600} style={{ width: '100%' }}
               onChange={val => up('refreshInterval', val ?? 600)} />
           </Form.Item>
           <Text style={{ fontSize: 11, color: '#888', display: 'block' }}>
-            使用 OpenWeatherMap，请在 openweathermap.org 免费申请 API Key
+            {t('editor.propertyPanel.webview.weatherHint')}
           </Text>
         </>)}
 
         {(v.preset as string) === 'none' && (<>
-          <Form.Item label="显示模式">
+          <Form.Item label={t('editor.propertyPanel.webview.displayMode')}>
             <Select value={(v.displayMode as string) || 'webpage'} onChange={val => up('displayMode', val)}
               options={[
-                { label: '网页加载', value: 'webpage' },
-                { label: 'RSS 订阅', value: 'rss' },
-                { label: 'JSON API', value: 'json' },
+                { label: t('editor.propertyPanel.webview.webpage'), value: 'webpage' },
+                { label: t('editor.propertyPanel.webview.rss'), value: 'rss' },
+                { label: t('editor.propertyPanel.webview.json'), value: 'json' },
               ]} />
           </Form.Item>
 
           {(v.displayMode as string) === 'webpage' && (<>
-            <Form.Item label="URL">
-              <Input value={(v.url as string) || ''} onChange={e => up('url', e.target.value)} placeholder="https://example.com" />
+            <Form.Item label={t('editor.propertyPanel.webview.url')}>
+              <Input value={(v.url as string) || ''} onChange={e => up('url', e.target.value)} placeholder={t('editor.propertyPanel.webview.urlPlaceholder')} />
             </Form.Item>
-            <Form.Item label="显示滚动条">
+            <Form.Item label={t('editor.propertyPanel.webview.showScrollbar')}>
               <Select value={((v.showScrollbar as boolean) ?? true) ? 'yes' : 'no'} onChange={val => up('showScrollbar', val === 'yes')}
-                options={[{ label: '显示', value: 'yes' }, { label: '隐藏', value: 'no' }]} />
+                options={[
+                  { label: t('editor.propertyPanel.webview.scrollShow'), value: 'yes' },
+                  { label: t('editor.propertyPanel.webview.scrollHide'), value: 'no' },
+                ]} />
             </Form.Item>
           </>)}
 
           {(v.displayMode as string) === 'rss' && (<>
-            <Form.Item label="RSS 订阅地址">
-              <Input value={(v.rssUrl as string) || ''} onChange={e => up('rssUrl', e.target.value)} placeholder="https://example.com/feed.xml" />
+            <Form.Item label={t('editor.propertyPanel.webview.rssUrl')}>
+              <Input value={(v.rssUrl as string) || ''} onChange={e => up('rssUrl', e.target.value)} placeholder={t('editor.propertyPanel.webview.rssUrlPlaceholder')} />
             </Form.Item>
-            <Form.Item label="自动刷新间隔（秒）">
+            <Form.Item label={t('editor.propertyPanel.webview.autoRefresh')}>
               <InputNumber min={0} max={3600} value={(v.refreshInterval as number) || 0} style={{ width: '100%' }}
                 onChange={val => up('refreshInterval', val ?? 0)} />
             </Form.Item>
           </>)}
 
           {(v.displayMode as string) === 'json' && (<>
-            <Form.Item label="JSON API 地址">
-              <Input value={(v.jsonUrl as string) || ''} onChange={e => up('jsonUrl', e.target.value)} placeholder="https://api.example.com/data" />
+            <Form.Item label={t('editor.propertyPanel.webview.jsonUrl')}>
+              <Input value={(v.jsonUrl as string) || ''} onChange={e => up('jsonUrl', e.target.value)} placeholder={t('editor.propertyPanel.webview.jsonUrlPlaceholder')} />
             </Form.Item>
             <div style={{ display: 'flex', gap: 8 }}>
-              <Form.Item label="标题字段" style={{ flex: 1, marginBottom: 8 }}>
+              <Form.Item label={t('editor.propertyPanel.webview.titleField')} style={{ flex: 1, marginBottom: 8 }}>
                 <Input value={(v.titleField as string) || 'title'} onChange={e => up('titleField', e.target.value)} size="small" />
               </Form.Item>
-              <Form.Item label="内容字段" style={{ flex: 1, marginBottom: 8 }}>
+              <Form.Item label={t('editor.propertyPanel.webview.contentField')} style={{ flex: 1, marginBottom: 8 }}>
                 <Input value={(v.descField as string) || 'description'} onChange={e => up('descField', e.target.value)} size="small" />
               </Form.Item>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <Form.Item label="时间字段" style={{ flex: 1, marginBottom: 8 }}>
+              <Form.Item label={t('editor.propertyPanel.webview.timeField')} style={{ flex: 1, marginBottom: 8 }}>
                 <Input value={(v.timeField as string) || 'pubDate'} onChange={e => up('timeField', e.target.value)} size="small" />
               </Form.Item>
-              <Form.Item label="链接字段" style={{ flex: 1, marginBottom: 8 }}>
+              <Form.Item label={t('editor.propertyPanel.webview.linkField')} style={{ flex: 1, marginBottom: 8 }}>
                 <Input value={(v.linkField as string) || 'link'} onChange={e => up('linkField', e.target.value)} size="small" />
               </Form.Item>
             </div>
-            <Form.Item label="自动刷新间隔（秒）">
+            <Form.Item label={t('editor.propertyPanel.webview.autoRefresh')}>
               <InputNumber min={0} max={3600} value={(v.refreshInterval as number) || 0} style={{ width: '100%' }}
                 onChange={val => up('refreshInterval', val ?? 0)} />
             </Form.Item>
@@ -463,40 +503,40 @@ function WidgetProperties() {
 
       {widget.type === 'media-control' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>媒体控制</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.media.section')}</Text>
         </div>
-        <Form.Item label="显示模式">
+        <Form.Item label={t('editor.propertyPanel.media.displayMode')}>
           <Select value={(v.displayMode as string) || 'always'} onChange={val => up('displayMode', val)}
             options={[
-              { label: '始终显示', value: 'always' },
-              { label: '仅播放时显示', value: 'playing_only' },
+              { label: t('editor.propertyPanel.media.always'), value: 'always' },
+              { label: t('editor.propertyPanel.media.playingOnly'), value: 'playing_only' },
             ]} />
         </Form.Item>
-        <Form.Item label="显示封面" valuePropName="checked">
+        <Form.Item label={t('editor.propertyPanel.media.showCover')} valuePropName="checked">
           <Switch checked={(v.showCover as boolean) ?? true} onChange={val => up('showCover', val)} />
         </Form.Item>
-        <Form.Item label="显示进度条" valuePropName="checked">
+        <Form.Item label={t('editor.propertyPanel.media.showProgress')} valuePropName="checked">
           <Switch checked={(v.showProgress as boolean) ?? true} onChange={val => up('showProgress', val)} />
         </Form.Item>
       </>)}
 
       {widget.type === 'system-monitor' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>系统监控</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.systemMonitor.section')}</Text>
         </div>
-        <Form.Item label="显示 CPU" valuePropName="checked">
+        <Form.Item label={t('editor.propertyPanel.systemMonitor.showCPU')} valuePropName="checked">
           <Switch checked={(v.showCPU as boolean) ?? true} onChange={val => up('showCPU', val)} />
         </Form.Item>
-        <Form.Item label="显示内存" valuePropName="checked">
+        <Form.Item label={t('editor.propertyPanel.systemMonitor.showMemory')} valuePropName="checked">
           <Switch checked={(v.showMemory as boolean) ?? true} onChange={val => up('showMemory', val)} />
         </Form.Item>
-        <Form.Item label="显示磁盘" valuePropName="checked">
+        <Form.Item label={t('editor.propertyPanel.systemMonitor.showDisk')} valuePropName="checked">
           <Switch checked={(v.showDisk as boolean) ?? true} onChange={val => up('showDisk', val)} />
         </Form.Item>
-        <Form.Item label="显示网络" valuePropName="checked">
+        <Form.Item label={t('editor.propertyPanel.systemMonitor.showNetwork')} valuePropName="checked">
           <Switch checked={(v.showNetwork as boolean) ?? true} onChange={val => up('showNetwork', val)} />
         </Form.Item>
-<Form.Item label="刷新间隔（秒）">
+<Form.Item label={t('editor.propertyPanel.systemMonitor.refreshInterval')}>
           <InputNumber min={1} max={60} value={(v.refreshInterval as number) ?? 2} style={{ width: '100%' }}
             onChange={val => up('refreshInterval', val ?? 2)} />
         </Form.Item>
@@ -504,30 +544,30 @@ function WidgetProperties() {
 
       {widget.type === 'quick-action' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>快捷面板</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.quickAction.section')}</Text>
         </div>
         <Text style={{ fontSize: 11, color: '#888', display: 'block' }}>
-          2×2 网格，每格支持应用启动或快捷片段。详情请在编辑器预览中查看。
+          {t('editor.propertyPanel.quickAction.desc')}
         </Text>
       </>)}
 
       {widget.type === 'launcher' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>应用启动</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.launcher.section')}</Text>
         </div>
-        <Form.Item label="名称">
-          <Input value={(v.name as string) || ''} onChange={e => up('name', e.target.value)} placeholder="计算器" />
+        <Form.Item label={t('editor.propertyPanel.launcher.name')}>
+          <Input value={(v.name as string) || ''} onChange={e => up('name', e.target.value)} placeholder={t('editor.propertyPanel.launcher.namePlaceholder')} />
         </Form.Item>
-        <Form.Item label="应用路径">
+        <Form.Item label={t('editor.propertyPanel.launcher.path')}>
           <div style={{ display: 'flex', gap: 6 }}>
-            <Input value={(v.path as string) || ''} onChange={e => up('path', e.target.value)} placeholder="calc" style={{ flex: 1 }} />
+            <Input value={(v.path as string) || ''} onChange={e => up('path', e.target.value)} placeholder={t('editor.propertyPanel.launcher.pathPlaceholder')} style={{ flex: 1 }} />
             <Button size="small" onClick={async () => {
               try {
                 const { open } = await import('@tauri-apps/plugin-dialog');
                 const file = await open({
                   filters: [
-                    { name: '应用程序', extensions: ['exe', 'lnk', 'app'] },
-                    { name: '所有文件', extensions: ['*'] },
+                    { name: t('editor.propertyPanel.launcher.appFilter'), extensions: ['exe', 'lnk', 'app'] },
+                    { name: t('editor.propertyPanel.launcher.allFilter'), extensions: ['*'] },
                   ],
                   multiple: false,
                 });
@@ -542,7 +582,7 @@ function WidgetProperties() {
                 } catch { /* 图标提取失败时忽略，保留默认占位图 */ }
               } catch (e) { message.error(String(e)); }
             }}>
-              浏览...
+              {t('editor.propertyPanel.launcher.browse')}
             </Button>
           </div>
         </Form.Item>
@@ -550,64 +590,64 @@ function WidgetProperties() {
 
       {widget.type === 'clock' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>时钟</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.clock.section')}</Text>
         </div>
-        <Form.Item label="24 小时制" valuePropName="checked">
+        <Form.Item label={t('editor.propertyPanel.clock.format24h')} valuePropName="checked">
           <Switch checked={(v.format24h as boolean) ?? true} onChange={val => up('format24h', val)} />
         </Form.Item>
-        <Form.Item label="显示秒" valuePropName="checked">
+        <Form.Item label={t('editor.propertyPanel.clock.showSeconds')} valuePropName="checked">
           <Switch checked={(v.showSeconds as boolean) ?? true} onChange={val => up('showSeconds', val)} />
         </Form.Item>
-        <Form.Item label="显示 AM/PM" valuePropName="checked">
+        <Form.Item label={t('editor.propertyPanel.clock.showAmpm')} valuePropName="checked">
           <Switch checked={(v.showAmpm as boolean) ?? true} onChange={val => up('showAmpm', val)} />
         </Form.Item>
         <Text style={{ fontSize: 11, color: '#888', display: 'block' }}>
-          12 小时制下显示 AM/PM 标识，24 小时制下自动隐藏。
+          {t('editor.propertyPanel.clock.hint')}
         </Text>
       </>)}
 
       {widget.type === 'date' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>日期</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.date.section')}</Text>
         </div>
-        <Form.Item label="日期格式">
+        <Form.Item label={t('editor.propertyPanel.date.dateFormat')}>
           <Select
             value={(v.dateFormat as string) || 'YYYY年MM月DD日 星期X'}
             onChange={val => up('dateFormat', val)}
             options={[
-              { label: 'YYYY年MM月DD日 星期X', value: 'YYYY年MM月DD日 星期X' },
-              { label: 'YYYY-MM-DD 星期X', value: 'YYYY-MM-DD 星期X' },
-              { label: 'MM月DD日 星期X', value: 'MM月DD日 星期X' },
-              { label: 'YYYY年MM月DD日', value: 'YYYY年MM月DD日' },
-              { label: 'MM/DD/YYYY', value: 'MM/DD/YYYY' },
+              { label: t('editor.propertyPanel.date.format1'), value: 'YYYY年MM月DD日 星期X' },
+              { label: t('editor.propertyPanel.date.format2'), value: 'YYYY-MM-DD 星期X' },
+              { label: t('editor.propertyPanel.date.format3'), value: 'MM月DD日 星期X' },
+              { label: t('editor.propertyPanel.date.format4'), value: 'YYYY年MM月DD日' },
+              { label: t('editor.propertyPanel.date.format5'), value: 'MM/DD/YYYY' },
             ]} />
         </Form.Item>
-        <Form.Item label="自定义格式">
-          <Input value={(v.dateFormat as string) || 'YYYY年MM月DD日 星期X'} onChange={e => up('dateFormat', e.target.value)} placeholder="支持 YYYY/MM/DD/星期X" />
+        <Form.Item label={t('editor.propertyPanel.date.customFormat')}>
+          <Input value={(v.dateFormat as string) || 'YYYY年MM月DD日 星期X'} onChange={e => up('dateFormat', e.target.value)} placeholder={t('editor.propertyPanel.date.customPlaceholder')} />
         </Form.Item>
-        <Form.Item label="显示农历" valuePropName="checked">
+        <Form.Item label={t('editor.propertyPanel.date.showLunar')} valuePropName="checked">
           <Switch checked={(v.showLunar as boolean) ?? true} onChange={val => up('showLunar', val)} />
         </Form.Item>
         <Text style={{ fontSize: 11, color: '#888', display: 'block' }}>
-          农历由 Rust 后端实时计算（如“农历六月廿二”）。
+          {t('editor.propertyPanel.date.hint')}
         </Text>
       </>)}
 
       {widget.type === 'calendar' && (<>
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>日历</Text>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.calendar.section')}</Text>
         </div>
-        <Form.Item label="视图模式">
+        <Form.Item label={t('editor.propertyPanel.calendar.viewMode')}>
           <Radio.Group value={(v.viewMode as string) || 'month'} onChange={e => up('viewMode', e.target.value)}>
-            <Radio.Button value="month">月视图</Radio.Button>
-            <Radio.Button value="week">周视图</Radio.Button>
+            <Radio.Button value="month">{t('editor.propertyPanel.calendar.month')}</Radio.Button>
+            <Radio.Button value="week">{t('editor.propertyPanel.calendar.week')}</Radio.Button>
           </Radio.Group>
         </Form.Item>
-        <Form.Item label="高亮今日" valuePropName="checked">
+        <Form.Item label={t('editor.propertyPanel.calendar.highlightToday')} valuePropName="checked">
           <Switch checked={(v.highlightToday as boolean) ?? true} onChange={val => up('highlightToday', val)} />
         </Form.Item>
         <Text style={{ fontSize: 11, color: '#888', display: 'block' }}>
-          点击任意日期可联动查看农历 / 备忘信息。
+          {t('editor.propertyPanel.calendar.hint')}
         </Text>
       </>)}
     </Form>
@@ -615,12 +655,13 @@ function WidgetProperties() {
 }
 
 export default function PropertyPanel({ onAddPage }: { onAddPage: () => void }) {
+  const { t } = useTranslation();
   const { selectedWidgetId } = useEditorStore();
   return (
     <div className="editor-prop">
       <PageManager onAddPage={onAddPage} />
       <div className="ep-section">
-        <div className="ep-title">{selectedWidgetId ? '🎛️ 控件属性' : '📄 页面属性'}</div>
+        <div className="ep-title">{selectedWidgetId ? t('editor.propertyPanel.widgetTitle') : t('editor.propertyPanel.pageTitle')}</div>
         {selectedWidgetId ? <WidgetProperties /> : <PageProperties />}
       </div>
     </div>

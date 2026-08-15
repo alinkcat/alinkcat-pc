@@ -31,5 +31,33 @@
   "status": "状态",
   "name": "名称",
   "time": "时间",
-  "type": "类型"
+  "type": "类型",
+  "downloading": "正在下载...",
+  "downloaded": "下载完成",
+  "themeFiles": "主题文件 - {{id}}",
+  "fileCount": "共 {{totalFiles}} 个文件，总计 {{totalSize}}",
+  "noFiles": "暂无文件",
+  "versionGate": {
+    "deprecated": "当前版本已停止服务，请升级到最新版本",
+    "forceUpdate": "请升级到最新版本以继续使用",
+    "maintenance": "系统正在维护中，部分功能可能不可用",
+    "titleUpdate": "版本更新",
+    "titleMaintenance": "系统维护",
+    "downloadUpdate": "下载更新",
+    "exitApp": "退出应用",
+    "gotIt": "我知道了"
+  },
+  "errorBoundary": {
+    "title": "页面出错了",
+    "unknownError": "未知错误，请刷新重试",
+    "refresh": "刷新页面"
+  },
+  "oauth": {
+    "authorizeFailed": "授权失败",
+    "noToken": "未收到授权令牌，请重新登录",
+    "retryLater": "请稍后重试",
+    "backToLogin": "返回登录",
+    "processing": "正在完成授权...",
+    "loginSuccess": "登录成功，即将跳转..."
+  }
 }

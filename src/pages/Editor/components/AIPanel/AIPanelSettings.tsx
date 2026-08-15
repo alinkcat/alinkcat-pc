@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { Modal, Form, Input, Switch, InputNumber, Button, Space, Typography, message, Alert } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
@@ -6,6 +7,7 @@ import { useAIStore } from '../../../../store/aiStore';
 const { Text } = Typography;
 
 export default function AIPanelSettings() {
+  const { t } = useTranslation();
   const { settingsOpen, toggleSettings, config, updateConfig, model, setModel } = useAIStore();
   const [form] = Form.useForm();
   const [fetching, setFetching] = useState(false);
@@ -23,7 +25,7 @@ export default function AIPanelSettings() {
         maxTurns: values.maxTurns,
       });
       setModel(models.includes(values.defaultModel) ? values.defaultModel : model);
-      message.success('AI 设置已保存');
+      message.success(t('editor.aiPanel.settingsSaved'));
       toggleSettings();
     } catch { /* validation */ }
   };
@@ -31,7 +33,7 @@ export default function AIPanelSettings() {
   const handleFetchModels = async () => {
     const apiUrl = form.getFieldValue('apiUrl');
     const apiKey = form.getFieldValue('apiKey');
-    if (!apiUrl) return message.warning('请先填写 API 地址');
+    if (!apiUrl) return message.warning(t('editor.aiPanel.fetchHint'));
     setFetching(true);
     try {
       const url = `${apiUrl.replace(/\/$/, '')}/models`;
@@ -41,12 +43,12 @@ export default function AIPanelSettings() {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const json = await resp.json();
       const ids: string[] = (json.data || []).map((m: { id: string }) => m.id).filter(Boolean);
-      if (ids.length === 0) throw new Error('未找到模型列表');
+      if (ids.length === 0) throw new Error(t('editor.aiPanel.fetchNoModels'));
       form.setFieldsValue({
         models: ids.join('\n'),
         defaultModel: ids[0],
       });
-      message.success(`已获取 ${ids.length} 个模型`);
+      message.success(t('editor.aiPanel.fetchSuccess', { count: ids.length }));
     } catch (e) {
       message.error(String(e instanceof Error ? e.message : e));
     } finally {
@@ -55,7 +57,7 @@ export default function AIPanelSettings() {
   };
 
   return (
-    <Modal title="AI 设置" open={settingsOpen} onCancel={toggleSettings} onOk={handleSave} width={520} destroyOnHidden>
+    <Modal title={t('editor.aiPanel.settingsTitle')} open={settingsOpen} onCancel={toggleSettings} onOk={handleSave} width={520} destroyOnHidden>
       <Form
         form={form}
         layout="vertical"
@@ -70,49 +72,49 @@ export default function AIPanelSettings() {
         }}
       >
         <Alert
-          message="AI 对接协议说明"
+          message={t('editor.aiPanel.protocolTitle')}
           description={
             <div style={{ fontSize: 12, lineHeight: 1.7 }}>
-              本系统使用 <Text code>OpenAI Chat Completions API</Text> 兼容协议。<br />
-              支持任何提供该接口的 AI 服务（DeepSeek、OpenAI、Anthropic 等）。<br />
-              <b>接口地址：</b><Text code>POST {`{apiUrl}/chat/completions`}</Text><br />
-              <b>认证方式：</b><Text code>Authorization: Bearer {`{apiKey}`}</Text><br />
-              <b>模型列表：</b><Text code>GET {`{apiUrl}/models`}</Text>（自动拉取）<br />
-              <b>多轮对话：</b>支持 system/user/assistant 角色，自动截断历史<br />
-              <b>流式输出：</b>支持 SSE（Server-Sent Events）流式响应<br />
-              <b>Body 参数：</b><Text code>{`{ model, messages, stream, temperature }`}</Text>
+              {t('editor.aiPanel.protocolDesc', { code1: 'OpenAI Chat Completions API' })}<br />
+              {t('editor.aiPanel.protocolDesc2')}<br />
+              <b>{t('editor.aiPanel.protocolEndpoint')}</b><Text code>POST {`{apiUrl}/chat/completions`}</Text><br />
+              <b>{t('editor.aiPanel.protocolAuth')}</b><Text code>Authorization: Bearer {`{apiKey}`}</Text><br />
+              <b>{t('editor.aiPanel.protocolModels')}</b><Text code>GET {`{apiUrl}/models`}</Text>（{t('editor.aiPanel.fetchModels')}）<br />
+              <b>{t('editor.aiPanel.protocolMultiTurn')}</b>{t('editor.aiPanel.protocolMultiTurnDesc')}<br />
+              <b>{t('editor.aiPanel.protocolStream')}</b>{t('editor.aiPanel.protocolStreamDesc')}<br />
+              <b>{t('editor.aiPanel.protocolBody')}</b><Text code>{`{ model, messages, stream, temperature }`}</Text>
             </div>
           }
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
         />
-        <Form.Item name="apiUrl" label="API 地址" rules={[{ required: true, message: '请输入 API 地址' }]}>
-          <Input placeholder="https://api.deepseek.com/v1" />
+        <Form.Item name="apiUrl" label={t('editor.aiPanel.apiUrl')} rules={[{ required: true, message: t('editor.aiPanel.apiUrlRequired') }]}>
+          <Input placeholder={t('editor.aiPanel.apiUrlPlaceholder')} />
         </Form.Item>
-        <Form.Item name="apiKey" label="API Key">
-          <Input.Password placeholder="sk-..." />
+        <Form.Item name="apiKey" label={t('editor.aiPanel.apiKey')}>
+          <Input.Password placeholder={t('editor.aiPanel.apiKeyPlaceholder')} />
         </Form.Item>
-        <Form.Item label="模型列表" required>
+        <Form.Item label={t('editor.aiPanel.modelList')} required>
           <Space direction="vertical" style={{ width: '100%' }} size={8}>
             <Button size="small" icon={<ReloadOutlined />} loading={fetching} onClick={handleFetchModels}>
-              从 API 获取模型列表
+              {t('editor.aiPanel.fetchModels')}
             </Button>
-            <Form.Item name="models" noStyle rules={[{ required: true, message: '请至少添加一个模型' }]}>
-              <Input.TextArea rows={4} placeholder={'deepseek-chat\ndeepseek-coder\ngpt-4o'} />
+            <Form.Item name="models" noStyle rules={[{ required: true, message: t('editor.aiPanel.modelsRequired') }]}>
+              <Input.TextArea rows={4} placeholder={t('editor.aiPanel.modelsPlaceholder')} />
             </Form.Item>
           </Space>
         </Form.Item>
-        <Form.Item name="defaultModel" label="默认模型">
-          <Input placeholder="deepseek-chat" />
+        <Form.Item name="defaultModel" label={t('editor.aiPanel.defaultModel')}>
+          <Input placeholder={t('editor.aiPanel.defaultModelPlaceholder')} />
         </Form.Item>
-        <Form.Item name="autoExecute" label="自动执行指令" valuePropName="checked" extra="开启后跳过 AI 指令确认步骤">
+        <Form.Item name="autoExecute" label={t('editor.aiPanel.autoExecute')} valuePropName="checked" extra={t('editor.aiPanel.autoExecuteExtra')}>
           <Switch />
         </Form.Item>
-        <Form.Item name="streamOutput" label="流式输出" valuePropName="checked">
+        <Form.Item name="streamOutput" label={t('editor.aiPanel.streamOutput')} valuePropName="checked">
           <Switch />
         </Form.Item>
-        <Form.Item name="maxTurns" label="最大对话轮数">
+        <Form.Item name="maxTurns" label={t('editor.aiPanel.maxTurns')}>
           <InputNumber min={5} max={100} style={{ width: '100%' }} />
         </Form.Item>
       </Form>
