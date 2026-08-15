@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, Form, Input, Button, Tabs, Typography, Space, Alert, Checkbox } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, PhoneOutlined, SafetyOutlined, GithubOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../api/authApi';
 import { useMessage } from '../hooks/useMessage';
@@ -12,6 +13,7 @@ const { Title, Text } = Typography;
 
 export default function Auth() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { login, register, loading, isLoggedIn } = useAuthStore();
   const [loginForm] = Form.useForm();
   const [regForm] = Form.useForm();
@@ -67,7 +69,7 @@ export default function Auth() {
       const ok = await startGithubOAuth();
       if (ok) {
         setOauthOpen(false);
-        msg.success('GitHub 登录成功');
+        msg.success(t('auth.githubLoginSuccess'));
         navigate('/profile');
       }
     } catch (e) {
@@ -89,17 +91,17 @@ export default function Auth() {
   };
 
   const onLogin = async () => {
-    if (!loginAgreed) return msg.warning('请先同意服务条款');
+    if (!loginAgreed) return msg.warning(t('auth.pleaseAgreeTerms'));
     try {
       const values = await loginForm.validateFields();
       await login(values.username, values.password);
-      msg.success('登录成功');
+      msg.success(t('auth.loginSuccess'));
       navigate('/profile');
     } catch (e: unknown) {
       if (e && typeof e === 'object' && 'message' in e) {
         msg.error(String((e as Error).message), 4);
       } else {
-        msg.error('登录失败，请检查用户名和密码');
+        msg.error(t('auth.loginFailed'));
       }
     }
   };
@@ -108,11 +110,11 @@ export default function Auth() {
     try {
       const username = regForm.getFieldValue('username');
       const email = regForm.getFieldValue('email');
-      if (!username) return msg.warning('请先填写用户名');
-      if (!email) return msg.warning('请先填写邮箱');
+      if (!username) return msg.warning(t('auth.pleaseEnterUsername'));
+      if (!email) return msg.warning(t('auth.pleaseEnterEmail'));
       setCodeSending(true);
       await authApi.sendRegisterCode({ username, email });
-      msg.success('验证码已发送至邮箱，请查收');
+      msg.success(t('auth.validationCodeSent'));
       startCountdown();
     } catch (e: unknown) {
       if (e && typeof e === 'object' && 'message' in e) {
@@ -124,11 +126,11 @@ export default function Auth() {
   };
 
   const onRegister = async () => {
-    if (!regAgreed) return msg.warning('请先同意服务条款');
+    if (!regAgreed) return msg.warning(t('auth.pleaseAgreeTerms'));
     try {
       const values = await regForm.validateFields();
       if (needCode && !values.verificationCode) {
-        return msg.warning('请输入验证码');
+        return msg.warning(t('auth.pleaseEnterVerificationCode'));
       }
       await register(values.username, values.password, {
         email: values.email || undefined,
@@ -136,7 +138,7 @@ export default function Auth() {
         nickname: values.nickname || undefined,
         verificationCode: values.verificationCode || undefined,
       });
-      msg.success('注册成功，请登录');
+      msg.success(t('auth.registerSuccess'));
       regForm.resetFields();
       setNeedCode(false);
     } catch (e: unknown) {
@@ -154,8 +156,8 @@ export default function Auth() {
     <div className="auth-background" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f7fa' }}>
       <Card style={{ width: 420, borderRadius: 12, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title level={3} style={{ marginBottom: 4 }}>艾联猫</Title>
-          <Text type="secondary">ailinkcat · 主题包管理平台</Text>
+          <Title level={3} style={{ marginBottom: 4 }}>{t('auth.appName')}</Title>
+          <Text type="secondary">{t('auth.appSubtitle')}</Text>
         </div>
         <Tabs
           centered
@@ -163,26 +165,26 @@ export default function Auth() {
           items={[
             {
               key: 'login',
-              label: '登录',
+              label: t('auth.login'),
               children: (
                 <Form form={loginForm} layout="vertical" onFinish={onLogin} style={{ marginTop: 8 }}>
-                  <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
-                    <Input prefix={<UserOutlined />} placeholder="用户名" size="large" />
+                  <Form.Item name="username" rules={[{ required: true, message: t('auth.enterUsername') }]}>
+                    <Input prefix={<UserOutlined />} placeholder={t('auth.usernamePlaceholder')} size="large" />
                   </Form.Item>
-                  <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
-                    <Input.Password prefix={<LockOutlined />} placeholder="密码" size="large" />
+                  <Form.Item name="password" rules={[{ required: true, message: t('auth.enterPassword') }]}>
+                    <Input.Password prefix={<LockOutlined />} placeholder={t('auth.passwordPlaceholder')} size="large" />
                   </Form.Item>
                   <Form.Item>
-                    <Button type="primary" htmlType="submit" block size="large" loading={loading}>登录</Button>
+                    <Button type="primary" htmlType="submit" block size="large" loading={loading}>{t('auth.login')}</Button>
                   </Form.Item>
                   <Form.Item>
                     <Checkbox checked={loginAgreed} onChange={(e) => setLoginAgreed(e.target.checked)}>
-                      我已阅读并同意 <Link to="/terms">服务条款</Link>
+                      {t('auth.agreedToTerms')} <Link to="/terms">{t('auth.serviceTerms')}</Link>
                     </Checkbox>
                   </Form.Item>
                   <Form.Item>
                     <Button block icon={<GithubOutlined />} loading={oauthLoading} onClick={handleGithubLogin}>
-                      使用 GitHub 登录
+                      {t('auth.loginWithGithub')}
                     </Button>
                   </Form.Item>
                 </Form>
@@ -190,34 +192,34 @@ export default function Auth() {
             },
             {
               key: 'register',
-              label: '注册',
+              label: t('auth.register'),
               children: (
                 <Form form={regForm} layout="vertical" onFinish={onRegister} style={{ marginTop: 8 }}>
                   {regStatus?.whitelistEnabled && (
                     <Alert
-                      message="仅支持部分邮箱域名注册"
+                      message={t('auth.registerEmailOnly')}
                       type="info"
                       showIcon
                       style={{ marginBottom: 16 }}
                     />
                   )}
-                  <Form.Item name="username" label="用户名" rules={[{ required: true, min: 3, max: 50, message: '3-50 字符' }]}>
-                    <Input prefix={<UserOutlined />} placeholder="用户名" size="large" />
+                  <Form.Item name="username" label={t('auth.username')} rules={[{ required: true, min: 3, max: 50, message: t('auth.usernameRule') }]}>
+                    <Input prefix={<UserOutlined />} placeholder={t('auth.usernamePlaceholder')} size="large" />
                   </Form.Item>
-                  <Form.Item name="password" label="密码" rules={[{ required: true, min: 6, message: '至少 6 位' }]}>
-                    <Input.Password prefix={<LockOutlined />} placeholder="密码" size="large" />
+                  <Form.Item name="password" label={t('auth.password')} rules={[{ required: true, min: 6, message: t('auth.passwordRule') }]}>
+                    <Input.Password prefix={<LockOutlined />} placeholder={t('auth.passwordPlaceholder')} size="large" />
                   </Form.Item>
-                  <Form.Item name="email" label="邮箱" rules={[{ type: 'email', message: '请输入有效邮箱' }]}>
-                    <Input prefix={<MailOutlined />} placeholder="邮箱" size="large" />
+                  <Form.Item name="email" label={t('auth.email')} rules={[{ type: 'email', message: t('auth.enterEmail') }]}>
+                    <Input prefix={<MailOutlined />} placeholder={t('auth.emailPlaceholder')} size="large" />
                   </Form.Item>
                   <Space orientation="vertical" style={{ width: '100%' }} size={0}>
-                    <Form.Item name="phone"><Input prefix={<PhoneOutlined />} placeholder="手机号（可选）" /></Form.Item>
-                    <Form.Item name="nickname"><Input placeholder="昵称（可选）" /></Form.Item>
+                    <Form.Item name="phone"><Input prefix={<PhoneOutlined />} placeholder={t('auth.phonePlaceholder')} /></Form.Item>
+                    <Form.Item name="nickname"><Input placeholder={t('auth.nicknamePlaceholder')} /></Form.Item>
                   </Space>
 
                   {needCode && (
                     <Alert
-                      message="已触发频率限制，请先获取邮箱验证码完成注册"
+                      message={t('auth.rateLimitWarning')}
                       type="warning"
                       showIcon
                       style={{ marginBottom: 16 }}
@@ -225,12 +227,12 @@ export default function Auth() {
                   )}
 
                   {needCode && (
-                    <Form.Item label="邮箱验证码" required>
+                    <Form.Item label={t('auth.emailVerificationCodeLabel')} required>
                       <Space.Compact style={{ width: '100%' }}>
-                        <Form.Item name="verificationCode" noStyle rules={[{ required: true, message: '请输入验证码' }]}>
+                        <Form.Item name="verificationCode" noStyle rules={[{ required: true, message: t('auth.pleaseEnterVerificationCode') }]}>
                           <Input
                             prefix={<SafetyOutlined />}
-                            placeholder="6 位验证码"
+                            placeholder={t('auth.verificationCodePlaceholder')}
                             maxLength={6}
                             size="large"
                             style={{ flex: 1 }}
@@ -243,7 +245,7 @@ export default function Auth() {
                           onClick={handleSendCode}
                           style={{ minWidth: 120 }}
                         >
-                          {countdown > 0 ? `${countdown}s` : '获取验证码'}
+                          {countdown > 0 ? `${countdown}s` : t('auth.getVerificationCode')}
                         </Button>
                       </Space.Compact>
                     </Form.Item>
@@ -257,16 +259,16 @@ export default function Auth() {
                       onClick={handleSendCode}
                       loading={codeSending}
                     >
-                      需要验证码？点击获取
+                      {t('auth.needVerificationCode')}
                     </Button>
                   )}
 
                   <Form.Item>
-                    <Button type="primary" htmlType="submit" block size="large" loading={loading}>注册</Button>
+                    <Button type="primary" htmlType="submit" block size="large" loading={loading}>{t('auth.register')}</Button>
                   </Form.Item>
                   <Form.Item>
                     <Checkbox checked={regAgreed} onChange={(e) => setRegAgreed(e.target.checked)}>
-                      我已阅读并同意 <Link to="/terms">服务条款</Link>
+                      {t('auth.agreedToTerms')} <Link to="/terms">{t('auth.serviceTerms')}</Link>
                     </Checkbox>
                   </Form.Item>
                 </Form>

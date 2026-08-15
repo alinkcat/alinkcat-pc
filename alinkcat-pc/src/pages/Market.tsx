@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -13,22 +14,6 @@ import FavoriteButton from '../components/FavoriteButton';
 
 const { Text } = Typography;
 
-const CATEGORY_OPTIONS = [
-  { label: '全部分类', value: '' },
-  { label: '桌面', value: 'desktop' },
-  { label: '直播', value: 'streaming' },
-  { label: '办公', value: 'office' },
-  { label: '游戏', value: 'gaming' },
-  { label: '其他', value: 'other' },
-];
-
-const SORT_OPTIONS = [
-  { label: '最热', value: 'downloadCount' },
-  { label: '最新', value: 'createdAt' },
-  { label: '评分最高', value: 'rating' },
-  { label: '浏览最多', value: 'viewCount' },
-];
-
 function coverGradient(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h << 5) - h + seed.charCodeAt(i);
@@ -37,11 +22,29 @@ function coverGradient(seed: string): string {
 }
 
 export default function Market() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { message: msg } = useMessage();
   const { list, total, page, pageSize, category, sortBy, loading, setSearch, setCategory, setSort, setPage, fetchList } = useMarketStore();
 
   const [inputValue, setInputValue] = useState('');
+
+  const CATEGORY_OPTIONS = [
+    { label: t('market.allCategories'), value: '' },
+    { label: t('market.category_desktop'), value: 'desktop' },
+    { label: t('market.category_streaming'), value: 'streaming' },
+    { label: t('market.category_office'), value: 'office' },
+    { label: t('market.category_gaming'), value: 'gaming' },
+    { label: t('market.category_other'), value: 'other' },
+  ];
+
+  const SORT_OPTIONS = [
+    { label: t('market.sort_hot'), value: 'downloadCount' },
+    { label: t('market.sort_newest'), value: 'createdAt' },
+    { label: t('market.sort_rating'), value: 'rating' },
+    { label: t('market.sort_views'), value: 'viewCount' },
+  ];
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export default function Market() {
   const handleDownload = async (item: typeof list[0]) => {
     try {
       await downloadToQueue(item);
-      msg.success(`「${item.name}」已下载，请在主题包管理页导入`);
+      msg.success(t('market.downloadedHint', { name: item.name }));
     } catch (e) {
       msg.error(String(e));
     }
@@ -68,13 +71,13 @@ export default function Market() {
   return (
     <div className="page-container">
       <div className="page-header" style={{ marginBottom: 0 }}>
-        <h1 className="page-title">主题市场</h1>
-        <p className="page-subtitle">浏览、下载其他用户分享的主题包</p>
+        <h1 className="page-title">{t('market.title')}</h1>
+        <p className="page-subtitle">{t('market.subtitle')}</p>
       </div>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '16px 0', alignItems: 'center' }}>
         <Input
-          placeholder="搜索主题包、作者、标签..."
+          placeholder={t('market.searchPlaceholder')}
           prefix={<SearchOutlined />}
           value={inputValue}
           onChange={(e) => handleSearchChange(e.target.value)}
@@ -88,7 +91,7 @@ export default function Market() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0' }}><Spin size="large" /></div>
       ) : list.length === 0 ? (
-        <Empty description="没有匹配的主题包" style={{ padding: '60px 0' }} />
+        <Empty description={t('market.noMatch')} style={{ padding: '60px 0' }} />
       ) : (
         <>
           <Row gutter={[16, 16]}>
@@ -117,7 +120,7 @@ export default function Market() {
                   <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Rate disabled allowHalf value={item.rating} style={{ fontSize: 12 }} />
                     <Text type="secondary" style={{ fontSize: 11 }}>
-                      {item.rating > 0 ? `${item.rating} (${item.ratingCount})` : '暂无评分'}
+                      {item.rating > 0 ? `${item.rating} (${item.ratingCount})` : t('market.noRating')}
                     </Text>
                   </div>
                   {item.tags && (
@@ -140,7 +143,7 @@ export default function Market() {
                       <FavoriteButton themeId={item.themeId} size="small" />
                       <Button size="small" icon={<DownloadOutlined />}
                         onClick={(e) => { e.stopPropagation(); handleDownload(item); }}>
-                        下载
+                        {t('market.download')}
                       </Button>
                     </Space>
                   </div>
@@ -154,7 +157,7 @@ export default function Market() {
               pageSize={pageSize}
               total={total}
               onChange={setPage}
-              showTotal={(t) => `${t} 个主题包`}
+              showTotal={(total) => t('market.totalCount', { total })}
               showSizeChanger={false}
             />
           </div>

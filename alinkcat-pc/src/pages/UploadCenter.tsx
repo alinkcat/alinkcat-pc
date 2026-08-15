@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n/setup';
 import { useNavigate } from 'react-router-dom';
 import {
   Button, Card, Form, Input, Select, Steps, Table, Tag, Upload, Typography, Modal, Space, Row, Col, Empty,
@@ -17,22 +19,23 @@ import type { ThemeItem } from '../api/types';
 const { Text } = Typography;
 
 const CATEGORY_OPTIONS = [
-  { label: '桌面', value: 'desktop' },
-  { label: '直播', value: 'streaming' },
-  { label: '办公', value: 'office' },
-  { label: '游戏', value: 'gaming' },
-  { label: '其他', value: 'other' },
+  { label: i18n.t('upload.category_desktop'), value: 'desktop' },
+  { label: i18n.t('upload.category_streaming'), value: 'streaming' },
+  { label: i18n.t('upload.category_office'), value: 'office' },
+  { label: i18n.t('upload.category_gaming'), value: 'gaming' },
+  { label: i18n.t('upload.category_other'), value: 'other' },
 ];
 
 const STATUS_MAP: Record<number, { color: string; label: string }> = {
-  0: { color: 'orange', label: '待审核' },
-  1: { color: 'green', label: '已通过' },
-  2: { color: 'red', label: '已驳回' },
-  3: { color: 'default', label: '已下架' },
+  0: { color: 'orange', label: i18n.t('upload.statusPending') },
+  1: { color: 'green', label: i18n.t('upload.statusApproved') },
+  2: { color: 'red', label: i18n.t('upload.statusRejected') },
+  3: { color: 'default', label: i18n.t('upload.statusRemoved') },
 };
 
 export default function UploadCenter() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { isLoggedIn } = useAuthStore();
   const { message: msg } = useMessage();
   const [themes, setThemes] = useState<ThemeSummary[]>([]);
@@ -58,7 +61,7 @@ export default function UploadCenter() {
     tauriInvoke<ThemeSummary[]>('scan_themes').then(setThemes).catch(() => {});
     if (isLoggedIn) {
       fetchMyThemes();
-      // 实时轮询审核状态
+      // Poll review status in real time
       const timer = setInterval(fetchMyThemes, 10_000);
       return () => clearInterval(timer);
     }
@@ -85,7 +88,7 @@ export default function UploadCenter() {
 
         const resp = await themeApi.upload(fd);
         if (resp.code === 200) {
-          msg.success('上传成功，等待管理员审核');
+          msg.success(t('upload.uploadSuccess'));
         } else {
           msg.warning(resp.message);
         }
@@ -103,15 +106,15 @@ export default function UploadCenter() {
 
   const handleDelete = (item: ThemeItem) => {
     Modal.confirm({
-      title: '删除主题包',
-      content: `确定要删除「${item.name}」吗？删除后无法恢复。`,
-      okText: '删除',
+      title: t('upload.deleteConfirmTitle'),
+      content: t('upload.deleteConfirmContent', { name: item.name }),
+      okText: t('upload.deleteConfirm'),
       okType: 'danger',
-      cancelText: '取消',
+      cancelText: t('upload.cancel'),
       onOk: async () => {
         try {
           await themeApi.delete(item.id);
-          msg.success('已删除');
+          msg.success(t('upload.deleted'));
           fetchMyThemes();
         } catch (e) { msg.error(String(e)); }
       },
@@ -119,24 +122,24 @@ export default function UploadCenter() {
   };
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '主题包名称', dataIndex: 'name' },
-    { title: '版本', dataIndex: 'version', width: 80 },
+    { title: t('upload.id'), dataIndex: 'id', width: 80 },
+    { title: t('upload.themeName'), dataIndex: 'name' },
+    { title: t('upload.version'), dataIndex: 'version', width: 80 },
     {
-      title: '状态', dataIndex: 'status', width: 100,
+      title: t('upload.reviewStatus'), dataIndex: 'status', width: 100,
       render: (s: number) => {
         const info = STATUS_MAP[s] || { color: 'default', label: String(s) };
         return <Tag color={info.color}>{info.label}</Tag>;
       },
     },
-    { title: '审核意见', dataIndex: 'reviewComment', ellipsis: true, render: (v: string) => v || '-' },
-    { title: '提交时间', dataIndex: 'createdAt', width: 170, render: (v: string) => new Date(v).toLocaleString() },
+    { title: t('upload.reviewComment'), dataIndex: 'reviewComment', ellipsis: true, render: (v: string) => v || '-' },
+    { title: t('upload.submitTime'), dataIndex: 'createdAt', width: 170, render: (v: string) => new Date(v).toLocaleString() },
     {
-      title: '操作', width: 140,
+      title: t('upload.actions'), width: 140,
       render: (_: unknown, r: ThemeItem) => (
         <Space>
-          <Button type="link" size="small" onClick={() => setDetail(r)}>详情</Button>
-          <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>删除</Button>
+          <Button type="link" size="small" onClick={() => setDetail(r)}>{t('upload.detail')}</Button>
+          <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>{t('upload.delete')}</Button>
         </Space>
       ),
     },
@@ -149,9 +152,9 @@ export default function UploadCenter() {
         size="small"
         current={idx}
         items={[
-          { title: '已提交' },
-          { title: status === 2 ? '已驳回' : '审核中', status: status === 2 ? 'error' : status === 0 ? 'process' : 'wait' },
-          { title: '已通过', status: status === 1 ? 'finish' : 'wait' },
+          { title: t('upload.statusSubmitted') },
+          { title: status === 2 ? t('upload.statusRejected') : t('upload.statusReviewing'), status: status === 2 ? 'error' : status === 0 ? 'process' : 'wait' },
+          { title: t('upload.statusApproved'), status: status === 1 ? 'finish' : 'wait' },
         ]}
       />
     );
@@ -160,25 +163,25 @@ export default function UploadCenter() {
   return (
     <div className="page-container">
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/themes')}>返回</Button>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/themes')}>{t('upload.back')}</Button>
         <div>
-          <h1 className="page-title" style={{ marginBottom: 0 }}>主题上传中心</h1>
+          <h1 className="page-title" style={{ marginBottom: 0 }}>{t('upload.title')}</h1>
         </div>
       </div>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={14}>
-          <Card title="上传主题包">
+          <Card title={t('upload.uploadTheme')}>
             {!isLoggedIn ? (
               <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                <div style={{ marginBottom: 16 }}>请先登录后再上传主题包</div>
-                <Button type="primary" onClick={() => navigate('/auth')}>去登录</Button>
+                <div style={{ marginBottom: 16 }}>{t('upload.loginRequired')}</div>
+                <Button type="primary" onClick={() => navigate('/auth')}>{t('upload.login')}</Button>
               </div>
             ) : (
               <Form form={form} layout="vertical">
-                <Form.Item name="themeId" label="选择本地主题包" rules={[{ required: true, message: '请选择主题包' }]}>
+                <Form.Item name="themeId" label={t('upload.selectLocalTheme')} rules={[{ required: true, message: t('upload.selectLocalThemeRequired') }]}>
                   <Select
-                    placeholder="仅显示本地创建的主题包"
+                    placeholder={t('upload.selectLocalPlaceholder')}
                     options={localThemes.map((t) => ({
                       value: t.id,
                       label: `${t.name} (v${t.version} · ${t.author})`,
@@ -191,27 +194,27 @@ export default function UploadCenter() {
                     }}
                   />
                 </Form.Item>
-                <Form.Item name="name" label="主题包名称" rules={[{ required: true, message: '请输入名称' }]}>
+                <Form.Item name="name" label={t('upload.themeName')} rules={[{ required: true, message: t('upload.themeNameRequired') }]}>
                   <Input />
                 </Form.Item>
                 <div style={{ display: 'flex', gap: 12 }}>
-                  <Form.Item name="version" label="版本号" style={{ flex: 1 }} rules={[{ required: true, message: '请输入版本号' }]}>
+                  <Form.Item name="version" label={t('upload.version')} style={{ flex: 1 }} rules={[{ required: true, message: t('upload.versionRequired') }]}>
                     <Input />
                   </Form.Item>
-                  <Form.Item name="author" label="作者" style={{ flex: 1 }}>
+                  <Form.Item name="author" label={t('upload.author')} style={{ flex: 1 }}>
                     <Input />
                   </Form.Item>
                 </div>
-                <Form.Item name="category" label="分类" rules={[{ required: true }]}>
-                  <Select options={CATEGORY_OPTIONS} placeholder="选择分类" />
+                <Form.Item name="category" label={t('upload.category')} rules={[{ required: true, message: t('upload.categoryRequired') }]}>
+                  <Select options={CATEGORY_OPTIONS} placeholder={t('upload.categoryPlaceholder')} />
                 </Form.Item>
-                <Form.Item name="tags" label="标签">
-                  <Input placeholder="多个标签用逗号分隔，如：极简,效率" />
+                <Form.Item name="tags" label={t('upload.tags')}>
+                  <Input placeholder={t('upload.tagsPlaceholder')} />
                 </Form.Item>
-                <Form.Item name="description" label="详细描述">
-                  <Input.TextArea rows={3} placeholder="介绍你的主题包..." />
+                <Form.Item name="description" label={t('upload.description')}>
+                  <Input.TextArea rows={3} placeholder={t('upload.descriptionPlaceholder')} />
                 </Form.Item>
-                <Form.Item label="封面图（可选）">
+                <Form.Item label={t('upload.cover')}>
                   <Upload
                     listType="picture-card"
                     accept="image/*"
@@ -220,11 +223,11 @@ export default function UploadCenter() {
                     onRemove={() => { setCoverFile(null); return true; }}
                     fileList={coverFile ? [{ uid: '-1', name: coverFile.name, status: 'done' }] : []}
                   >
-                    {coverFile ? null : <div><InboxOutlined /><div style={{ marginTop: 4 }}>上传封面</div></div>}
+                    {coverFile ? null : <div><InboxOutlined /><div style={{ marginTop: 4 }}>{t('upload.uploadCover')}</div></div>}
                   </Upload>
                 </Form.Item>
                 <Button type="primary" icon={<UploadOutlined />} loading={submitting} onClick={handleSubmit}>
-                  上传并提交审核
+                  {t('upload.submitReview')}
                 </Button>
               </Form>
             )}
@@ -232,9 +235,9 @@ export default function UploadCenter() {
         </Col>
 
         <Col xs={24} lg={10}>
-          <Card title="审核状态">
+          <Card title={t('upload.reviewStatus')}>
             {records.length === 0 ? (
-              <Empty description="暂无上传记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <Empty description={t('upload.noRecords')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {records.slice(0, 3).map((r) => (
@@ -243,7 +246,7 @@ export default function UploadCenter() {
                     {statusStep(r.status)}
                     {r.status === 2 && r.reviewComment && (
                       <Text type="danger" style={{ fontSize: 12, display: 'block', marginTop: 6 }}>
-                        驳回原因：{r.reviewComment}
+                        {t('upload.rejectReason', { reason: r.reviewComment })}
                       </Text>
                     )}
                   </div>
@@ -255,31 +258,31 @@ export default function UploadCenter() {
       </Row>
 
       <Card
-        title="上传记录"
+        title={t('upload.uploadRecords')}
         style={{ marginTop: 16 }}
-        extra={<Button size="small" icon={<ReloadOutlined />} onClick={fetchMyThemes}>刷新</Button>}
+        extra={<Button size="small" icon={<ReloadOutlined />} onClick={fetchMyThemes}>{t('upload.refresh')}</Button>}
       >
         <Table
           dataSource={records}
           columns={columns}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条` }}
-          locale={{ emptyText: '暂无上传记录' }}
+          pagination={{ pageSize: 10, showTotal: (tTotal: number) => t('upload.totalCount', { total: tTotal }) }}
+          locale={{ emptyText: t('upload.emptyTable') }}
         />
       </Card>
 
-      <Modal title="上传记录详情" open={!!detail} onCancel={() => setDetail(null)} footer={null} width={520}>
+      <Modal title={t('upload.recordDetail')} open={!!detail} onCancel={() => setDetail(null)} footer={null} width={520}>
         {detail && (
           <Space orientation="vertical" style={{ width: '100%' }}>
-            <Text><b>ID：</b>{detail.id}</Text>
-            <Text><b>主题包：</b>{detail.name} v{detail.version}</Text>
-            <Text><b>作者：</b>{detail.author || '-'}</Text>
-            <Text><b>提交时间：</b>{new Date(detail.createdAt).toLocaleString()}</Text>
-            <Text><b>状态：</b><Tag color={STATUS_MAP[detail.status]?.color}>{STATUS_MAP[detail.status]?.label}</Tag></Text>
-            {detail.reviewComment && <Text><b>审核意见：</b>{detail.reviewComment}</Text>}
-            <Text><b>下载量：</b>{detail.downloadCount}</Text>
-            <Text><b>评分：</b>{detail.rating > 0 ? `${detail.rating} (${detail.ratingCount} 票)` : '暂无评分'}</Text>
+            <Text><b>{t('upload.id')}：</b>{detail.id}</Text>
+            <Text><b>{t('upload.themeInfo')}：</b>{detail.name} v{detail.version}</Text>
+            <Text><b>{t('upload.author')}：</b>{detail.author || '-'}</Text>
+            <Text><b>{t('upload.submitTime')}：</b>{new Date(detail.createdAt).toLocaleString()}</Text>
+            <Text><b>{t('upload.reviewStatus')}：</b><Tag color={STATUS_MAP[detail.status]?.color}>{STATUS_MAP[detail.status]?.label}</Tag></Text>
+            {detail.reviewComment && <Text><b>{t('upload.reviewComment')}：</b>{detail.reviewComment}</Text>}
+            <Text><b>{t('upload.downloads')}：</b>{detail.downloadCount}</Text>
+            <Text><b>{t('upload.rating')}：</b>{detail.rating > 0 ? `${detail.rating} ${t('upload.votes', { count: detail.ratingCount })}` : t('upload.noRating')}</Text>
           </Space>
         )}
       </Modal>

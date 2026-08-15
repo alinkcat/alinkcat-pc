@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Modal, Button, Typography, Space } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { APP_VERSION } from '../config';
 import { clientVersionApi } from '../api/clientVersionApi';
 
@@ -25,6 +26,7 @@ function markSeen(id: number) {
  * 嵌入 App 根组件，与 App 同生命周期。
  */
 export default function VersionPolling() {
+  const { t } = useTranslation();
   const [modal, setModal] = useState<{
     type: 'deprecated' | 'maintenance' | 'force_update' | 'announcement';
     message: string; url?: string | null; changelog?: string | null; title?: string;
@@ -40,15 +42,15 @@ export default function VersionPolling() {
 
         // 版本控制（优先级最高）
         if (version.status === 2) {
-          setModal({ type: 'deprecated', message: '当前版本已停止服务，请升级到最新版本', url: version.updateUrl });
+          setModal({ type: 'deprecated', message: t('versionGate.deprecated'), url: version.updateUrl });
           return;
         }
         if (version.forceUpdate === 1) {
-          setModal({ type: 'force_update', message: '请升级到最新版本以继续使用', url: version.updateUrl, changelog: version.changelog });
+          setModal({ type: 'force_update', message: t('versionGate.forceUpdate'), url: version.updateUrl, changelog: version.changelog });
           return;
         }
         if (version.status === 1) {
-          setModal({ type: 'maintenance', message: '系统正在维护中，部分功能可能不可用', url: version.updateUrl });
+          setModal({ type: 'maintenance', message: t('versionGate.maintenance'), url: version.updateUrl });
           return;
         }
 
@@ -101,7 +103,7 @@ export default function VersionPolling() {
           {modal.type === 'announcement' ? '📢' : modal.type === 'deprecated' ? '🚫' : '⬆️'}
         </div>
         <Text strong style={{ fontSize: 16 }}>
-          {modal.title || (isBlocking ? '版本更新' : '系统维护')}
+          {modal.title || (isBlocking ? t('versionGate.titleUpdate') : t('versionGate.titleMaintenance'))}
         </Text>
         <div style={{ marginTop: 12 }}>
           <Text style={{ whiteSpace: 'pre-wrap' }}>{modal.message}</Text>
@@ -114,11 +116,11 @@ export default function VersionPolling() {
         <div style={{ marginTop: 16 }}>
           {isBlocking ? (
             <Space>
-              {modal.url && <Button type="primary" onClick={handleAction}>下载更新</Button>}
-              <Button onClick={handleAction}>退出应用</Button>
+              {modal.url && <Button type="primary" onClick={handleAction}>{t('versionGate.downloadUpdate')}</Button>}
+              <Button onClick={handleAction}>{t('versionGate.exitApp')}</Button>
             </Space>
           ) : (
-            <Button type="primary" onClick={handleClose}>我知道了</Button>
+            <Button type="primary" onClick={handleClose}>{t('versionGate.gotIt')}</Button>
           )}
         </div>
       </div>

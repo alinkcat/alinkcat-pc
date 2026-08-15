@@ -31,5 +31,33 @@
   "status": "Status",
   "name": "Name",
   "time": "Time",
-  "type": "Type"
+  "type": "Type",
+  "downloading": "Downloading...",
+  "downloaded": "Downloaded",
+  "themeFiles": "Theme Files - {{id}}",
+  "fileCount": "{{totalFiles}} files, total {{totalSize}}",
+  "noFiles": "No files",
+  "versionGate": {
+    "deprecated": "The current version is no longer supported. Please upgrade to the latest version",
+    "forceUpdate": "Please upgrade to the latest version to continue using",
+    "maintenance": "System is under maintenance, some features may be unavailable",
+    "titleUpdate": "Version Update",
+    "titleMaintenance": "System Maintenance",
+    "downloadUpdate": "Download Update",
+    "exitApp": "Exit App",
+    "gotIt": "Got It"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "unknownError": "Unknown error, please refresh and try again",
+    "refresh": "Refresh Page"
+  },
+  "oauth": {
+    "authorizeFailed": "Authorization Failed",
+    "noToken": "No authorization token received. Please sign in again",
+    "retryLater": "Please try again later",
+    "backToLogin": "Back to Login",
+    "processing": "Completing authorization...",
+    "loginSuccess": "Login successful, redirecting..."
+  }
 }

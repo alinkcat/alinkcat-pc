@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntApp, theme as antTheme, Modal, Button, Typography, Space } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { useThemeStore } from './store/themeStore';
 import { useI18nStore } from './i18n/useI18nStore';
 import { APP_VERSION } from './config';
@@ -46,6 +47,7 @@ function markSeen(id: number) {
 }
 
 export default function App() {
+  const { t } = useTranslation();
   const { mode, hydrate } = useThemeStore();
   const antdLocale = useI18nStore((s) => s.antdLocale);
   const [gate, setGate] = useState<Gate | null>(null);
@@ -69,15 +71,15 @@ export default function App() {
         const { version, announcements } = resp.data;
 
         if (version.status === 2) {
-          setGate({ type: 'deprecated', message: '当前版本已停止服务，请升级到最新版本', url: version.updateUrl });
+          setGate({ type: 'deprecated', message: t('versionGate.deprecated'), url: version.updateUrl });
           return;
         }
         if (version.forceUpdate === 1) {
-          setGate({ type: 'force_update', message: '请升级到最新版本以继续使用', url: version.updateUrl, changelog: version.changelog });
+          setGate({ type: 'force_update', message: t('versionGate.forceUpdate'), url: version.updateUrl, changelog: version.changelog });
           return;
         }
         if (version.status === 1) {
-          setGate({ type: 'maintenance', message: '系统正在维护中，部分功能可能不可用', url: version.updateUrl });
+          setGate({ type: 'maintenance', message: t('versionGate.maintenance'), url: version.updateUrl });
           return;
         }
 
@@ -129,7 +131,7 @@ export default function App() {
               <div style={{ fontSize: 48, marginBottom: 12 }}>
                 {gate.type === 'announcement' ? '📢' : gate.type === 'deprecated' ? '🚫' : '⬆️'}
               </div>
-              <Text strong style={{ fontSize: 16 }}>{gate.title || (isBlocking ? '版本更新' : '系统维护')}</Text>
+              <Text strong style={{ fontSize: 16 }}>{gate.title || (isBlocking ? t('versionGate.titleUpdate') : t('versionGate.titleMaintenance'))}</Text>
               <div style={{ marginTop: 12 }}><Text style={{ whiteSpace: 'pre-wrap' }}>{gate.message}</Text></div>
               {gate.changelog && (
                 <div style={{ marginTop: 12, padding: 8, background: '#f5f5f5', borderRadius: 6, textAlign: 'left' }}>
@@ -139,11 +141,11 @@ export default function App() {
               <div style={{ marginTop: 16 }}>
                 {isBlocking ? (
                   <Space>
-                    {gate.url && <Button type="primary" onClick={handleBlocking}>下载更新</Button>}
-                    <Button onClick={handleBlocking}>退出应用</Button>
+                    {gate.url && <Button type="primary" onClick={handleBlocking}>{t('versionGate.downloadUpdate')}</Button>}
+                    <Button onClick={handleBlocking}>{t('versionGate.exitApp')}</Button>
                   </Space>
                 ) : (
-                  <Button type="primary" onClick={closeGate}>我知道了</Button>
+                  <Button type="primary" onClick={closeGate}>{t('versionGate.gotIt')}</Button>
                 )}
               </div>
             </div>

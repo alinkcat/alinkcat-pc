@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Button, Tooltip } from 'antd';
 import { HeartOutlined, HeartFilled } from '@ant-design/icons';
 import { useFavoriteStore } from '../store/favoriteStore';
@@ -9,11 +10,12 @@ interface Props {
 }
 
 export default function FavoriteButton({ themeId, size = 'middle', showLabel = false }: Props) {
+  const { t } = useTranslation();
   const { favorites, toggle } = useFavoriteStore();
   const active = favorites.includes(themeId);
 
   return (
-    <Tooltip title={active ? '取消收藏' : '收藏'}>
+    <Tooltip title={active ? t('market.unfavorite') : t('market.favorite')}>
       <Button
         size={size}
         type={active ? 'primary' : 'default'}
@@ -21,7 +23,7 @@ export default function FavoriteButton({ themeId, size = 'middle', showLabel = f
         icon={active ? <HeartFilled style={{ color: '#ff4d4f' }} /> : <HeartOutlined />}
         onClick={(e) => { e.stopPropagation(); toggle(themeId); }}
       >
-        {showLabel ? (active ? '已收藏' : '收藏') : undefined}
+        {showLabel ? (active ? t('market.favorited') : t('market.favorite')) : undefined}
       </Button>
     </Tooltip>
   );

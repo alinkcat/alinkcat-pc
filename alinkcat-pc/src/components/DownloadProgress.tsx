@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Progress, Typography } from 'antd';
 import { tauriInvoke } from '../utils/tauri';
 import { useDownloadStore } from '../store/downloadStore';
@@ -18,12 +19,13 @@ interface ProgressState {
  * Downloads via Rust backend (no CORS), stores in queue.
  */
 export function useDownloadProgress() {
+  const { t } = useTranslation();
   const [state, setState] = useState<ProgressState>({
     visible: false, fileName: '', percent: 0, status: 'downloading', message: '',
   });
 
   const startDownload = useCallback(async (url: string, name: string, themeId: string, version: string, author: string) => {
-    setState({ visible: true, fileName: name, percent: 0, status: 'downloading', message: '正在下载...' });
+    setState({ visible: true, fileName: name, percent: 0, status: 'downloading', message: t('common.downloading') });
 
     try {
       // Simulate progress (real progress tracking requires server-side support)
@@ -33,7 +35,7 @@ export function useDownloadProgress() {
       const filename = `${themeId}.alc`;
       const filePath = await tauriInvoke<string>('download_theme_file', { url, filename });
 
-      setState((s) => ({ ...s, percent: 100, status: 'done', message: '下载完成' }));
+      setState((s) => ({ ...s, percent: 100, status: 'done', message: t('common.downloaded') }));
 
       useDownloadStore.getState().add({
         id: `${themeId}-${Date.now()}`,
@@ -47,7 +49,7 @@ export function useDownloadProgress() {
     } catch (e) {
       setState((s) => ({ ...s, status: 'error', message: String(e) }));
     }
-  }, []);
+  }, [t]);
 
   const modal = (
     <Modal

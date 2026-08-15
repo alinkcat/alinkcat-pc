@@ -1,10 +1,12 @@
 import { Modal, Spin, Button, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { tauriInvoke } from '../utils/tauri';
 import { authApi } from '../api/authApi';
 import { setTokens } from '../api/client';
 import { useAuthStore } from '../store/authStore';
+import i18n from '../i18n';
 
 const { Text } = Typography;
 
@@ -14,16 +16,16 @@ const MAX_WAIT_MS = 60 * 1000; // 60 秒超时兜底
 function friendlyError(err: string): { text: string; action: 'register' | 'retry' | 'close' | 'contact' } {
   const msg = err.toLowerCase();
   if (msg.includes('未绑定') || msg.includes('not bound')) {
-    return { text: '此 GitHub 账号未绑定平台账号，请先注册并绑定后再试', action: 'register' };
+    return { text: i18n.t('auth.githubNotBound'), action: 'register' };
   }
   if (msg.includes('已被其他用户绑定') || msg.includes('already bound')) {
-    return { text: '此 GitHub 账号已被其他账号绑定，请解绑后再试', action: 'close' };
+    return { text: i18n.t('auth.githubAlreadyBound'), action: 'close' };
   }
   if (msg.includes('已被禁用') || msg.includes('disabled')) {
-    return { text: '账号已被禁用，请联系客服', action: 'contact' };
+    return { text: i18n.t('auth.accountDisabled'), action: 'contact' };
   }
   if (msg.includes('state') || msg.includes('过期') || msg.includes('expired')) {
-    return { text: '授权已过期，请重试', action: 'retry' };
+    return { text: i18n.t('auth.authExpired'), action: 'retry' };
   }
   return { text: err, action: 'close' };
 }
@@ -43,6 +45,7 @@ interface OAuthModalProps {
  */
 export function OAuthWaitingModal({ open, error, errorAction, onCancel, onRetry, onRegister }: OAuthModalProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleAction = () => {
     if (errorAction === 'register') {
@@ -55,7 +58,7 @@ export function OAuthWaitingModal({ open, error, errorAction, onCancel, onRetry,
     }
   };
 
-  const actionLabel = errorAction === 'register' ? '去注册' : errorAction === 'retry' ? '重试' : '关闭';
+  const actionLabel = errorAction === 'register' ? t('auth.goRegister') : errorAction === 'retry' ? t('auth.retry') : t('auth.close');
 
   return (
     <Modal open={open} footer={null} closable={false} width={360} centered>
@@ -69,7 +72,7 @@ export function OAuthWaitingModal({ open, error, errorAction, onCancel, onRetry,
                 {actionLabel}
               </Button>
               {errorAction !== 'close' && errorAction !== 'contact' && (
-                <Button onClick={onCancel} style={{ marginLeft: 8 }}>取消</Button>
+                <Button onClick={onCancel} style={{ marginLeft: 8 }}>{t('auth.cancel')}</Button>
               )}
             </div>
           </>
@@ -77,16 +80,16 @@ export function OAuthWaitingModal({ open, error, errorAction, onCancel, onRetry,
           <>
             <Spin size="large" />
             <div style={{ marginTop: 16 }}>
-              <Text strong style={{ fontSize: 15 }}>正在等待 GitHub 授权...</Text>
+              <Text strong style={{ fontSize: 15 }}>{t('auth.waitingGithubAuth')}</Text>
             </div>
             <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 12 }}>
-              已打开系统浏览器，请在浏览器中完成授权
+              {t('auth.browserAuthHint')}
             </Text>
             <Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
-              授权完成后会自动跳转回应用
+              {t('auth.autoRedirectHint')}
             </Text>
             <div style={{ marginTop: 16 }}>
-              <Button onClick={onCancel}>取消</Button>
+              <Button onClick={onCancel}>{t('auth.cancel')}</Button>
             </div>
           </>
         )}
@@ -112,14 +115,14 @@ export async function startGithubOAuth(): Promise<boolean> {
     await authApi.oauthCheck();
   } catch (e) {
     const msg = e instanceof Error ? e.message : '';
-    if (msg.includes('403')) throw new Error('GitHub 登录暂未开放（后端未配置）');
-    throw new Error('无法连接到服务器，请检查网络');
+    if (msg.includes('403')) throw new Error(i18n.t('auth.githubOAuthUnavailable'));
+    throw new Error(i18n.t('auth.cannotConnectServer'));
   }
 
   // 获取授权地址
   const resp = await authApi.oauthLogin();
   if (resp.code !== 200 || !resp.data?.authorizeUrl) {
-    throw new Error(resp.message || '获取授权地址失败');
+    throw new Error(resp.message || i18n.t('auth.authUrlFailed'));
   }
 
   await tauriInvoke('oauth_reset').catch(() => {});
@@ -144,7 +147,7 @@ export async function startGithubOAuth(): Promise<boolean> {
     }
     await new Promise((r) => setTimeout(r, 1500));
   }
-  throw new Error('登录超时，请重试');
+  throw new Error(i18n.t('auth.loginTimeout'));
 }
 
 /**
@@ -155,7 +158,7 @@ export async function startGithubBind(): Promise<boolean> {
   await tauriInvoke('oauth_reset').catch(() => {});
   const resp = await authApi.oauthBind();
   if (resp.code !== 200 || !resp.data?.authorizeUrl) {
-    throw new Error(resp.message || '获取绑定授权地址失败');
+    throw new Error(resp.message || i18n.t('auth.bindUrlFailed'));
   }
   await openUrl(resp.data.authorizeUrl);
 
@@ -176,5 +179,5 @@ export async function startGithubBind(): Promise<boolean> {
     }
     await new Promise((r) => setTimeout(r, 1500));
   }
-  throw new Error('绑定超时，请重试');
+  throw new Error(i18n.t('auth.bindTimeout'));
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -16,10 +17,6 @@ import type { ThemeItem, ThemeComment, ThemeVersion } from '../api/types';
 
 const { Title, Text, Paragraph } = Typography;
 
-const CATEGORY_LABELS: Record<string, string> = {
-  desktop: '桌面', streaming: '直播', office: '办公', gaming: '游戏', other: '其他',
-};
-
 function coverGradient(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h << 5) - h + seed.charCodeAt(i);
@@ -34,6 +31,7 @@ function formatFileSize(bytes: number): string {
 }
 
 export default function MarketDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { message: msg } = useMessage();
@@ -64,7 +62,7 @@ export default function MarketDetail() {
     setDownloading(true);
     try {
       await downloadToQueue(item);
-      msg.success(`「${item.name}」已下载，请在主题包管理页导入`);
+      msg.success(t('market.downloadedHint', { name: item.name }));
     } catch (e) { msg.error(String(e)); }
     finally { setDownloading(false); }
   };
@@ -74,7 +72,7 @@ export default function MarketDetail() {
     try {
       const resp = await commentApi.create(item.themeId, commentText.trim());
       if (resp.code === 200) {
-        msg.success('评论已发布');
+        msg.success(t('market.commentPosted'));
         setCommentText('');
         setCommentOpen(false);
         const r = await commentApi.list(item.themeId);
@@ -90,8 +88,8 @@ export default function MarketDetail() {
   if (!item) {
     return (
       <div className="page-container">
-        <Empty description="主题包不存在或已下架" style={{ padding: '80px 0' }}>
-          <Button onClick={() => navigate('/market')}>返回市场</Button>
+        <Empty description={t('market.notExist')} style={{ padding: '80px 0' }}>
+          <Button onClick={() => navigate('/market')}>{t('market.backToMarket')}</Button>
         </Empty>
       </div>
     );
@@ -101,7 +99,7 @@ export default function MarketDetail() {
 
   return (
     <div className="page-container">
-      <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/market')} style={{ marginBottom: 16 }}>返回市场</Button>
+      <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/market')} style={{ marginBottom: 16 }}>{t('market.backToMarket')}</Button>
 
       <Card>
         <Row gutter={[24, 24]}>
@@ -123,28 +121,28 @@ export default function MarketDetail() {
           <Col xs={24} md={14}>
             <Title level={3} style={{ marginTop: 0 }}>{item.name}</Title>
             <Space wrap style={{ marginBottom: 8 }}>
-              <Tag color="blue">{CATEGORY_LABELS[item.category] || item.category}</Tag>
+              <Tag color="blue">{t(`market.category_${item.category}`, { defaultValue: item.category })}</Tag>
               <Rate disabled allowHalf value={item.rating} style={{ fontSize: 14 }} />
-              <Text type="secondary">({item.ratingCount} 条评分)</Text>
+              <Text type="secondary">({t('market.ratingCount', { count: item.ratingCount })})</Text>
               <Tag>v{item.version}</Tag>
             </Space>
-            <Paragraph type="secondary">{item.description || '暂无描述'}</Paragraph>
+            <Paragraph type="secondary">{item.description || t('market.noDescription')}</Paragraph>
             <Descriptions column={2} size="small" style={{ margin: '12px 0' }}>
-              <Descriptions.Item label="作者">{item.author || '-'}</Descriptions.Item>
-              <Descriptions.Item label="大小">{formatFileSize(item.fileSize)}</Descriptions.Item>
-              <Descriptions.Item label="下载次数">{item.downloadCount.toLocaleString()}</Descriptions.Item>
-              <Descriptions.Item label="浏览次数">{item.viewCount.toLocaleString()}</Descriptions.Item>
-              <Descriptions.Item label="发布时间" span={2}>{new Date(item.createdAt).toLocaleString()}</Descriptions.Item>
+              <Descriptions.Item label={t('market.author')}>{item.author || '-'}</Descriptions.Item>
+              <Descriptions.Item label={t('market.size')}>{formatFileSize(item.fileSize)}</Descriptions.Item>
+              <Descriptions.Item label={t('market.downloads')}>{item.downloadCount.toLocaleString()}</Descriptions.Item>
+              <Descriptions.Item label={t('market.views')}>{item.viewCount.toLocaleString()}</Descriptions.Item>
+              <Descriptions.Item label={t('market.published')} span={2}>{new Date(item.createdAt).toLocaleString()}</Descriptions.Item>
             </Descriptions>
             {tags.length > 0 && (
               <div style={{ marginBottom: 12 }}>
-                <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>标签：</Text>
+                <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>{t('market.tags')}</Text>
                 <Space wrap>{tags.map((t) => <Tag key={t}>{t}</Tag>)}</Space>
               </div>
             )}
             <UserRating themeId={item.themeId} serverRating={item.rating} serverRatingCount={item.ratingCount} />
             <Space style={{ marginTop: 12 }}>
-              <Button type="primary" icon={<DownloadOutlined />} loading={downloading} onClick={handleDownload}>下载</Button>
+              <Button type="primary" icon={<DownloadOutlined />} loading={downloading} onClick={handleDownload}>{t('market.download')}</Button>
               <FavoriteButton themeId={item.themeId} showLabel />
             </Space>
           </Col>
@@ -153,7 +151,7 @@ export default function MarketDetail() {
 
       {/* Version History */}
       {versions.length > 0 && (
-        <Card title="版本历史" style={{ marginTop: 16 }}>
+        <Card title={t('market.versionHistory')} style={{ marginTop: 16 }}>
           <List
             size="small"
             dataSource={versions}
@@ -173,10 +171,10 @@ export default function MarketDetail() {
       )}
 
       {/* Comments */}
-      <Card title="评论区" style={{ marginTop: 16 }}>
+      <Card title={t('market.comments')} style={{ marginTop: 16 }}>
         <Space style={{ marginBottom: 16 }}>
           <Button type={commentOpen ? 'primary' : 'default'} onClick={() => setCommentOpen(!commentOpen)}>
-            {commentOpen ? '取消' : '发表评论'}
+            {commentOpen ? t('market.cancel') : t('market.postComment')}
           </Button>
         </Space>
         {commentOpen && (
@@ -185,14 +183,14 @@ export default function MarketDetail() {
               rows={3}
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              placeholder="写下你的评价..."
+              placeholder={t('market.commentPlaceholder')}
             />
-            <Button type="primary" style={{ marginTop: 8 }} onClick={handlePostComment}>发布</Button>
+            <Button type="primary" style={{ marginTop: 8 }} onClick={handlePostComment}>{t('market.post')}</Button>
           </div>
         )}
         <Divider />
         {comments.length === 0 ? (
-          <Empty description="暂无评论，来发表第一条吧" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={t('market.noComments')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <List
             dataSource={comments}

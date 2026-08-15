@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../utils/tauri';
 import ThemeCover from '../components/ThemeCover';
 import ThemeTable from '../components/ThemeTable';
@@ -43,6 +44,7 @@ type ThemeCategory = 'all' | 'local' | 'downloaded' | 'pending';
 
 export default function Themes() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [themes, setThemes] = useState<ThemeSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,17 +92,17 @@ export default function Themes() {
       const { open } = await import('@tauri-apps/plugin-dialog');
       file = await open({
         multiple: false,
-        filters: [{ name: '主题包', extensions: ['alc', 'zip'] }],
+        filters: [{ name: t('themes.themePack'), extensions: ['alc', 'zip'] }],
       });
     } catch {
-      message.error('无法打开文件选择器');
+      message.error(t('themes.cannotOpenFileDialog'));
       return;
     }
     if (!file) return;
     setImporting(true);
     try {
       await tauriInvoke('import_theme', { path: file });
-      message.success('主题包导入成功');
+      message.success(t('themes.themeImportSuccess'));
       fetchData();
     } catch (e) {
       message.error(String(e));
@@ -114,11 +116,11 @@ export default function Themes() {
       const { save } = await import('@tauri-apps/plugin-dialog');
       const path = await save({
         defaultPath: `${theme.name}_${theme.version}.alc`,
-        filters: [{ name: '主题包 (.alc)', extensions: ['alc'] }],
+        filters: [{ name: t('themes.alcFilter'), extensions: ['alc'] }],
       });
       if (!path) return;
       await tauriInvoke('export_theme', { id: theme.id, outputPath: path });
-      message.success('导出成功');
+      message.success(t('themes.exportSuccess'));
     } catch (e) {
       message.error(String(e));
     }
@@ -140,7 +142,7 @@ export default function Themes() {
       } catch {
         // WebSocket 服务未运行 — 忽略广播异常
       }
-      message.success('主题切换成功');
+      message.success(t('themes.themeSwitched'));
     } catch (e) {
       message.error(String(e));
     }
@@ -148,15 +150,15 @@ export default function Themes() {
 
   const handleDelete = (id: string, name: string) => {
     Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除主题包「${name}」吗？删除后无法恢复。`,
-      okText: '删除',
+      title: t('themes.confirmDeleteTitle'),
+      content: t('themes.confirmDeleteContent', { name }),
+      okText: t('themes.confirmDelete'),
       okType: 'danger',
-      cancelText: '取消',
+      cancelText: t('themes.cancel'),
       onOk: async () => {
         try {
           await tauriInvoke('delete_theme', { id });
-          message.success('主题包已删除');
+          message.success(t('themes.themeDeleted'));
           fetchData();
         } catch (e) {
           message.error(String(e));
@@ -169,21 +171,21 @@ export default function Themes() {
     <div className="page-container">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 className="page-title">主题包管理</h1>
-          <p className="page-subtitle">管理、创建和分发主题包资源</p>
+          <h1 className="page-title">{t('themes.themeManagement')}</h1>
+          <p className="page-subtitle">{t('themes.themeManagementDesc')}</p>
         </div>
         <Space wrap>
           <Button
             icon={<CloudUploadOutlined />}
             onClick={() => navigate('/upload-center')}
           >
-            上传主题
+            {t('themes.uploadTheme')}
           </Button>
           <Button
             icon={<PlusOutlined />}
             onClick={() => navigate('/themes/edit/new')}
           >
-            新建主题包
+            {t('themes.newTheme')}
           </Button>
           <Button
             type="primary"
@@ -191,7 +193,7 @@ export default function Themes() {
             loading={importing}
             onClick={handleImport}
           >
-            导入主题包
+            {t('themes.importTheme')}
           </Button>
         </Space>
       </div>
@@ -201,10 +203,10 @@ export default function Themes() {
           activeKey={category}
           onChange={(k) => setCategory(k as ThemeCategory)}
           items={[
-            { key: 'all', label: '全部' },
-            { key: 'local', label: '本地' },
-            { key: 'downloaded', label: '已下载' },
-            { key: 'pending', label: `待导入 (${queue.length})` },
+            { key: 'all', label: t('themes.all') },
+            { key: 'local', label: t('themes.local') },
+            { key: 'downloaded', label: t('themes.downloaded') },
+            { key: 'pending', label: t('themes.pendingImportCount', { count: queue.length }) },
           ]}
           style={{ marginBottom: 0 }}
         />
@@ -220,16 +222,16 @@ export default function Themes() {
 
       {category === 'pending' ? (
         queue.length === 0 ? (
-          <Empty description="暂无待导入的主题包" style={{ padding: '80px 0' }}>
-            <Button type="primary" onClick={() => navigate('/market')}>去主题市场逛逛</Button>
+          <Empty description={t('themes.noPendingThemes')} style={{ padding: '80px 0' }}>
+            <Button type="primary" onClick={() => navigate('/market')}>{t('themes.goToMarket')}</Button>
           </Empty>
         ) : (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text type="secondary">{queue.length} 个主题包待导入</Text>
+              <Text type="secondary">{t('themes.pendingCount', { count: queue.length })}</Text>
               <Space>
-                <Button size="small" icon={<ImportOutlined />} loading={queueImporting} onClick={importAll}>全部导入</Button>
-                <Button size="small" danger onClick={() => { Modal.confirm({ title: '清空待导入列表', content: '确定要删除所有已下载的包体吗？', onOk: () => useDownloadStore.getState().clear() }); }}>清空</Button>
+                <Button size="small" icon={<ImportOutlined />} loading={queueImporting} onClick={importAll}>{t('themes.importAll')}</Button>
+                <Button size="small" danger onClick={() => { Modal.confirm({ title: t('themes.clearPendingTitle'), content: t('themes.clearPendingConfirm'), onOk: () => useDownloadStore.getState().clear() }); }}>{t('themes.clearAll')}</Button>
               </Space>
             </div>
             <Row gutter={[16, 16]}>
@@ -240,19 +242,19 @@ export default function Themes() {
                     className="theme-card"
                     actions={[
                       <Button type="primary" size="small" icon={<ImportOutlined />} loading={queueImporting}
-                        onClick={() => { importTheme(item.themeId).then(() => message.success('导入成功')).catch((e) => message.error(String(e))); }}>
-                        导入
+                        onClick={() => { importTheme(item.themeId).then(() => message.success(t('themes.importSuccess'))).catch((e) => message.error(String(e))); }}>
+                        {t('themes.import')}
                       </Button>,
                       <Button size="small" danger icon={<DeleteOutlined />}
-                        onClick={() => { remove(item.themeId); message.success('已删除'); }}>
-                        删除
+                        onClick={() => { remove(item.themeId); message.success(t('themes.deleted')); }}>
+                        {t('themes.delete')}
                       </Button>,
                     ]}
                   >
                     <div style={{ fontWeight: 600, marginBottom: 4 }}>{item.name}</div>
                     <Text type="secondary" style={{ fontSize: 12 }}>v{item.version} · {item.author}</Text>
                     <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
-                      下载于 {new Date(item.downloadedAt).toLocaleString()}
+                      {t('themes.downloadedAt', { date: new Date(item.downloadedAt).toLocaleString() })}
                     </div>
                   </Card>
                 </Col>
@@ -266,11 +268,11 @@ export default function Themes() {
         </div>
       ) : filtered.length === 0 ? (
         <Empty
-          description={category === 'all' ? '暂无主题包' : '该分类下暂无主题包'}
+          description={category === 'all' ? t('themes.noThemes') : t('themes.noThemesInCategory')}
           style={{ padding: '80px 0' }}
         >
           <Button type="primary" icon={<PlusOutlined />} onClick={handleImport}>
-            导入主题包
+            {t('themes.importTheme')}
           </Button>
         </Empty>
       ) : view === 'table' ? (
@@ -291,7 +293,7 @@ export default function Themes() {
 
             return (
               <Col key={theme.id} xs={24} sm={12} md={8} lg={8} xl={6}>
-                <Badge.Ribbon text="当前使用" color="#4F6EF7" style={{ display: isActive ? 'block' : 'none' }}>
+                <Badge.Ribbon text={t('themes.currentUse')} color="#4F6EF7" style={{ display: isActive ? 'block' : 'none' }}>
                   <Card
                     hoverable
                     className={`theme-card ${isActive ? 'theme-card-active' : ''}`}
@@ -314,7 +316,7 @@ export default function Themes() {
                           <Tag color={sourceTagColor(src)} style={{ marginRight: 0 }}>{sourceLabel(src)}</Tag>
                           {isActive && (
                             <Badge
-                              count="当前使用"
+                              count={t('themes.currentUse')}
                               style={{ backgroundColor: '#4F6EF7', fontSize: 11, fontWeight: 400 }}
                             />
                           )}
@@ -336,19 +338,19 @@ export default function Themes() {
                     <div className="theme-card-actions">
                       <Space wrap size={[4, 4]}>
                         <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/themes/edit/${theme.id}`)}>
-                          编辑
+                          {t('themes.edit')}
                         </Button>
                         <Button size="small" icon={<MobileOutlined />} onClick={() => setPushTarget(theme)}>
-                          推送
+                          {t('themes.push')}
                         </Button>
                         <Button size="small" icon={<SwapOutlined />} disabled={isActive} onClick={() => handleActivate(theme.id)}>
-                          {isActive ? '已激活' : '切换'}
+                          {isActive ? t('themes.activated') : t('themes.activate')}
                         </Button>
                         <Button size="small" icon={<ExportOutlined />} onClick={() => handleExportTheme(theme)}>
-                          导出
+                          {t('themes.export')}
                         </Button>
                         <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(theme.id, theme.name)}>
-                          删除
+                          {t('themes.delete')}
                         </Button>
                       </Space>
                     </div>

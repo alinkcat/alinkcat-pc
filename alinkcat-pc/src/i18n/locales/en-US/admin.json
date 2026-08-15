@@ -1,0 +1,64 @@
+{
+  "title": "Admin Dashboard",
+  "subtitle": "Review themes, manage tickets, view statistics",
+  "noPermission": "No admin permission",
+  "stats": {
+    "userCount": "Total Users",
+    "themeCount": "Total Themes",
+    "pendingReview": "Pending Review",
+    "openTickets": "Open Tickets",
+    "totalDownloads": "Total Downloads"
+  },
+  "review": {
+    "title": "Theme Review",
+    "modalTitle": "Review Theme",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "commentPlaceholder": "Review comment (optional)",
+    "action": "Review",
+    "nameLabel": "Name:",
+    "authorLabel": "Author:",
+    "descLabel": "Description:",
+    "columns": {
+      "id": "ID",
+      "name": "Name",
+      "author": "Author",
+      "category": "Category",
+      "submitTime": "Submit Time",
+      "status": "Status",
+      "action": "Action"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    }
+  },
+  "tickets": {
+    "title": "Ticket Management",
+    "modalTitle": "Reply to Ticket",
+    "reply": "Reply",
+    "replySuccess": "Reply sent successfully",
+    "replyPlaceholder": "Enter reply content...",
+    "other": "Other",
+    "titleLabel": "Title:",
+    "contentLabel": "Content:",
+    "columns": {
+      "id": "ID",
+      "title": "Title",
+      "user": "User",
+      "category": "Type",
+      "status": "Status",
+      "createdAt": "Created At",
+      "action": "Action"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "replied": "Replied",
+      "closed": "Closed"
+    }
+  }
+}

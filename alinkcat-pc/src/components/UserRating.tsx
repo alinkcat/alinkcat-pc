@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Rate, Typography, Space, Button } from 'antd';
 import { useRatingStore } from '../store/ratingStore';
 
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function UserRating({ themeId, serverRating = 0, serverRatingCount = 0 }: Props) {
+  const { t } = useTranslation();
   const { ratings, setRating } = useRatingStore();
   const userRating = ratings[themeId] || 0;
 
@@ -17,14 +19,14 @@ export default function UserRating({ themeId, serverRating = 0, serverRatingCoun
     <div>
       {serverRating > 0 && (
         <Space style={{ marginBottom: 8 }}>
-          <Text type="secondary">综合评分：</Text>
+          <Text type="secondary">{t('market.overallRating')}</Text>
           <Rate disabled allowHalf value={serverRating} style={{ fontSize: 14 }} />
-          <Text type="secondary" style={{ fontSize: 13 }}>{serverRating.toFixed(1)} ({serverRatingCount} 人评价)</Text>
+          <Text type="secondary" style={{ fontSize: 13 }}>{serverRating.toFixed(1)} ({serverRatingCount}{t('market.peopleRated')})</Text>
         </Space>
       )}
       <div>
         <Space>
-          <Text type="secondary">我的评分：</Text>
+          <Text type="secondary">{t('market.myRating')}</Text>
           <Rate
             allowHalf
             value={userRating}
@@ -33,7 +35,7 @@ export default function UserRating({ themeId, serverRating = 0, serverRatingCoun
           />
           {userRating > 0 && (
             <Button size="small" type="link" onClick={() => setRating(themeId, 0)}>
-              取消评分
+              {t('market.cancelRating')}
             </Button>
           )}
         </Space>

@@ -4,16 +4,18 @@ import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { adminApi } from '../api/adminApi';
 import { useAuthStore } from '../store/authStore';
 import type { ThemeItem } from '../api/types';
+import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
 
-const STATUS_MAP: Record<number, { color: string; label: string }> = {
-  0: { color: 'orange', label: '待审核' },
-  1: { color: 'green', label: '已通过' },
-  2: { color: 'red', label: '已驳回' },
+const STATUS_MAP: Record<number, { color: string; labelKey: string }> = {
+  0: { color: 'orange', labelKey: 'admin.review.status.pending' },
+  1: { color: 'green', labelKey: 'admin.review.status.approved' },
+  2: { color: 'red', labelKey: 'admin.review.status.rejected' },
 };
 
 export default function AdminThemeReview() {
+  const { t } = useTranslation();
   const { profile } = useAuthStore();
   const [list, setList] = useState<ThemeItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,14 +34,14 @@ export default function AdminThemeReview() {
   useEffect(() => { fetchList(); }, []);
 
   if (!profile || profile.roleCode !== 'ADMIN') {
-    return <div className="page-container"><Card style={{ textAlign: 'center', padding: 40 }}><Text type="danger">无管理员权限</Text></Card></div>;
+    return <div className="page-container"><Card style={{ textAlign: 'center', padding: 40 }}><Text type="danger">{t('admin.noPermission')}</Text></Card></div>;
   }
 
   const handleReview = async (action: 'approve' | 'reject') => {
     if (!actionTarget) return;
     try {
       await adminApi.reviewTheme({ themeId: actionTarget.id, action, comment: comment || undefined });
-      message.success(action === 'approve' ? '已通过' : '已驳回');
+      message.success(action === 'approve' ? t('admin.review.approved') : t('admin.review.rejected'));
       setActionTarget(null);
       setComment('');
       fetchList();
@@ -47,42 +49,42 @@ export default function AdminThemeReview() {
   };
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', width: 60 },
-    { title: '名称', dataIndex: 'name' },
-    { title: '作者', dataIndex: 'author', width: 120 },
-    { title: '分类', dataIndex: 'category', width: 80 },
-    { title: '提交时间', dataIndex: 'createdAt', width: 170, render: (v: string) => new Date(v).toLocaleString() },
-    { title: '状态', dataIndex: 'status', width: 80, render: (s: number) => <Tag color={STATUS_MAP[s]?.color}>{STATUS_MAP[s]?.label}</Tag> },
+    { title: t('admin.review.columns.id'), dataIndex: 'id', width: 60 },
+    { title: t('admin.review.columns.name'), dataIndex: 'name' },
+    { title: t('admin.review.columns.author'), dataIndex: 'author', width: 120 },
+    { title: t('admin.review.columns.category'), dataIndex: 'category', width: 80 },
+    { title: t('admin.review.columns.submitTime'), dataIndex: 'createdAt', width: 170, render: (v: string) => new Date(v).toLocaleString() },
+    { title: t('admin.review.columns.status'), dataIndex: 'status', width: 80, render: (s: number) => <Tag color={STATUS_MAP[s]?.color}>{t(STATUS_MAP[s]?.labelKey ?? '')}</Tag> },
     {
-      title: '操作', width: 160,
+      title: t('admin.review.columns.action'), width: 160,
       render: (_: unknown, r: ThemeItem) => r.status === 0 ? (
-        <Button size="small" onClick={() => setActionTarget(r)}>审核</Button>
+        <Button size="small" onClick={() => setActionTarget(r)}>{t('admin.review.action')}</Button>
       ) : '-',
     },
   ];
 
   return (
     <div className="page-container">
-      <div className="page-header"><h1 className="page-title">主题审核</h1></div>
+      <div className="page-header"><h1 className="page-title">{t('admin.review.title')}</h1></div>
       <Card>
         <Table dataSource={list} columns={columns} rowKey="id" loading={loading} size="small"
           pagination={{ pageSize: 15 }} />
       </Card>
       <Modal
-        title="审核主题包"
+        title={t('admin.review.modalTitle')}
         open={!!actionTarget}
         onCancel={() => setActionTarget(null)}
         footer={[
-          <Button key="reject" danger icon={<CloseOutlined />} onClick={() => handleReview('reject')}>驳回</Button>,
-          <Button key="approve" type="primary" icon={<CheckOutlined />} onClick={() => handleReview('approve')}>通过</Button>,
+          <Button key="reject" danger icon={<CloseOutlined />} onClick={() => handleReview('reject')}>{t('admin.review.reject')}</Button>,
+          <Button key="approve" type="primary" icon={<CheckOutlined />} onClick={() => handleReview('approve')}>{t('admin.review.approve')}</Button>,
         ]}
       >
         {actionTarget && (
           <div>
-            <p><b>名称：</b>{actionTarget.name} v{actionTarget.version}</p>
-            <p><b>作者：</b>{actionTarget.author}</p>
-            <p><b>描述：</b>{actionTarget.description || '-'}</p>
-            <Input.TextArea rows={3} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="审核意见（选填）" />
+            <p><b>{t('admin.review.nameLabel')}</b>{actionTarget.name} v{actionTarget.version}</p>
+            <p><b>{t('admin.review.authorLabel')}</b>{actionTarget.author}</p>
+            <p><b>{t('admin.review.descLabel')}</b>{actionTarget.description || '-'}</p>
+            <Input.TextArea rows={3} value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t('admin.review.commentPlaceholder')} />
           </div>
         )}
       </Modal>

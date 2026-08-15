@@ -1,9 +1,11 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useRef, useCallback } from 'react';
 import { Tooltip } from 'antd';
 import { SendOutlined, PlusOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { useAIStore } from '../../../../store/aiStore';
 
 export default function AIPanelInput() {
+  const { t } = useTranslation();
   const { sendMessage, sending, droppedImages, removeDroppedImage } = useAIStore();
   const [text, setText] = useState('');
   const [dragOver, setDragOver] = useState(false);
@@ -112,7 +114,7 @@ export default function AIPanelInput() {
             alignItems: 'center', justifyContent: 'center',
             color: '#4F6EF7', flexShrink: 0,
           }}
-          title="上传图片（也可直接拖入）"
+          title={t('editor.aiPanel.uploadTooltip')}
         >
           <PlusOutlined />
         </button>
@@ -126,7 +128,7 @@ export default function AIPanelInput() {
               handleSend();
             }
           }}
-          placeholder="输入指令，或拖入图片后说：图1放主页、图2做背景..."
+          placeholder={t('editor.aiPanel.inputPlaceholder')}
           rows={1}
           style={{
             flex: 1, border: 'none', outline: 'none', resize: 'none',
@@ -145,7 +147,7 @@ export default function AIPanelInput() {
             background: (!text.trim() && droppedImages.length === 0) || sending ? '#d9d9d9' : '#4F6EF7',
             color: '#fff',
           }}
-          title="发送"
+          title={t('editor.aiPanel.send')}
         >
           <SendOutlined style={{ fontSize: 13 }} />
         </button>
