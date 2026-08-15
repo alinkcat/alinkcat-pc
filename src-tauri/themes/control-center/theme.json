@@ -1,0 +1,93 @@
+{
+  "id": "control-center",
+  "name": "控制中心",
+  "version": "1.0.0",
+  "author": "艾联猫",
+  "description": "常用操作快捷控制",
+  "pages": [
+    {
+      "id": "media",
+      "label": "媒体",
+      "layout": { "type": "grid", "columns": 3, "rows": 2 },
+      "widgets": [
+        {
+          "type": "button",
+          "id": "play-pause",
+          "label": "播放/暂停",
+          "icon": "▶️",
+          "action": { "type": "keyboard", "keys": ["Space"] }
+        },
+        {
+          "type": "button",
+          "id": "next-track",
+          "label": "下一首",
+          "icon": "⏭️",
+          "action": { "type": "keyboard", "keys": ["ArrowRight"] }
+        },
+        {
+          "type": "button",
+          "id": "prev-track",
+          "label": "上一首",
+          "icon": "⏮️",
+          "action": { "type": "keyboard", "keys": ["ArrowLeft"] }
+        },
+        {
+          "type": "button",
+          "id": "volume-up",
+          "label": "音量+",
+          "icon": "🔊",
+          "action": { "type": "keyboard", "keys": ["AudioVolumeUp"] }
+        },
+        {
+          "type": "button",
+          "id": "volume-down",
+          "label": "音量-",
+          "icon": "🔉",
+          "action": { "type": "keyboard", "keys": ["AudioVolumeDown"] }
+        },
+        {
+          "type": "button",
+          "id": "mute",
+          "label": "静音",
+          "icon": "🔇",
+          "action": { "type": "keyboard", "keys": ["AudioMute"] }
+        }
+      ]
+    },
+    {
+      "id": "apps",
+      "label": "应用",
+      "layout": { "type": "grid", "columns": 2, "rows": 3 },
+      "widgets": [
+        {
+          "type": "button",
+          "id": "open-browser",
+          "label": "浏览器",
+          "icon": "🌐",
+          "action": { "type": "url", "url": "https://www.google.com" }
+        },
+        {
+          "type": "button",
+          "id": "open-calc",
+          "label": "计算器",
+          "icon": "🧮",
+          "action": { "type": "open", "path": "calc" }
+        },
+        {
+          "type": "button",
+          "id": "open-notepad",
+          "label": "记事本",
+          "icon": "📝",
+          "action": { "type": "open", "path": "notepad" }
+        },
+        {
+          "type": "button",
+          "id": "open-explorer",
+          "label": "文件管理",
+          "icon": "📁",
+          "action": { "type": "open", "path": "explorer" }
+        }
+      ]
+    }
+  ]
+}
