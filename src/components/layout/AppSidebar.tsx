@@ -7,12 +7,14 @@ import {
   ShopOutlined, UserOutlined, LoginOutlined, LogoutOutlined,
   MessageOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { APP_VERSION } from '../../config';
 
 const { Sider } = Layout;
 
 export default function AppSidebar() {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -25,22 +27,22 @@ export default function AppSidebar() {
   };
 
   const items: MenuProps['items'] = [
-    { key: '/themes', icon: <AppstoreOutlined />, label: '主题包管理' },
-    { key: '/devices', icon: <DesktopOutlined />, label: '设备管理' },
-    { key: '/snippets', icon: <EditOutlined />, label: '快捷输入' },
-    { key: '/market', icon: <ShopOutlined />, label: '主题市场' },
+    { key: '/themes', icon: <AppstoreOutlined />, label: t('layout.sidebar.themes') },
+    { key: '/devices', icon: <DesktopOutlined />, label: t('layout.sidebar.devices') },
+    { key: '/snippets', icon: <EditOutlined />, label: t('layout.sidebar.snippets') },
+    { key: '/market', icon: <ShopOutlined />, label: t('layout.sidebar.market') },
     { type: 'divider' },
-    { key: '/profile', icon: <UserOutlined />, label: '个人中心' },
-    { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
+    { key: '/profile', icon: <UserOutlined />, label: t('layout.sidebar.profile') },
+    { key: '/settings', icon: <SettingOutlined />, label: t('layout.sidebar.settings') },
   ];
 
   // Admin-only items
   if (profile?.roleCode === 'ADMIN') {
     items.push(
       { type: 'divider' as const },
-      { key: '/admin', icon: <SettingOutlined />, label: '管理后台' },
-      { key: '/admin/themes', icon: <AppstoreOutlined />, label: '主题审核' },
-      { key: '/admin/tickets', icon: <MessageOutlined />, label: '工单管理' },
+      { key: '/admin', icon: <SettingOutlined />, label: t('layout.sidebar.admin') },
+      { key: '/admin/themes', icon: <AppstoreOutlined />, label: t('layout.sidebar.adminThemes') },
+      { key: '/admin/tickets', icon: <MessageOutlined />, label: t('layout.sidebar.adminTickets') },
     );
   }
 
@@ -72,14 +74,14 @@ export default function AppSidebar() {
             )}
           </Tooltip>
         ) : (
-          <Tooltip title={collapsed ? '登录/注册' : ''} placement="right">
+          <Tooltip title={collapsed ? t('layout.sidebar.loginTip') : ''} placement="right">
             <Button
               type="text"
               icon={<LoginOutlined />}
               style={{ color: 'rgba(255,255,255,0.65)', width: '100%' }}
               onClick={() => navigate('/auth')}
             >
-              {collapsed ? '' : '登录 / 注册'}
+              {collapsed ? '' : t('layout.sidebar.loginRegister')}
             </Button>
           </Tooltip>
         )}
@@ -101,7 +103,7 @@ export default function AppSidebar() {
             style={{ width: '100%', fontSize: 12 }}
             onClick={async () => { await logout(); navigate('/auth'); }}
           >
-            退出登录
+            {t('layout.sidebar.logout')}
           </Button>
         </div>
       )}
