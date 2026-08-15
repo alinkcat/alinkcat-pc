@@ -1,0 +1,394 @@
+package com.ailinkcat.mobile.ui.config
+
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ailinkcat.mobile.data.model.ConnectionStatus
+import com.ailinkcat.mobile.ui.theme.ErrorRed
+import com.ailinkcat.mobile.ui.theme.IdleGray
+import com.ailinkcat.mobile.ui.theme.SuccessGreen
+import com.ailinkcat.mobile.ui.theme.WarningOrange
+import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
+import org.json.JSONObject
+
+/**
+ * Tab 2：连接配置。表单 + 扫码（跳转 ScannerScreen）+ 历史记录 + 连接状态管理。
+ */
+@Composable
+fun ConfigScreen(
+    viewModel: ConnectionViewModel,
+    onOpenScanner: () -> Unit
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val config by viewModel.savedConfig.collectAsStateWithLifecycle()
+    val pendingScan by viewModel.pendingScanResult.collectAsStateWithLifecycle()
+
+    var ip by remember { mutableStateOf(config.ip) }
+    var port by remember { mutableStateOf(config.port) }
+    var pairCode by remember { mutableStateOf(config.pairCode) }
+
+    LaunchedEffect(config) {
+        ip = config.ip
+        port = config.port
+        if (pairCode.isBlank()) pairCode = config.pairCode
+    }
+
+    // 扫码页返回结果 -> 解析并填充表单
+    LaunchedEffect(pendingScan) {
+        val content = pendingScan ?: return@LaunchedEffect
+        applyScanContent(content)?.let { (newIp, newPort, newCode) ->
+            ip = newIp
+            port = newPort
+            pairCode = newCode
+        }
+        viewModel.consumeScanResult()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // 连接状态卡片
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "连接状态",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Spacer(Modifier.weight(1f))
+                    ConnectionStatusChip(status = state.status)
+                }
+                state.errorMessage?.let {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ErrorRed
+                    )
+                }
+                state.deviceName?.let {
+                    if (state.status == ConnectionStatus.Connected) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "已连接 PC：$it${state.serverVersion?.let { v -> " (v$v)" } ?: ""}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        // 配置表单卡片
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = ip,
+                    onValueChange = { ip = it },
+                    label = { Text("PC IP 地址") },
+                    placeholder = { Text("192.168.1.100") },
+                    singleLine = true,
+                    leadingIcon = { Text("🌐") },
+                    trailingIcon = {
+                        IconButton(onClick = onOpenScanner) {
+                            Text("📷", fontSize = 20.sp)
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = port,
+                    onValueChange = { input -> port = input.filter { it.isDigit() }.take(5) },
+                    label = { Text("端口号") },
+                    placeholder = { Text("9527") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = pairCode,
+                    onValueChange = { input -> pairCode = input.filter { it.isDigit() }.take(4) },
+                    label = { Text("配对码") },
+                    placeholder = { Text("请输入配对码") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text(
+                    text = "配对码为 PC 端生成的 4 位数字，扫码连接时自动填充",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // 上次连接历史
+        if (config.lastConnectedIp.isNotBlank()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🕘", fontSize = 18.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "上次成功连接",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${config.lastConnectedIp}:${config.lastConnectedPort}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    TextButton(onClick = {
+                        ip = config.lastConnectedIp
+                        port = config.lastConnectedPort
+                    }) {
+                        Text("填入")
+                    }
+                }
+            }
+        }
+
+        // 连接按钮
+        Button(
+            onClick = { viewModel.connect(ip.trim(), port.trim(), pairCode.trim()) },
+            enabled = state.status != ConnectionStatus.Connecting,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+        ) {
+            if (state.status == ConnectionStatus.Connecting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("连接中…")
+            } else {
+                Text("连接", fontSize = 16.sp)
+            }
+        }
+
+        // 断开连接（仅已连接时显示）
+        if (state.status == ConnectionStatus.Connected) {
+            OutlinedButton(
+                onClick = { viewModel.disconnect() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text("断开连接")
+            }
+        }
+    }
+}
+
+@Composable
+fun ConnectionStatusChip(status: ConnectionStatus) {
+    val (background, foreground, label) = when (status) {
+        ConnectionStatus.Connected ->
+            Triple(Color(0xFFE6F7EC), SuccessGreen, "已连接")
+        ConnectionStatus.Connecting ->
+            Triple(Color(0xFFFFF3E0), WarningOrange, "连接中")
+        ConnectionStatus.Error ->
+            Triple(Color(0xFFFDECEA), ErrorRed, "连接失败")
+        else ->
+            Triple(Color(0xFFEEEEEE), IdleGray, "未连接")
+    }
+    Surface(shape = RoundedCornerShape(50), color = background) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ConnectionStatusDot(status = status, color = foreground)
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = foreground
+            )
+        }
+    }
+}
+
+/**
+ * 连接状态圆点：未连接为灰色圆点，连接中为带旋转动画的黄色圆环，已连接为绿色圆点。
+ */
+@Composable
+private fun ConnectionStatusDot(status: ConnectionStatus, color: Color) {
+    if (status == ConnectionStatus.Connecting) {
+        val transition = rememberInfiniteTransition(label = "connecting")
+        val angle by transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 900, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "angle"
+        )
+        Canvas(modifier = Modifier.size(14.dp)) {
+            val stroke = 2.dp.toPx()
+            drawArc(
+                color = color,
+                startAngle = angle,
+                sweepAngle = 280f,
+                useCenter = false,
+                topLeft = Offset(stroke / 2, stroke / 2),
+                size = Size(size.width - stroke, size.height - stroke),
+                style = Stroke(width = stroke, cap = StrokeCap.Round)
+            )
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(color, CircleShape)
+        )
+    }
+}
+
+/**
+ * 解析扫码结果，支持 JSON（{"ip","port","pairCode"}）、URL（ws://ip:port?pairCode=xxxx）
+ * 及纯文本（ip:port:code）三种形式，自动填充输入框。
+ * 优先走 JSONObject（真机可用），失败时退回正则解析，保证 JVM 单元测试同样可测。
+ */
+fun applyScanContent(content: String): Triple<String, String, String>? {
+    var newIp: String? = null
+    var newPort: String? = null
+    var newCode: String? = null
+
+    val jsonParsed = try {
+        val json = JSONObject(content)
+        newIp = json.optString("ip").takeIf { it.isNotBlank() }
+        newPort = json.optString("port").takeIf { it.isNotBlank() }
+        newCode = json.optString("pairCode").ifBlank { json.optString("pair_code") }
+            .takeIf { it.isNotBlank() }
+        true
+    } catch (_: Exception) {
+        false
+    }
+
+    if (!jsonParsed) {
+        // 键值对形式（JSON / query string 均可覆盖）
+        Regex("\\d{1,3}(\\.\\d{1,3}){3}").find(content)?.let { newIp = it.value }
+
+        Regex("\"?(?:port|pairCode|pair_code)\"?\\s*[:=]\\s*\"?([0-9A-Za-z.-]+)\"?", RegexOption.IGNORE_CASE)
+            .findAll(content)
+            .forEach { match ->
+                val key = match.groupValues[0]
+                val value = match.groupValues[1]
+                when {
+                    key.contains("port", ignoreCase = true) &&
+                        value.all { it.isDigit() } && newPort == null -> newPort = value
+
+                    (key.contains("pair", ignoreCase = true) || key.contains("code", ignoreCase = true)) &&
+                        value.length == 4 && value.all { it.isDigit() } && newCode == null -> newCode = value
+                }
+            }
+
+        if (newPort == null) {
+            Regex("(?:[:=/\\s\"])(\\d{2,5})(?![\\d.])").find(content)?.let {
+                val candidate = it.groupValues[1]
+                if (candidate != newIp?.replace(".", "")) newPort = candidate
+            }
+        }
+        if (newCode == null) {
+            Regex("(?:pair(?:Code|_code)?|code)[=:]*\"?([0-9]{4})", RegexOption.IGNORE_CASE)
+                .find(content)?.let { newCode = it.groupValues[1] }
+            if (newCode == null) {
+                Regex("\\b([0-9]{4})\\b").findAll(content).forEach { match ->
+                    val candidate = match.groupValues[1]
+                    if (candidate != newPort) {
+                        newCode = candidate
+                        return@forEach
+                    }
+                }
+            }
+        }
+    }
+
+    newIp ?: return null
+    return Triple(newIp, newPort ?: "9527", newCode ?: "")
+}

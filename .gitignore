@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android
+*.apk
+*.aab
+*.ap_
+.gradle/
+.kotlin/
+local.properties
+release/
+
+# Kotlin
+*.class
+
+# Rust
+src-tauri/target/
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log

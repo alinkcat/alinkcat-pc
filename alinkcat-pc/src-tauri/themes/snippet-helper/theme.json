@@ -1,0 +1,43 @@
+{
+  "id": "snippet-helper",
+  "name": "快捷输入助手",
+  "version": "1.0.0",
+  "author": "艾联猫",
+  "description": "常用话术快速输入",
+  "pages": [
+    {
+      "id": "snippets",
+      "label": "话术",
+      "layout": { "type": "list" },
+      "widgets": [
+        {
+          "type": "snippet-list",
+          "id": "snippet-list",
+          "label": "快捷话术",
+          "snippets": [
+            { "id": "s1", "label": "欢迎语", "content": "您好，欢迎来到直播间！" },
+            { "id": "s2", "label": "感谢关注", "content": "感谢您的关注，我们会继续努力！" },
+            { "id": "s3", "label": "问题收到", "content": "您的问题我们已经收到，正在处理中..." },
+            { "id": "s4", "label": "结束语", "content": "感谢您的咨询，祝您生活愉快！" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "templates",
+      "label": "模板",
+      "layout": { "type": "list" },
+      "widgets": [
+        {
+          "type": "snippet-list",
+          "id": "template-list",
+          "label": "模板库",
+          "snippets": [
+            { "id": "t1", "label": "邮件签名", "content": "此致\n敬礼\n\n张三\n高级工程师\n电话: 138-xxxx-xxxx" },
+            { "id": "t2", "label": "会议纪要", "content": "会议时间: \n参会人员: \n会议内容: \n下一步计划: " }
+          ]
+        }
+      ]
+    }
+  ]
+}

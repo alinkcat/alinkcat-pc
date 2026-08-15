@@ -1,0 +1,40 @@
+{
+  "id": "perf-dashboard",
+  "name": "性能监控仪表板",
+  "version": "1.0.0",
+  "author": "艾联猫",
+  "description": "实时监控电脑性能数据",
+  "pages": [
+    {
+      "id": "monitor",
+      "label": "性能",
+      "layout": { "type": "grid", "columns": 2, "rows": 2 },
+      "widgets": [
+        {
+          "type": "gauge",
+          "id": "cpu-gauge",
+          "label": "CPU",
+          "dataSource": "system.cpu.usage"
+        },
+        {
+          "type": "gauge",
+          "id": "memory-gauge",
+          "label": "内存",
+          "dataSource": "system.memory.usage"
+        },
+        {
+          "type": "gauge",
+          "id": "disk-gauge",
+          "label": "磁盘",
+          "dataSource": "system.disk.usage"
+        },
+        {
+          "type": "gauge",
+          "id": "uptime-gauge",
+          "label": "运行时间",
+          "dataSource": "system.uptime"
+        }
+      ]
+    }
+  ]
+}

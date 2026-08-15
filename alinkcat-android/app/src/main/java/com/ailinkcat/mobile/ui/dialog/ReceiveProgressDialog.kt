@@ -1,0 +1,177 @@
+package com.ailinkcat.mobile.ui.dialog
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.ailinkcat.mobile.ui.theme.ErrorRed
+import com.ailinkcat.mobile.ui.theme.SuccessGreen
+import com.ailinkcat.mobile.ui.theme.WarningOrange
+import com.ailinkcat.mobile.utils.FileUtils
+import com.ailinkcat.mobile.websocket.models.ReceiveState
+import com.ailinkcat.mobile.websocket.models.ReceiveStatus
+
+/**
+ * 推送接收进度对话框。
+ * - 不可通过返回键 / 点击外部关闭（防止用户意外中断）
+ * - 接收中显示取消按钮（刚开始时为"拒绝接收"，向 PC 发送拒绝消息 -32020）
+ * - 完成后显示关闭按钮；完成后 3 秒自动关闭（由 ViewModel 控制）
+ * - 中断（INTERRUPTED）时保持打开，显示"传输中断，等待恢复…"，不自动关闭
+ */
+@Composable
+fun ReceiveProgressDialog(
+    state: ReceiveState,
+    onCancel: () -> Unit,
+    onClose: () -> Unit
+) {
+    val statusColor = when (state.status) {
+        ReceiveStatus.COMPLETED -> SuccessGreen
+        ReceiveStatus.CANCELLED, ReceiveStatus.FAILED -> ErrorRed
+        ReceiveStatus.INTERRUPTED -> WarningOrange
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    Dialog(
+        onDismissRequest = { },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("📥", fontSize = 22.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("接收主题包", style = MaterialTheme.typography.titleMedium)
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Text(
+                    text = "主题包：${state.themeName} v${state.version}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "大小：${FileUtils.formatSize(state.totalSize)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    LinearProgressIndicator(
+                        progress = { state.progress.coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(8.dp),
+                        color = statusColor,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = "${(state.progress.coerceIn(0f, 1f) * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = statusColor
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    text = "已接收：${FileUtils.formatSize(state.receivedSize)} / ${FileUtils.formatSize(state.totalSize)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "速度：${FileUtils.formatSpeed(state.speed)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                val statusText = when (state.status) {
+                    ReceiveStatus.COMPLETED -> "✅ 已完成"
+                    ReceiveStatus.CANCELLED -> "⛔ 已取消"
+                    ReceiveStatus.FAILED -> "❌ 失败"
+                    ReceiveStatus.INTERRUPTED -> "⏸ 传输中断，等待恢复…"
+                    ReceiveStatus.RECEIVING -> "接收中…"
+                    ReceiveStatus.IDLE, ReceiveStatus.PENDING_CONFIRM -> "准备中…"
+                }
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = statusColor,
+                    fontWeight = FontWeight.Bold
+                )
+
+                state.errorMessage?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ErrorRed,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                if (state.status == ReceiveStatus.RECEIVING) {
+                    val justStarted = state.receivedChunks == 0 && state.receivedSize == 0L
+                    Button(
+                        onClick = onCancel,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    ) {
+                        Text(if (justStarted) "拒绝接收" else "取消接收")
+                    }
+                } else {
+                    Button(onClick = onClose) {
+                        Text("关闭")
+                    }
+                }
+            }
+        }
+    }
+}

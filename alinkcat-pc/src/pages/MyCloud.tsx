@@ -1,0 +1,220 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Card, Row, Col, Statistic, Button, Table, Typography, Space, Progress, Modal, Checkbox,
+} from 'antd';
+import {
+  CloudUploadOutlined, DeleteOutlined, DownloadOutlined, AppstoreOutlined,
+} from '@ant-design/icons';
+import { cloudApi } from '../api/cloudApi';
+import { useAuthStore } from '../store/authStore';
+import { useMessage } from '../hooks/useMessage';
+import { tauriInvoke } from '../utils/tauri';
+import type { CloudFile, CloudSpace } from '../api/types';
+import type { ThemeSummary } from '../types/theme';
+
+const { Text } = Typography;
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)}GB`;
+}
+
+export default function MyCloud() {
+  const navigate = useNavigate();
+  const { isLoggedIn } = useAuthStore();
+  const { message: msg } = useMessage();
+  const [files, setFiles] = useState<CloudFile[]>([]);
+  const [space, setSpace] = useState<CloudSpace | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [localThemes, setLocalThemes] = useState<ThemeSummary[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [listResp, spaceResp] = await Promise.all([
+        cloudApi.list({ page: 1, size: 50 }),
+        cloudApi.space(),
+      ]);
+      if (listResp.code === 200 && listResp.data) setFiles(listResp.data.records);
+      if (spaceResp.code === 200) setSpace(spaceResp.data);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    if (isLoggedIn) fetchData();
+  }, [isLoggedIn]);
+
+  const openUploadModal = async () => {
+    try {
+      const themes = await tauriInvoke<ThemeSummary[]>('scan_themes');
+      setLocalThemes(themes);
+      setSelectedIds([]);
+      setUploadOpen(true);
+    } catch (e) { msg.error(String(e)); }
+  };
+
+  const handleUpload = async () => {
+    if (selectedIds.length === 0) return msg.warning('请至少选择一个主题包');
+    setUploading(true);
+    let success = 0;
+    for (const themeId of selectedIds) {
+      try {
+        const packed = await tauriInvoke<{ base64: string; size: number; hash: string }>('pack_theme_data', { themeId });
+        const themeBlob = new Blob([Uint8Array.from(atob(packed.base64), c => c.charCodeAt(0))], { type: 'application/zip' });
+        const themeFile = new File([themeBlob], `${themeId}.alc`, { type: 'application/zip' });
+        const fd = new FormData();
+        fd.append('file', themeFile);
+        await cloudApi.upload(fd);
+        success++;
+      } catch (e) { msg.error(`「${themeId}」上传失败: ${String(e)}`); }
+    }
+    if (success > 0) {
+      msg.success(`${success} 个主题包已备份到云盘`);
+      fetchData();
+    }
+    setUploading(false);
+    setUploadOpen(false);
+  };
+
+  const handleDelete = (id: number, name: string) => {
+    Modal.confirm({
+      title: '删除备份',
+      content: `确定删除云盘备份「${name}」吗？仅删除云端备份，不影响本地主题包。`,
+      onOk: async () => {
+        try {
+          await cloudApi.delete(id);
+          msg.success('已删除');
+          fetchData();
+        } catch (e) { msg.error(String(e)); }
+      },
+    });
+  };
+
+  const handleDownload = async (item: CloudFile) => {
+    try {
+      const resp = await cloudApi.downloadUrl(item.id);
+      if (resp.code === 200 && resp.data) {
+        // Download to downloads dir and import
+        const filename = item.originalName || item.fileName;
+        const filePath = await tauriInvoke<string>('download_theme_file', { url: resp.data, filename });
+        await tauriInvoke('import_theme_from_file', { path: filePath });
+        msg.success('已从云盘恢复并导入');
+        fetchData();
+      } else {
+        msg.warning('获取下载链接失败');
+      }
+    } catch (e) { msg.error(String(e)); }
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <div className="page-container">
+        <div className="page-header"><h1 className="page-title">主题云备份</h1></div>
+        <Card style={{ textAlign: 'center', padding: 40 }}><Button type="primary" onClick={() => navigate('/auth')}>去登录</Button></Card>
+      </div>
+    );
+  }
+
+  const columns = [
+    { title: '主题包', dataIndex: 'originalName', ellipsis: true, render: (v: string) => (v || '').replace(/\.alc$/, '') || '未知主题', },
+    { title: '大小', dataIndex: 'fileSize', width: 100, render: (s: number) => formatSize(s) },
+    { title: '备份时间', dataIndex: 'createdAt', width: 170, render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '操作', width: 160,
+      render: (_: unknown, r: CloudFile) => (
+        <Space>
+          <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(r)}>恢复</Button>
+          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r.id, r.fileName)}>删除</Button>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div className="page-container">
+      <div className="page-header">
+        <h1 className="page-title">主题云备份</h1>
+        <p className="page-subtitle">将本地主题包备份到云端，防止丢失</p>
+      </div>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={8}>
+          <Card>
+            <Statistic title="已备份主题" value={space?.totalFiles ?? 0} prefix={<AppstoreOutlined />} />
+          </Card>
+        </Col>
+        <Col xs={24} md={16}>
+          <Card>
+            <div style={{ marginBottom: 8 }}><Text type="secondary">云盘空间</Text></div>
+            <Progress
+              percent={space ? Math.round((space.totalBytes / Math.max(space.maxTotalBytes, 1)) * 100) : 0}
+              format={() => `${formatSize(space?.totalBytes ?? 0)} / ${formatSize(space?.maxTotalBytes ?? 0)}`}
+            />
+          </Card>
+        </Col>
+      </Row>
+      <Card
+        title="备份列表"
+        style={{ marginTop: 16 }}
+        extra={
+          <Button type="primary" icon={<CloudUploadOutlined />} onClick={openUploadModal}>
+            备份到云盘
+          </Button>
+        }
+      >
+        <Table
+          dataSource={files}
+          columns={columns}
+          rowKey="id"
+          loading={loading}
+          size="small"
+          pagination={{ pageSize: 10 }}
+          locale={{ emptyText: '暂无云端备份，点击右上角"备份到云盘"上传本地主题包' }}
+        />
+      </Card>
+
+      <Modal
+        title="选择要备份的本地主题包"
+        open={uploadOpen}
+        onCancel={() => setUploadOpen(false)}
+        onOk={handleUpload}
+        okText={`备份 (${selectedIds.length})`}
+        confirmLoading={uploading}
+        width={520}
+      >
+        {localThemes.length === 0 ? (
+          <Text type="secondary">暂无本地主题包</Text>
+        ) : (
+          <div style={{ maxHeight: 400, overflow: 'auto' }}>
+            {localThemes.map((t) => (
+              <div
+                key={t.id}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 8px',
+                  borderBottom: '1px solid #f0f0f0', cursor: 'pointer',
+                }}
+                onClick={() => {
+                  setSelectedIds((prev) =>
+                    prev.includes(t.id) ? prev.filter((id) => id !== t.id) : [...prev, t.id]
+                  );
+                }}
+              >
+                <Checkbox checked={selectedIds.includes(t.id)} />
+                <div>
+                  <div style={{ fontWeight: 500 }}>{t.name}</div>
+                  <div style={{ fontSize: 12, color: '#999' }}>v{t.version} · {t.author}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}

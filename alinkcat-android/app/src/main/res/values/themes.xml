@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Alinkcat" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- 主题包渲染页：全屏 -->
+    <style name="Theme.Alinkcat.Fullscreen" parent="Theme.Alinkcat">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="27">shortEdges</item>
+    </style>
+</resources>

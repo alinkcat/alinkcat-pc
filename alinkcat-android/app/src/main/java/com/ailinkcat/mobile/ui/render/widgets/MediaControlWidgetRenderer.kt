@@ -1,0 +1,343 @@
+package com.ailinkcat.mobile.ui.render.widgets
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.ailinkcat.mobile.domain.models.MediaControlWidget
+import com.ailinkcat.mobile.domain.models.MediaState
+import com.ailinkcat.mobile.utils.FileUtils
+import kotlin.math.min
+
+/**
+ * 本地插值：播放中的进度条以 60fps 平滑滚动，不依赖后端推送。
+ */
+@Composable
+private fun useDisplayPosition(state: MediaState): Float {
+    val displayPos = remember(state.basePosition, state.baseSystemTime, state.isPlaying, state.position) {
+        mutableStateOf(state.position.toFloat())
+    }
+    LaunchedEffect(state.isPlaying, state.basePosition, state.baseSystemTime) {
+        if (!state.isPlaying || state.duration <= 0L) {
+            displayPos.value = state.position.toFloat()
+            return@LaunchedEffect
+        }
+        while (true) {
+            withFrameNanos {
+                val elapsed = (System.currentTimeMillis() - state.baseSystemTime).coerceAtLeast(0)
+                val interpolated = state.basePosition + elapsed
+                displayPos.value = interpolated.toFloat().coerceAtMost(state.duration.toFloat())
+            }
+        }
+    }
+    return displayPos.value
+}
+
+/**
+ * 媒体播放与控制组件：毛玻璃深色卡片，显示封面、歌名、进度条、控制按钮。
+ * 支持 displayMode = always / playing_only。
+ */
+@Composable
+fun MediaControlWidgetRenderer(
+    widget: MediaControlWidget,
+    mediaState: MediaState,
+    onPlayPause: () -> Unit,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onVolumeChange: (Int) -> Unit = {}
+) {
+    val showComponent = widget.displayMode != "playing_only" || mediaState.isPlaying
+    val isActive = mediaState.isPlaying || widget.displayMode == "always"
+
+    AnimatedVisibility(
+        visible = showComponent,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        if (isActive) {
+            ActiveMediaCard(widget, mediaState, onPlayPause, onPrev, onNext, onVolumeChange)
+        } else {
+            PlaceholderMediaCard(widget, onPlayPause)
+        }
+    }
+}
+
+@Composable
+private fun ActiveMediaCard(
+    widget: MediaControlWidget,
+    state: MediaState,
+    onPlayPause: () -> Unit,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onVolumeChange: (Int) -> Unit
+) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(4.dp)
+    ) {
+        val cw = maxWidth.value
+        val coverSize = (maxHeight - 8.dp).coerceAtMost((cw * 0.18f).dp)
+        val titleSize = (cw * 0.045f).coerceIn(11f, 18f).sp
+        val artistSize = (cw * 0.035f).coerceIn(9f, 14f).sp
+        val timeSize = (cw * 0.03f).coerceIn(8f, 11f).sp
+        val btnSize = (cw * 0.07f).coerceIn(24f, 40f)
+
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xCC1E1E2E),
+                            Color(0xCC2A1A3A)
+                        )
+                    )
+                )
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 封面
+            if (widget.showCover) {
+                Box(
+                    modifier = Modifier
+                        .size(coverSize)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF333344)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (state.coverUrl.isNullOrBlank()) {
+                        Text("🎵", fontSize = (coverSize * 0.5f).value.sp)
+                    } else {
+                        AsyncImage(
+                            model = state.coverUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                Spacer(Modifier.width(10.dp))
+            }
+
+            // 文本信息 + 进度 + 控制
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                // 歌名
+                Text(
+                    text = state.title ?: "未在播放",
+                    color = Color.White,
+                    fontSize = titleSize,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                // 歌手
+                Text(
+                    text = state.artist ?: "",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = artistSize,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                // 进度条（本地插值）
+                val displayPosition = if (state.duration > 0) useDisplayPosition(state) else state.position.toFloat()
+                if (widget.showProgress && state.duration > 0) {
+                    Spacer(Modifier.height(4.dp))
+                    val progress = (displayPosition / state.duration.toFloat()).coerceIn(0f, 1f)
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = Color(0xFF4F6EF7),
+                        trackColor = Color.White.copy(alpha = 0.15f)
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = formatDuration(displayPosition.toLong()),
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = timeSize
+                        )
+                        Text(
+                            text = formatDuration(state.duration),
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = timeSize
+                        )
+                    }
+                }
+
+                // 控制按钮
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ControlButton("⏮", btnSize, onPrev)
+                    Spacer(Modifier.width((btnSize * 0.6f).dp))
+                    ControlButton(
+                        text = if (state.isPlaying) "⏸" else "▶️",
+                        size = btnSize,
+                        onClick = onPlayPause
+                    )
+                    Spacer(Modifier.width((btnSize * 0.6f).dp))
+                    ControlButton("⏭", btnSize, onNext)
+                }
+
+                // 音量调节
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🔊", fontSize = (timeSize.value + 2).sp, color = Color.White.copy(alpha = 0.5f))
+                    Spacer(Modifier.width(6.dp))
+                    val sliderVolume = remember(state.volume) { mutableStateOf(state.volume.toFloat()) }
+                    Slider(
+                        value = sliderVolume.value,
+                        onValueChange = { sliderVolume.value = it },
+                        onValueChangeFinished = { onVolumeChange(sliderVolume.value.toInt()) },
+                        valueRange = 0f..100f,
+                        modifier = Modifier.weight(1f),
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFF4F6EF7),
+                            activeTrackColor = Color(0xFF4F6EF7),
+                            inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+                        )
+                    )
+                    Text(
+                        text = String.format("%.0f", sliderVolume.value),
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = timeSize
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaceholderMediaCard(widget: MediaControlWidget, onPlayPause: () -> Unit = {}) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(4.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0x661E1E2E)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // 灰色唱片占位
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x33FFFFFF)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🎵", fontSize = 18.sp, color = Color.White.copy(alpha = 0.3f))
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = widget.label,
+                color = Color.White.copy(alpha = 0.4f),
+                fontSize = 13.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            // 播放按钮，点击唤起 PC 端播放
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.12f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onPlayPause
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("▶️", fontSize = 16.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ControlButton(
+    text: String,
+    size: Float,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(size.dp)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.10f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = (size * 0.5f).sp
+        )
+    }
+}
+
+private fun formatDuration(ms: Long): String {
+    if (ms <= 0) return "0:00"
+    val totalSec = (ms / 1000).toInt()
+    val m = totalSec / 60
+    val s = totalSec % 60
+    return "$m:${s.toString().padStart(2, '0')}"
+}
