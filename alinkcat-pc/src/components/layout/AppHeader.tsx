@@ -2,11 +2,13 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip } from 'antd';
 import { BellOutlined, SettingOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useThemeStore } from '../../store/themeStore';
 import logo from '../../assets/logo.png';
 
 export default function AppHeader() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { unread, fetchUnread } = useNotificationStore();
   const { isDark, toggle } = useThemeStore();
@@ -23,15 +25,15 @@ export default function AppHeader() {
         <span className="header-logo">
           <img src={logo} alt="艾联猫" style={{ height: 28, objectFit: 'contain' }} />
         </span>
-        <span className="header-title">艾联猫 · ailinkcat</span>
+        <span className="header-title">{t('common.appName')}</span>
       </div>
       <div className="header-right">
-        <Tooltip title={isDark ? '切换到浅色模式' : '切换到深色模式'}>
+        <Tooltip title={isDark ? t('layout.header.switchLight') : t('layout.header.switchDark')}>
           <span style={{ cursor: 'pointer' }} onClick={toggle}>
             {isDark ? <SunOutlined /> : <MoonOutlined />}
           </span>
         </Tooltip>
-        <Tooltip title="通知中心">
+        <Tooltip title={t('layout.header.notifications')}>
           <span style={{ position: 'relative', cursor: 'pointer' }} onClick={() => navigate('/notifications')}>
             <BellOutlined />
             {unread > 0 && (
@@ -45,7 +47,7 @@ export default function AppHeader() {
             )}
           </span>
         </Tooltip>
-        <Tooltip title="设置">
+        <Tooltip title={t('layout.header.settings')}>
           <SettingOutlined style={{ cursor: 'pointer' }} onClick={() => navigate('/settings')} />
         </Tooltip>
       </div>

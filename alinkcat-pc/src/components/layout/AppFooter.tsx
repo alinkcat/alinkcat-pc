@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { Flex, Tooltip } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { useServerStatusStore } from '../../store/serverStatusStore';
 
 export default function AppFooter() {
+  const { t } = useTranslation();
   const { running, port, deviceCount, fetchStatus } = useServerStatusStore();
 
   useEffect(() => {
@@ -16,15 +18,15 @@ export default function AppFooter() {
       <Flex align="center" gap={16} style={{ minWidth: 0 }}>
         <span className="footer-status">
           <span className={`footer-status-dot ${running ? 'footer-status-dot--active' : 'stopped'}`} />
-          {running ? '服务运行中' : '服务已停止'}
+          {running ? t('layout.footer.running') : t('layout.footer.stopped')}
         </span>
-        <Tooltip title={`监听端口：${port}`}>
-          <span className="footer-item">端口：{port}</span>
+        <Tooltip title={`${t('layout.footer.port')}：${port}`}>
+          <span className="footer-item">{t('layout.footer.port')}：{port}</span>
         </Tooltip>
       </Flex>
       <Flex align="center" gap={16} style={{ flexShrink: 0 }}>
-        <Tooltip title={`已连接设备：${deviceCount} 台`}>
-          <span className="footer-item">设备：{deviceCount} 台</span>
+        <Tooltip title={`${t('layout.footer.devices')}：${deviceCount}`}>
+          <span className="footer-item">{t('layout.footer.devices')}：{deviceCount}</span>
         </Tooltip>
       </Flex>
     </footer>
