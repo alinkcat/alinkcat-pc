@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
-import { Button, Space, Modal, Row, Col, Card, Slider, message, List, Empty, Tag, Tour, Input } from 'antd';
-import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined, UndoOutlined, RedoOutlined, HistoryOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { Button, Space, Modal, Row, Col, Card, Slider, message, List, Empty, Tag, Tour, Input, Dropdown } from 'antd';
+import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined, UndoOutlined, RedoOutlined, HistoryOutlined, QuestionCircleOutlined, DownOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../../utils/tauri';
 import ThemeFileManager from '../../components/ThemeFileManager';
@@ -286,6 +286,39 @@ export default function Editor() {
     } catch (e) { message.error(String(e)); }
   };
 
+  const handleSaveAsNew = async () => {
+    // 另存为：生成新 ID，保存为新主题，不覆盖当前
+    if (!theme.name) return message.warning(t('editor.messages.needThemeName'));
+    setSaving(true);
+    try {
+      const newId = `theme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+      const newTheme = { ...theme, id: newId };
+      const themeMeta = await migrateImagesToAssets(editorToThemeMeta(newTheme));
+      let coverData: string | null = null;
+      try {
+        coverData = themeMeta.pages.length > 0
+          ? await generateThemeCover(themeMeta)
+          : await generateDefaultCover(themeMeta.name);
+      } catch { coverData = null; }
+      await tauriInvoke('save_theme', { theme: themeMeta, coverPath: null, coverData });
+      clearDraft();
+      message.success(t('editor.messages.savedAsNew'));
+      // 跳转到新主题
+      navigate(`/themes/edit/${newId}`);
+    } catch (e) { message.error(String(e)); }
+    finally { setSaving(false); }
+  };
+
+  const saveMenuItems = [
+    { key: 'save', label: t('editor.toolbar.save'), icon: <SaveOutlined /> },
+    { key: 'saveAsNew', label: t('editor.toolbar.saveAsNew'), icon: <SaveOutlined /> },
+  ];
+
+  const handleSaveDropdown = ({ key }: { key: string }) => {
+    if (key === 'save') handleSave();
+    else if (key === 'saveAsNew') handleSaveAsNew();
+  };
+
   const totalWidgets = theme.pages.reduce((s, p) => s + p.widgets.length, 0);
 
   return (
@@ -309,7 +342,9 @@ export default function Editor() {
           <Button icon={<ExportOutlined />} loading={exporting} onClick={handleExport} disabled={!theme.id}>{t('editor.toolbar.export')}</Button>
           <Button icon={<FolderOutlined />} onClick={() => setFileMgrOpen(true)} disabled={!theme.id}>{t('editor.toolbar.file')}</Button>
           <Button icon={<HistoryOutlined />} onClick={() => { loadVersionHistory(theme.id); setVersionHistoryOpen(true); }} disabled={!theme.id} title={t('editor.versionHistory.title')} />
-          <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}>{t('editor.toolbar.save')}</Button>
+          <Dropdown.Button type="primary" icon={<DownOutlined />} menu={{ items: saveMenuItems, onClick: handleSaveDropdown }} loading={saving} onClick={handleSave}>
+          {t('editor.toolbar.save')}
+        </Dropdown.Button>
           <Button size="small" icon={<QuestionCircleOutlined />} onClick={handleOpenEditorGuide} title={t('onboarding.tutorial')} />
         </Space>
       </div>
