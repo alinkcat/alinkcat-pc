@@ -1,0 +1,8 @@
+id=alinkcat_module
+name=艾联猫 Root 扩展
+version=v1.0.0
+versionCode=1
+author=艾联猫
+description=艾联猫在已 Root 设备上的深层扩展能力：深层硬件监控、脚本执行、性能调度、系统级快捷操作。
+minMagisk=20400
+updateJson=https://example.com/alinkcat-module/update.json

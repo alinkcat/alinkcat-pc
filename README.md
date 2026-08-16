@@ -15,6 +15,11 @@ alinkcat-Client/
 ├── alinkcat-android/     # Android 移动端（Kotlin + Jetpack Compose）
 │   ├── app/src/main/     # 应用源码
 │   └── build.gradle.kts
+├── alinkcat-module/      # Root 扩展模块（Magisk / KernelSU）
+│   ├── bin/              # helper 入口
+│   ├── scripts/          # 监控/动作/配置脚本
+│   ├── config/           # 模块配置
+│   └── META-INF/         # 模块安装引导
 └── README.md
 ```
 

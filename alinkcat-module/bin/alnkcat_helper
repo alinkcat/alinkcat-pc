@@ -1,0 +1,78 @@
+#!/system/bin/sh
+# alnkcat_helper —— 艾联猫 Root 模块统一入口
+# 用法: sh alnkcat_helper <cmd> [args...]
+# 符合 POSIX shell，兼容 Magisk/KSU 环境
+
+VERSION="1.0.0"
+MODDIR="/data/adb/modules/alinkcat_module"
+
+# 加载配置
+CONF="${0%/*}/../config/module.conf"
+[ -f "$CONF" ] && . "$CONF"
+[ -f "$MODDIR/config/module.conf" ] && . "$MODDIR/config/module.conf"
+
+# 输出帮助
+usage() {
+  echo "usage: alnkcat_helper <cmd> [args]"
+  echo ""
+  echo "Commands:"
+  echo "  version             显示模块版本"
+  echo "  daemon              启动守护进程 (后台)"
+  echo "  monitor <type>      深层硬件监控 (cpu|battery|all)"
+  echo "  action <type> args  执行动作 (shell|service|settings|brightness)"
+  echo "  config <get|set>    读写模块配置"
+  echo "  secret              输出当前密钥 (仅限 App 调用)"
+  echo "  capabilities        列出可用能力"
+}
+
+case "$1" in
+  version)
+    echo "alinkcat-module $VERSION"
+    ;;
+  capabilities)
+    echo "capabilities: monitor action config"
+    [ "$ENABLE_POWER" = "1" ] && echo "power"
+    [ "$ENABLE_ACCESSIBILITY" = "1" ] && echo "accessibility"
+    ;;
+  daemon)
+    # 守护进程：保持存活，监听指令
+    while true; do
+      sleep 30
+      # 可扩展：监听本地 socket
+    done
+    ;;
+  monitor)
+    [ "$ENABLE_MONITOR" != "1" ] && { echo "monitor disabled"; exit 1; }
+    shift
+    SCRIPT="${0%/*}/../scripts/shell/monitor.sh"
+    [ -f "$SCRIPT" ] || SCRIPT="$MODDIR/scripts/monitor.sh"
+    . "$SCRIPT"
+    get_${1:-all} "${@:2}"
+    ;;
+  action)
+    shift
+    [ "$ENABLE_ACTION" != "1" ] && { echo "action disabled"; exit 1; }
+
+    # 鉴权：第一个参数为 secret
+    local_secret="$1"; shift
+    [ "$local_secret" != "$MODULE_SECRET" ] && { echo "permission denied"; exit 1; }
+
+    SCRIPT="${0%/*}/../scripts/shell/action.sh"
+    [ -f "$SCRIPT" ] || SCRIPT="$MODDIR/scripts/action.sh"
+    . "$SCRIPT"
+    run_action "$@"
+    ;;
+  config)
+    shift
+    SCRIPT="${0%/*}/../scripts/shell/config.sh"
+    [ -f "$SCRIPT" ] || SCRIPT="$MODDIR/scripts/config.sh"
+    . "$SCRIPT"
+    edit_config "$@"
+    ;;
+  secret)
+    echo "$MODULE_SECRET"
+    ;;
+  *)
+    usage
+    ;;
+esac
