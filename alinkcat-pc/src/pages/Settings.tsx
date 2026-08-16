@@ -269,7 +269,7 @@ export default function Settings() {
       {/* 诊断日志 */}
       <Card style={{ marginTop: 16 }}>
         <Alert
-          message={t('settings.diagnostic_logs')}
+          title={t('settings.diagnostic_logs')}
           description={t('settings.diagnostic_desc')}
           type="warning"
           showIcon
@@ -288,7 +288,7 @@ export default function Settings() {
       <Col xs={24} md={12}>
       <Card title={<span><RobotOutlined style={{ marginRight: 8 }} />{t('settings.ai_settings')}</span>}>
         <Alert
-          message={t('settings.ai_protocol_title')}
+          title={t('settings.ai_protocol_title')}
           description={
             <div style={{ fontSize: 12, lineHeight: 1.7 }}>
               {t('common.appName')} <Typography.Text code>OpenAI Chat Completions API</Typography.Text> {t('common.appName')}<br />
@@ -309,7 +309,7 @@ export default function Settings() {
             <Input.Password placeholder={t('settings.ai_api_key_placeholder')} />
           </Form.Item>
           <Form.Item label={t('settings.ai_models_label')} required>
-            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={8}>
               <Button size="small" icon={<ReloadOutlined />} loading={fetchingAi} onClick={handleFetchAIModels}>
                 {t('settings.ai_fetch_models')}
               </Button>
@@ -346,13 +346,13 @@ export default function Settings() {
         <Col xs={24} md={12}>
           <Card title={t('settings.dev_title')}>
             <Alert
-              message={t('settings.dev_api_server')}
+              title={t('settings.dev_api_server')}
               description={t('settings.dev_api_desc')}
               type="warning"
               showIcon
               style={{ marginBottom: 16 }}
             />
-            <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={12}>
               <div>
                 <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>{t('settings.dev_server_addr')}</div>
                 <Input
