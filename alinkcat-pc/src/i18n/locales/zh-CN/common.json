@@ -77,9 +77,13 @@
     "next": "下一步",
     "skip": "跳过",
     "editorGuide": {
+      "leftPanelTitle": "组件库",
       "leftPanel": "从这里拖拽组件到画布",
+      "canvasTitle": "画布",
       "canvas": "画布区域，拖拽调整位置和大小",
+      "rightPanelTitle": "属性面板",
       "rightPanel": "在这里编辑组件属性",
+      "aiPanelTitle": "AI 助手",
       "aiPanel": "AI 助手，用自然语言操作编辑器"
     },
     "tutorial": "教程"

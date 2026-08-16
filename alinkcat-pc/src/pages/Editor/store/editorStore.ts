@@ -232,18 +232,29 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   saveVersion: (changelog?) => {
     const s = get();
     const meta = editorToThemeMeta(s.theme);
+    // 估算快照大小，跳过 base64 图片内容过大的场景（超过 100KB 不存）
+    const snapshot = JSON.parse(JSON.stringify(meta));
+    const size = new Blob([JSON.stringify(snapshot)]).size;
+    if (size > 100_000) {
+      console.warn(`[VersionHistory] Snapshot too large (${(size / 1024).toFixed(1)}KB), skipping`);
+      return;
+    }
     const ver: ThemeVersion = {
       version: meta.version || '1.0.0',
       timestamp: new Date().toISOString(),
       changelog,
-      snapshot: JSON.parse(JSON.stringify(meta)),
+      snapshot,
     };
     const history = [...s.versionHistory, ver].slice(-20);
     const idx = history.length - 1;
     set({ versionHistory: history, currentVersionIdx: idx });
-    // 持久化到 localStorage
+    // 持久化到 localStorage（try-catch 防止 QuotaExceededError）
     if (s.theme.id) {
-      localStorage.setItem(`ilinkcat_version_history_${s.theme.id}`, JSON.stringify(history));
+      try {
+        localStorage.setItem(`ilinkcat_version_history_${s.theme.id}`, JSON.stringify(history));
+      } catch (e) {
+        console.warn('[VersionHistory] Failed to persist:', e);
+      }
     }
   },
   rollbackToVersion: (idx) => {
