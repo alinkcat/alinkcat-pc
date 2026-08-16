@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +59,7 @@ import com.ailinkcat.mobile.ui.theme.ErrorRed
 import com.ailinkcat.mobile.ui.theme.SuccessGreen
 import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -103,27 +105,30 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
     }
 
     // 下拉刷新
+    val scope = rememberCoroutineScope()
     val onRefresh: () -> Unit = {
         isRefreshing = true
-        if (state.status == ConnectionStatus.Connected) {
-            viewModel.refreshThemePackages()
-        } else {
-            val repo = ThemeRepository(context)
-            val metas = withContext(Dispatchers.IO) { repo.loadThemes() }
-            localThemes = metas.mapIndexed { index, meta ->
-                ThemePackage(
-                    themeId = meta.themeId,
-                    name = meta.name,
-                    version = meta.version,
-                    author = "",
-                    pageCount = 1,
-                    coverEmoji = "📦",
-                    coverColor = 0xFF4F6EF7,
-                    isActive = index == 0
-                )
+        scope.launch {
+            if (state.status == ConnectionStatus.Connected) {
+                viewModel.refreshThemePackages()
+            } else {
+                val repo = ThemeRepository(context)
+                val metas = withContext(Dispatchers.IO) { repo.loadThemes() }
+                localThemes = metas.mapIndexed { index, meta ->
+                    ThemePackage(
+                        themeId = meta.themeId,
+                        name = meta.name,
+                        version = meta.version,
+                        author = "",
+                        pageCount = 1,
+                        coverEmoji = "📦",
+                        coverColor = 0xFF4F6EF7,
+                        isActive = index == 0
+                    )
+                }
             }
+            isRefreshing = false
         }
-        isRefreshing = false
     }
 
     // 页面加载时直接扫描本地已安装的主题（不依赖连接状态）
