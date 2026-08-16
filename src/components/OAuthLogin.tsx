@@ -6,7 +6,7 @@ import { tauriInvoke } from '../utils/tauri';
 import { authApi } from '../api/authApi';
 import { setTokens } from '../api/client';
 import { useAuthStore } from '../store/authStore';
-import i18n from '../i18n';
+import i18n from '../i18n/setup';
 
 const { Text } = Typography;
 
