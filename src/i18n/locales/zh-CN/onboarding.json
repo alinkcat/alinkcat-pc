@@ -1,0 +1,28 @@
+{
+  "welcome": {
+    "title": "欢迎使用艾联猫",
+    "desc": "轻松创建和推送手机主题"
+  },
+  "template": {
+    "title": "从模板开始",
+    "desc": "选择一个模板快速创建你的第一个主题"
+  },
+  "push": {
+    "title": "推送到手机",
+    "desc": "编辑完成后推送到手机端使用"
+  },
+  "start": "开始使用",
+  "next": "下一步",
+  "skip": "跳过",
+  "editorGuide": {
+    "leftPanelTitle": "组件库",
+    "leftPanel": "从这里拖拽组件到画布",
+    "canvasTitle": "画布",
+    "canvas": "画布区域，拖拽调整位置和大小",
+    "rightPanelTitle": "属性面板",
+    "rightPanel": "在这里编辑组件属性",
+    "aiPanelTitle": "AI 助手",
+    "aiPanel": "AI 助手，用自然语言操作编辑器"
+  },
+  "tutorial": "教程"
+}
