@@ -77,9 +77,13 @@
     "next": "Next",
     "skip": "Skip",
     "editorGuide": {
+      "leftPanelTitle": "Components",
       "leftPanel": "Drag components from here to the canvas",
+      "canvasTitle": "Canvas",
       "canvas": "Canvas area, drag to adjust position and size",
+      "rightPanelTitle": "Properties",
       "rightPanel": "Edit component properties here",
+      "aiPanelTitle": "AI Assistant",
       "aiPanel": "AI assistant, use natural language to operate the editor"
     },
     "tutorial": "Tutorial"
