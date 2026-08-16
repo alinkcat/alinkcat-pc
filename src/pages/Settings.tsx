@@ -13,7 +13,7 @@ import {
   Typography,
   Alert,
   Modal,
-  message,
+  App,
 } from 'antd';
 import { SaveOutlined, RobotOutlined, ReloadOutlined, BugOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +24,7 @@ import { exportEncryptedLogs } from '../utils/errorExport';
 import { getLogs } from '../utils/logger';
 import { devConfig, config as appConfig } from '../config';
 import { getDeveloperPassword } from '../utils/md5';
+import { tauriInvoke } from '../utils/tauri';
 import type { AppSettings } from '../types/theme';
 import { DEFAULT_SETTINGS } from '../types/theme';
 
@@ -41,6 +42,7 @@ function loadSettings(): AppSettings {
 
 export default function Settings() {
   const { t, i18n } = useTranslation();
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [aiForm] = Form.useForm();
   const [saved, setSaved] = useState(loadSettings());
@@ -106,11 +108,18 @@ export default function Settings() {
     setFetchingAi(true);
     try {
       const url = `${apiUrl.replace(/\/$/, '')}/models`;
-      const resp = await fetch(url, {
-        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      const headers: Record<string, string> = {};
+      if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+      // 通过 Tauri Rust 后端转发，绕过 CORS
+      const result = await tauriInvoke<{ status: number; body: unknown }>('api_request', {
+        url,
+        method: 'GET',
+        headers,
       });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const json = await resp.json();
+
+      if (result.status >= 400) throw new Error(`HTTP ${result.status}`);
+      const json = result.body as { data?: { id: string }[] };
       const ids: string[] = (json.data || []).map((m: { id: string }) => m.id).filter(Boolean);
       if (ids.length === 0) throw new Error(t('settings.ai_fetch_models_no_models'));
       aiForm.setFieldsValue({ models: ids.join('\n'), defaultModel: ids[0] });
