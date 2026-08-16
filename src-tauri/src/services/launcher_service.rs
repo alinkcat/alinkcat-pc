@@ -60,6 +60,11 @@ pub fn open(id: &str) -> Result<(), String> {
     launch(&item.path)
 }
 
+/// 按路径直接启动应用（不依赖已注册的启动项）
+pub fn launch_path(path: &str) -> Result<(), String> {
+    launch(path)
+}
+
 #[cfg(target_os = "windows")]
 fn launch(path: &str) -> Result<(), String> {
     std::process::Command::new(path)

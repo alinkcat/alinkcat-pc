@@ -559,6 +559,19 @@ fn cleanup_orphaned_assets(dir: &Path, meta: &ThemeMeta) -> Result<(), String> {
     Ok(())
 }
 
+/// 生成默认占位封面（硬编码 1x1 蓝色 PNG，不依赖外部 crate）
+pub fn write_default_cover(dir: &Path, _name: &str) -> Result<(), String> {
+    use base64::Engine;
+    // 预置的 1x1 蓝色 PNG
+    const COVER_B64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPwz/sOAALEAbV2m9TiAAAAAElFTkSuQmCC";
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(COVER_B64)
+        .map_err(|e| format!("Cover base64 decode error: {}", e))?;
+    fs::write(dir.join("cover.png"), bytes)
+        .map_err(|e| format!("Failed to write default cover: {}", e))?;
+    Ok(())
+}
+
 fn write_cover_data(dir: &Path, data_url: &str) -> Result<(), String> {
     use base64::Engine;
 
