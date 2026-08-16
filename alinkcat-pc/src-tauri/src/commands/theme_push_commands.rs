@@ -104,6 +104,12 @@ pub fn pack_theme_data(theme_id: String) -> Result<PackedTheme, String> {
     let dir = manager::get_theme_dir(&theme_id)?;
     let meta = manager::read_theme_meta_pub(&dir)?;
 
+    // 确保封面图存在，没有则生成占位封面
+    let cover = dir.join("cover.png");
+    if !cover.exists() {
+        manager::write_default_cover(&dir, &meta.name)?;
+    }
+
     let mut buffer: Vec<u8> = Vec::new();
     {
         let mut zip = zip::ZipWriter::new(io::Cursor::new(&mut buffer));

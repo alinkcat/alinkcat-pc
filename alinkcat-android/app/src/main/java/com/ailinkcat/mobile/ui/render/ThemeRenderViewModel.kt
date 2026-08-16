@@ -329,10 +329,13 @@ class ThemeRenderViewModel(
                 return
             }
             "launcher_open" -> {
+            val path = action.content
+            if (!path.isNullOrBlank()) {
                 webSocket.send(JsonRpc.buildRequest("launcher.open",
-                    JSONObject().put("id", widgetId), nextId()))
-                return
+                    JSONObject().put("path", path), nextId()))
             }
+            return
+        }
         }
         if (action.type.startsWith("media_")) {
             val mediaAction = when (action.type) {
