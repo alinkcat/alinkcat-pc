@@ -18,6 +18,7 @@ import member from './member.json';
 import cloud from './cloud.json';
 import points from './points.json';
 import invite from './invite.json';
+import onboarding from './onboarding.json';
 
 export default {
   common,
@@ -40,4 +41,5 @@ export default {
   cloud,
   points,
   invite,
+  onboarding,
 } as Record<string, unknown>;

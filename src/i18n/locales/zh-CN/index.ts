@@ -18,6 +18,7 @@ import member from './member.json';
 import cloud from './cloud.json';
 import points from './points.json';
 import invite from './invite.json';
+import onboarding from './onboarding.json';
 
 // 所有模块合并进顶层，仅使用一个 common 命名空间
 // t('editor.foo') / t('push.bar') 等按点路径直接解析
@@ -42,4 +43,5 @@ export default {
   cloud,
   points,
   invite,
+  onboarding,
 } as Record<string, unknown>;
