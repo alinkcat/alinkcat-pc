@@ -57,11 +57,34 @@ interface GaugeWidget extends WidgetBase {
   ringColorHigh?: string;
   ringWidth?: number;
 }
+interface BatteryWidget extends WidgetBase {
+  type: 'battery';
+  batteryStyle?: 'bar' | 'ring' | 'number';
+  showLevel?: boolean;
+  showCharging?: boolean;
+  showTemp?: boolean;
+  barColor?: string;
+  lowColor?: string;
+  lowThreshold?: number;
+  dataSource?: string;
+}
 interface ClockWidget extends WidgetBase {
   type: 'clock';
   format24h?: boolean;
   showSeconds?: boolean;
   showAmpm?: boolean;
+  /** 显示模式: digital(数字时钟) / analog(模拟时钟) */
+  clockDisplay?: 'digital' | 'analog';
+  /** 模拟钟: 是否显示刻度 */
+  tickMarks?: boolean;
+  /** 模拟钟: 是否显示数字 1-12 */
+  showNumbers?: boolean;
+  /** 模拟钟: 指针样式 classic / modern / thin */
+  handStyle?: 'classic' | 'modern' | 'thin';
+  /** 模拟钟: 表盘颜色 */
+  faceColor?: string;
+  /** 模拟钟: 指针颜色 */
+  handColor?: string;
 }
 interface DateWidget extends WidgetBase {
   type: 'date';
@@ -154,10 +177,20 @@ interface StickyNoteWidget extends WidgetBase {
 interface IconWidget extends WidgetBase {
   type: 'icon';
 }
+interface CardWidget extends WidgetBase {
+  type: 'card';
+  cardTitle?: string;
+  cardDesc?: string;
+  cardImage?: string;
+  cardImagePosition?: 'top' | 'left' | 'right';
+  cardTags?: string[];
+  cardFooter?: string;
+}
 
 export type EditorWidget =
   | ButtonWidget
   | GaugeWidget
+  | BatteryWidget
   | ClockWidget
   | DateWidget
   | CalendarWidget
@@ -170,7 +203,8 @@ export type EditorWidget =
   | QuickActionWidget
   | LauncherWidget
   | StickyNoteWidget
-  | IconWidget;
+  | IconWidget
+  | CardWidget;
 
 export interface PerfSnapshot {
   timestamp: number;
@@ -179,6 +213,7 @@ export interface PerfSnapshot {
   network?: { upload: number; download: number };
   disk?: number;
   uptime?: number;
+  battery?: { level: number; charging?: boolean; temperature?: number };
 }
 
 export interface SnippetItem {

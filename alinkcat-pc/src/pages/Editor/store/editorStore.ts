@@ -38,6 +38,8 @@ export function makeWidget(type: string, col: number, row: number): EditorWidget
     case 'clock': return { ...base, label: '时钟', format24h: true, showSeconds: true, showAmpm: true } as EditorWidget;
     case 'date': return { ...base, label: '日期', dateFormat: 'YYYY年MM月DD日 星期X', showLunar: true } as EditorWidget;
     case 'calendar': return { ...base, label: '日历', viewMode: 'month', highlightToday: true, gridW: 2, gridH: 3 } as EditorWidget;
+    case 'card': return { ...base, label: '', cardTitle: '', cardDesc: '卡片描述', cardImage: '', cardImagePosition: 'top', cardTags: [], cardFooter: '' } as EditorWidget;
+    case 'battery': return { ...base, label: '电池', batteryStyle: 'bar', showLevel: true, showCharging: true, showTemp: false, barColor: '#52c41a', lowColor: '#ff4d4f', lowThreshold: 20, dataSource: 'system.battery.level' } as EditorWidget;
     default: return base as EditorWidget;
   }
 }

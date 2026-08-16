@@ -18,8 +18,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ailinkcat.mobile.domain.models.Action
+import com.ailinkcat.mobile.domain.models.BatteryWidget
 import com.ailinkcat.mobile.domain.models.ButtonWidget
 import com.ailinkcat.mobile.domain.models.CalendarWidget
+import com.ailinkcat.mobile.domain.models.CardWidget
 import com.ailinkcat.mobile.domain.models.ClockWidget
 import com.ailinkcat.mobile.domain.models.DateWidget
 import com.ailinkcat.mobile.domain.models.GaugeWidget
@@ -35,7 +37,9 @@ import com.ailinkcat.mobile.domain.models.WebViewWidget
 import com.ailinkcat.mobile.domain.models.Widget
 import com.ailinkcat.mobile.domain.models.WidgetType
 import com.ailinkcat.mobile.ui.render.widgets.ButtonWidgetRenderer
+import com.ailinkcat.mobile.ui.render.widgets.BatteryWidgetRenderer
 import com.ailinkcat.mobile.ui.render.widgets.CalendarWidgetRenderer
+import com.ailinkcat.mobile.ui.render.widgets.CardWidgetRenderer
 import com.ailinkcat.mobile.ui.render.widgets.ClockWidgetRenderer
 import com.ailinkcat.mobile.ui.render.widgets.DateWidgetRenderer
 import com.ailinkcat.mobile.ui.render.widgets.GaugeWidgetRenderer
@@ -79,6 +83,11 @@ fun WidgetRenderer(
         )
 
         is GaugeWidget -> GaugeWidgetRenderer(
+            widget = widget,
+            value = widgetData[DataSourceResolver.resolve(widget.dataSource)]
+        )
+
+        is BatteryWidget -> BatteryWidgetRenderer(
             widget = widget,
             value = widgetData[DataSourceResolver.resolve(widget.dataSource)]
         )
@@ -130,6 +139,8 @@ fun WidgetRenderer(
         is DateWidget -> DateWidgetRenderer(widget = widget)
 
         is CalendarWidget -> CalendarWidgetRenderer(widget = widget)
+
+        is CardWidget -> CardWidgetRenderer(widget = widget)
 
         else -> PlaceholderWidget(widget.id)
     }

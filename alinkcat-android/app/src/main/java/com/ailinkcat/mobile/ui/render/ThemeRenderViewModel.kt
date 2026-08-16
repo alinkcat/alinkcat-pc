@@ -247,7 +247,9 @@ class ThemeRenderViewModel(
             "uploadSpeed" to "network.upload",
             "net_up" to "network.upload",
             "downloadSpeed" to "network.download",
-            "net_down" to "network.download"
+            "net_down" to "network.download",
+            "batteryLevel" to "battery",
+            "battery_level" to "battery"
         )
 
         while (keys.hasNext()) {
@@ -256,6 +258,18 @@ class ThemeRenderViewModel(
                 val net = dataObj.optJSONObject("network") ?: continue
                 net.optDouble("upload").takeIf { !it.isNaN() }?.let { map["network.upload"] = it.toFloat() }
                 net.optDouble("download").takeIf { !it.isNaN() }?.let { map["network.download"] = it.toFloat() }
+            } else if (key == "battery") {
+                // 兼容两种推送格式：battery: 80 或 battery: { level: 80, charging: true }
+                val batteryObj = dataObj.optJSONObject("battery")
+                if (batteryObj != null) {
+                    batteryObj.optDouble("level").takeIf { !it.isNaN() }?.let { map["battery"] = it.toFloat() }
+                } else {
+                    val raw = dataObj.optDouble(key).takeIf { !it.isNaN() }?.toFloat()
+                    if (raw != null) {
+                        map[key] = raw
+                        ALIASES[key]?.let { alias -> map[alias] = raw }
+                    }
+                }
             } else {
                 val raw = dataObj.optDouble(key).takeIf { !it.isNaN() }?.toFloat()
                 if (raw != null) {

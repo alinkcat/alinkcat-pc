@@ -3,7 +3,7 @@ package com.ailinkcat.mobile.domain.models
 import org.json.JSONArray
 import org.json.JSONObject
 
-enum class WidgetType { BUTTON, GAUGE, STICKY_NOTE, IMAGE, TEXT, SHAPE, WEBVIEW, MEDIA_CONTROL, SYSTEM_MONITOR, LAUNCHER_ICON, CLOCK, DATE, CALENDAR }
+enum class WidgetType { BUTTON, GAUGE, BATTERY, STICKY_NOTE, IMAGE, TEXT, SHAPE, WEBVIEW, MEDIA_CONTROL, SYSTEM_MONITOR, LAUNCHER_ICON, CLOCK, DATE, CALENDAR, CARD }
 
 /**
  * 控件定位。
@@ -81,6 +81,7 @@ sealed class Widget {
             return when (json.optString("type")) {
                 "button" -> ButtonWidget.fromJson(json, layout)
                 "gauge" -> GaugeWidget.fromJson(json, layout)
+                "battery" -> BatteryWidget.fromJson(json, layout)
                 "sticky_note", "snippet-list" -> StickyNoteWidget.fromJson(json, layout)
                 "image" -> ImageWidget.fromJson(json, layout)
                 "icon" -> ButtonWidget.fromJson(json, layout)
@@ -93,6 +94,7 @@ sealed class Widget {
                 "clock" -> ClockWidget.fromJson(json, layout)
                 "date" -> DateWidget.fromJson(json, layout)
                 "calendar" -> CalendarWidget.fromJson(json, layout)
+                "card" -> CardWidget.fromJson(json, layout)
                 else -> null
             }
         }
@@ -172,6 +174,41 @@ data class GaugeWidget(
                 ringColorMid = json.optString("ringColorMid").ifBlank { null },
                 ringColorHigh = json.optString("ringColorHigh").ifBlank { null },
                 ringThickness = json.optInt("ringThickness", -1).takeIf { it > 0 }
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+}
+
+data class BatteryWidget(
+    override val id: String,
+    override val type: WidgetType = WidgetType.BATTERY,
+    override val layout: WidgetLayout,
+    val label: String,
+    val batteryStyle: String?, // bar / ring / number
+    val showLevel: Boolean,
+    val showCharging: Boolean,
+    val showTemp: Boolean,
+    val barColor: String?,
+    val lowColor: String?,
+    val lowThreshold: Int?,
+    val dataSource: String
+) : Widget() {
+    companion object {
+        fun fromJson(json: JSONObject, layout: WidgetLayout): BatteryWidget? = try {
+            BatteryWidget(
+                id = json.getString("id"),
+                layout = layout,
+                label = json.optString("label", "Battery"),
+                batteryStyle = json.optString("batteryStyle").ifBlank { null },
+                showLevel = json.optBoolean("showLevel", true),
+                showCharging = json.optBoolean("showCharging", true),
+                showTemp = json.optBoolean("showTemp", false),
+                barColor = json.optString("barColor").ifBlank { null },
+                lowColor = json.optString("lowColor").ifBlank { null },
+                lowThreshold = json.optInt("lowThreshold", -1).takeIf { it >= 0 },
+                dataSource = json.optString("dataSource", "system.battery.level")
             )
         } catch (_: Exception) {
             null
@@ -437,7 +474,14 @@ data class ClockWidget(
     override val layout: WidgetLayout,
     val label: String,
     val format24h: Boolean,
-    val showSeconds: Boolean
+    val showSeconds: Boolean,
+    val showAmpm: Boolean = false,
+    val clockDisplay: String = "digital", // digital / analog
+    val tickMarks: Boolean = true,
+    val showNumbers: Boolean = true,
+    val handStyle: String = "classic",   // classic / modern / thin
+    val faceColor: String = "#ffffff",
+    val handColor: String = "#333333"
 ) : Widget() {
     companion object {
         fun fromJson(json: JSONObject, layout: WidgetLayout): ClockWidget? = try {
@@ -447,7 +491,14 @@ data class ClockWidget(
                 layout = layout,
                 label = json.optString("label", "Clock"),
                 format24h = props?.optBoolean("format24h", true) ?: true,
-                showSeconds = props?.optBoolean("showSeconds", true) ?: true
+                showSeconds = props?.optBoolean("showSeconds", true) ?: true,
+                showAmpm = props?.optBoolean("showAmpm", false) ?: false,
+                clockDisplay = props?.optString("clockDisplay", "digital") ?: "digital",
+                tickMarks = props?.optBoolean("tickMarks", true) ?: true,
+                showNumbers = props?.optBoolean("showNumbers", true) ?: true,
+                handStyle = props?.optString("handStyle", "classic") ?: "classic",
+                faceColor = props?.optString("faceColor", "#ffffff") ?: "#ffffff",
+                handColor = props?.optString("handColor", "#333333") ?: "#333333"
             )
         } catch (_: Exception) { null }
     }
@@ -485,6 +536,58 @@ data class CalendarWidget(
                 id = json.getString("id"),
                 layout = layout,
                 label = json.optString("label", "Calendar")
+            )
+        } catch (_: Exception) { null }
+    }
+}
+
+/**
+ * 信息卡片：整合文本（标题/描述）+ 配图 + 标签 + 底部辅助文字。
+ * PC 端字段：cardTitle / cardDesc / cardImage / cardImagePosition(top/left/right) / cardTags[] / cardFooter。
+ * 继承 WidgetBase 的 backgroundColor / textColor / fontSize / fontWeight / borderRadius / backgroundOpacity。
+ */
+data class CardWidget(
+    override val id: String,
+    override val type: WidgetType = WidgetType.CARD,
+    override val layout: WidgetLayout,
+    val label: String,
+    val cardTitle: String,
+    val cardDesc: String,
+    val cardImage: String?,
+    val cardImagePosition: String, // top / left / right
+    val cardTags: List<String>,
+    val cardFooter: String,
+    val backgroundColor: String?,
+    val backgroundOpacity: Int?,
+    val textColor: String?,
+    val fontSize: Int?,
+    val fontWeight: String?,
+    val borderRadius: Int?
+) : Widget() {
+    companion object {
+        fun fromJson(json: JSONObject, layout: WidgetLayout): CardWidget? = try {
+            val tagsArray = json.optJSONArray("cardTags") ?: JSONArray()
+            val tags = buildList {
+                for (i in 0 until tagsArray.length()) {
+                    tagsArray.optString(i).takeIf { it.isNotBlank() }?.let { add(it) }
+                }
+            }
+            CardWidget(
+                id = json.getString("id"),
+                layout = layout,
+                label = json.optString("label", "Card"),
+                cardTitle = json.optString("cardTitle", ""),
+                cardDesc = json.optString("cardDesc", ""),
+                cardImage = json.optString("cardImage").ifBlank { null },
+                cardImagePosition = json.optString("cardImagePosition", "top"),
+                cardTags = tags,
+                cardFooter = json.optString("cardFooter", ""),
+                backgroundColor = json.optString("backgroundColor").ifBlank { null },
+                backgroundOpacity = json.optInt("backgroundOpacity", -1).takeIf { it in 0..100 },
+                textColor = json.optString("textColor").ifBlank { null },
+                fontSize = json.optInt("fontSize", -1).takeIf { it > 0 },
+                fontWeight = json.optString("fontWeight").ifBlank { null },
+                borderRadius = json.optInt("borderRadius", -1).takeIf { it >= 0 }
             )
         } catch (_: Exception) { null }
     }

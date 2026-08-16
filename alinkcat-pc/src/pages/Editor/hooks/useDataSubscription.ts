@@ -9,6 +9,7 @@ const SOURCE_MAP: Record<string, (s: PerfSnapshot) => number | undefined> = {
   'system.network.upload': s => s.network?.upload,
   'system.network.download': s => s.network?.download,
   'system.uptime': s => s.uptime,
+  'system.battery.level': s => s.battery?.level,
 };
 
 export function useDataSubscription(dataSource: string | undefined): number | null {

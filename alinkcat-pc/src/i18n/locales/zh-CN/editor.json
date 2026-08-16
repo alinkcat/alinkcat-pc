@@ -26,6 +26,7 @@
     "launcher": "应用启动",
     "button": "快捷操作",
     "gauge": "数据表盘",
+    "battery": "电池",
     "snippet-list": "便签",
     "clock": "时钟",
     "date": "日期",
@@ -35,7 +36,8 @@
     "system-monitor": "系统监控",
     "media-control": "媒体控制",
     "webview": "网页视图",
-    "image": "图片"
+    "image": "图片",
+    "card": "信息卡片"
   },
   "pageManager": {
     "title": "📐 页面管理",
@@ -131,6 +133,20 @@
       "low": "低",
       "mid": "中",
       "high": "高"
+    },
+    "battery": {
+      "section": "电池",
+      "style": "样式",
+      "bar": "水平条",
+      "ring": "环形",
+      "number": "数字",
+      "showLevel": "显示电量",
+      "showCharging": "显示充电",
+      "showTemp": "显示温度",
+      "barColor": "电量颜色",
+      "lowColor": "低电量颜色",
+      "lowThreshold": "低电量阈值",
+      "dataSource": "数据源"
     },
     "snippet": {
       "section": "便签",
@@ -266,7 +282,18 @@
       "format24h": "24 小时制",
       "showSeconds": "显示秒",
       "showAmpm": "显示 AM/PM",
-      "hint": "12 小时制下显示 AM/PM 标识，24 小时制下自动隐藏。"
+      "hint": "12 小时制下显示 AM/PM 标识，24 小时制下自动隐藏。",
+      "clockDisplay": "显示模式",
+      "digital": "数字时钟",
+      "analog": "模拟时钟",
+      "tickMarks": "显示刻度",
+      "showNumbers": "显示数字",
+      "handStyle": "指针样式",
+      "classic": "经典",
+      "modern": "现代",
+      "thin": "细长",
+      "faceColor": "表盘颜色",
+      "handColor": "指针颜色"
     },
     "date": {
       "section": "日期",
@@ -288,6 +315,24 @@
       "week": "周视图",
       "highlightToday": "高亮今日",
       "hint": "点击任意日期可联动查看农历 / 备忘信息。"
+    },
+    "card": {
+      "section": "信息卡片",
+      "title": "标题",
+      "titlePlaceholder": "输入卡片标题",
+      "desc": "描述",
+      "descPlaceholder": "输入卡片描述文本",
+      "image": "配图",
+      "upload": "上传图片",
+      "set": "已设置",
+      "imagePosition": "图片位置",
+      "top": "顶部",
+      "left": "左侧",
+      "right": "右侧",
+      "tags": "标签",
+      "addTag": "输入标签后按回车添加",
+      "footer": "底部文字",
+      "footerPlaceholder": "输入底部辅助文字"
     },
     "actionConfig": {
       "section": "点击动作",
