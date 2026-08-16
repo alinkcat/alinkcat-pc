@@ -1,6 +1,6 @@
 export interface WidgetDefinition {
   id: string;
-  type: 'button' | 'gauge' | 'snippet-list' | 'image' | 'icon' | 'text' | 'shape' | 'webview' | 'media-control' | 'system-monitor' | 'quick-action' | 'launcher' | 'clock' | 'date' | 'calendar';
+  type: 'button' | 'gauge' | 'battery' | 'snippet-list' | 'image' | 'icon' | 'text' | 'shape' | 'webview' | 'media-control' | 'system-monitor' | 'quick-action' | 'launcher' | 'clock' | 'date' | 'calendar';
   label: string;
   icon?: string;
   action?: string;

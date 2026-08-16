@@ -173,7 +173,7 @@ async fn handle_media_subscribe(
     JsonRpcResponse::success(serde_json::json!({"status": "ok"}), req.id.clone())
 }
 
-const ALL_MONITOR_SOURCES: &[&str] = &["cpu", "memory", "network", "disk", "uptime"];
+const ALL_MONITOR_SOURCES: &[&str] = &["cpu", "memory", "network", "disk", "uptime", "battery"];
 
 /// 客户端进入主题页面：按需激活该客户端的硬件监控与媒体状态推送循环。
 /// 仅当连接仍在线时才允许启动，避免向已断开节点推送。
