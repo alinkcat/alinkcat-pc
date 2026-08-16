@@ -44,7 +44,10 @@ export async function setAppLanguage(code: string) {
 
   saveStoredLang(code);
 
-  const resources = (await def.loadResources()) as Record<string, object>;
+  // 动态 import() 返回的是模块命名空间对象 { default: {...} }，需要解包
+  const mod = await def.loadResources();
+  const resources = ('default' in (mod as object) ? (mod as { default: Record<string, object> }).default : (mod as Record<string, object>));
+
   // 替换整个 common 命名空间
   i18n.addResourceBundle(code, 'common', resources, true, true);
   await i18n.changeLanguage(code);
