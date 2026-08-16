@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "alinkcat-pc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "com.alinkcat.pc",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -13,12 +13,14 @@
     "windows": [
       {
         "title": "艾联猫 · ailinkcat",
-        "width": 800,
-        "height": 600
+        "width": 1280,
+        "height": 800,
+        "minWidth": 1024,
+        "minHeight": 700
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' ws: http://localhost:* https:; img-src 'self' data: blob: https: http:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval';"
     }
   },
   "bundle": {
@@ -26,6 +28,7 @@
     "targets": "all",
     "icon": [
       "icons/32x32.png",
+      "icons/64x64.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
