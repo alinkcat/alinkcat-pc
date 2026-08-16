@@ -1,13 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { useDraggable } from '@dnd-kit/core';
-import { AppstoreOutlined, DashboardOutlined, FormOutlined, PictureOutlined, FontSizeOutlined, BorderOutlined, GlobalOutlined, CustomerServiceOutlined, MonitorOutlined, ThunderboltOutlined, RocketOutlined, ClockCircleOutlined, FieldTimeOutlined, CalendarOutlined, IdcardOutlined, BatteryFullOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, DashboardOutlined, FormOutlined, PictureOutlined, FontSizeOutlined, BorderOutlined, GlobalOutlined, CustomerServiceOutlined, MonitorOutlined, ThunderboltOutlined, RocketOutlined, ClockCircleOutlined, FieldTimeOutlined, CalendarOutlined, IdcardOutlined } from '@ant-design/icons';
 
 const TYPES = [
   { type: 'quick-action', icon: <ThunderboltOutlined />, color: '#4F6EF7' },
   { type: 'launcher', icon: <RocketOutlined />, color: '#722ed1' },
   { type: 'button', icon: <AppstoreOutlined />, color: '#4F6EF7' },
   { type: 'gauge', icon: <DashboardOutlined />, color: '#52c41a' },
-  { type: 'battery', icon: <BatteryFullOutlined />, color: '#52c41a' },
+  { type: 'battery', icon: <DashboardOutlined />, color: '#52c41a' },
   { type: 'snippet-list', icon: <FormOutlined />, color: '#faad14' },
   { type: 'clock', icon: <ClockCircleOutlined />, color: '#2f54eb' },
   { type: 'date', icon: <FieldTimeOutlined />, color: '#13c2c2' },
