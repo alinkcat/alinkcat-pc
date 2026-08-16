@@ -12,7 +12,8 @@ data class Theme(
     val version: String,
     val author: String,
     val description: String,
-    val pages: List<Page>
+    val pages: List<Page>,
+    val orientation: String? = "landscape"
 ) {
     companion object {
         fun fromJson(json: JSONObject): Theme {
@@ -28,7 +29,8 @@ data class Theme(
                 version = json.optString("version", "1.0.0"),
                 author = json.optString("author", ""),
                 description = json.optString("description", ""),
-                pages = pages
+                pages = pages,
+                orientation = json.optString("orientation", "landscape")
             )
         }
     }

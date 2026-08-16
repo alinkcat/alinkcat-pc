@@ -5,6 +5,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -14,8 +17,7 @@ import com.ailinkcat.mobile.ui.theme.AlinkcatTheme
 /**
  * 主题包渲染页：支持横竖屏切换的全屏沉浸式渲染。
  * - 边缘到边渲染，内容延伸到刘海/挖孔区域
- * - `setDecorFitsSystemWindows(false)` 让内容绘制到系统栏与刘海区域，
- *   再由 ThemeRenderScreen 中的 WindowInsets 安全区域保证主题内容不被遮挡
+ * - 根据主题的 orientation 字段自动锁定横/竖屏，默认横屏
  * - 横竖屏切换通过 manifest 中 configChanges 阻止 Activity 重建，保持主题页不变
  */
 class ThemeRenderActivity : ComponentActivity() {
@@ -28,7 +30,7 @@ class ThemeRenderActivity : ComponentActivity() {
             return
         }
 
-        // 启用边缘到边渲染 + 显式设置 setDecorFitsSystemWindows(false)
+        // 启用边缘到边渲染
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge()
 
@@ -43,6 +45,17 @@ class ThemeRenderActivity : ComponentActivity() {
             AlinkcatTheme {
                 val viewModel: ThemeRenderViewModel =
                     viewModel(factory = ThemeRenderViewModel.factory(themeId))
+                val uiState by viewModel.uiState.collectAsState()
+
+                // 根据主题 orientation 锁定屏幕方向，默认横屏
+                LaunchedEffect(uiState.theme?.orientation) {
+                    val orientation = uiState.theme?.orientation ?: "landscape"
+                    requestedOrientation = when (orientation) {
+                        "portrait" -> android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        else -> android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                    }
+                }
+
                 ThemeRenderScreen(
                     viewModel = viewModel,
                     onExit = { finish() }

@@ -59,6 +59,8 @@ export interface ThemeMeta {
   source?: string;
   market_id?: string;
   downloaded_at?: string;
+  /** 主题默认方向：portrait 竖屏 / landscape 横屏 */
+  orientation?: 'portrait' | 'landscape';
   pages: PageDefinition[];
 }
 
