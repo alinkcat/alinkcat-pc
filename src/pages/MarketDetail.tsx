@@ -159,7 +159,7 @@ export default function MarketDetail() {
               <List.Item>
                 <List.Item.Meta
                   title={<Space><Tag>v{v.version}</Tag>{v.name}</Space>}
-                  description={<Space direction="vertical" size={0}>
+                  description={<Space orientation="vertical" size={0}>
                     {v.description && <Text type="secondary">{v.description}</Text>}
                     <Text type="secondary" style={{ fontSize: 12 }}>{new Date(v.createdAt).toLocaleString()} · {formatFileSize(v.fileSize)}</Text>
                   </Space>}

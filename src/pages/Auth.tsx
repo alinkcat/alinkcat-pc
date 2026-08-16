@@ -197,7 +197,7 @@ export default function Auth() {
                 <Form form={regForm} layout="vertical" onFinish={onRegister} style={{ marginTop: 8 }}>
                   {regStatus?.whitelistEnabled && (
                     <Alert
-                      message={t('auth.registerEmailOnly')}
+                      title={t('auth.registerEmailOnly')}
                       type="info"
                       showIcon
                       style={{ marginBottom: 16 }}
@@ -219,7 +219,7 @@ export default function Auth() {
 
                   {needCode && (
                     <Alert
-                      message={t('auth.rateLimitWarning')}
+                      title={t('auth.rateLimitWarning')}
                       type="warning"
                       showIcon
                       style={{ marginBottom: 16 }}

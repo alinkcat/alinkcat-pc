@@ -72,7 +72,7 @@ export default function AIPanelSettings() {
         }}
       >
         <Alert
-          message={t('editor.aiPanel.protocolTitle')}
+          title={t('editor.aiPanel.protocolTitle')}
           description={
             <div style={{ fontSize: 12, lineHeight: 1.7 }}>
               {t('editor.aiPanel.protocolDesc', { code1: 'OpenAI Chat Completions API' })}<br />
@@ -96,7 +96,7 @@ export default function AIPanelSettings() {
           <Input.Password placeholder={t('editor.aiPanel.apiKeyPlaceholder')} />
         </Form.Item>
         <Form.Item label={t('editor.aiPanel.modelList')} required>
-          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+          <Space orientation="vertical" style={{ width: '100%' }} size={8}>
             <Button size="small" icon={<ReloadOutlined />} loading={fetching} onClick={handleFetchModels}>
               {t('editor.aiPanel.fetchModels')}
             </Button>
