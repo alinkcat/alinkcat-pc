@@ -467,22 +467,22 @@ export default function Editor() {
         }}
         steps={[
           {
-            title: t('onboarding.editorGuide.leftPanel'),
+            title: t('onboarding.editorGuide.leftPanelTitle'),
             description: t('onboarding.editorGuide.leftPanel'),
             target: () => guideRefLeftPanel.current!,
           },
           {
-            title: t('onboarding.editorGuide.canvas'),
+            title: t('onboarding.editorGuide.canvasTitle'),
             description: t('onboarding.editorGuide.canvas'),
             target: () => guideRefCanvas.current!,
           },
           {
-            title: t('onboarding.editorGuide.rightPanel'),
+            title: t('onboarding.editorGuide.rightPanelTitle'),
             description: t('onboarding.editorGuide.rightPanel'),
             target: () => guideRefRightPanel.current!,
           },
           {
-            title: t('onboarding.editorGuide.aiPanel'),
+            title: t('onboarding.editorGuide.aiPanelTitle'),
             description: t('onboarding.editorGuide.aiPanel'),
             target: () => guideRefAIPanel.current!,
           },
