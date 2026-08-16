@@ -33,6 +33,10 @@ export const useI18nStore = create<I18nState>((set, get) => ({
   hydrate: async () => {
     const saved = loadStoredLang();
     const def = LANGUAGES.find((l) => l.code === saved) || LANGUAGES[0];
+
+    // 确保 i18next 语言与资源已就绪（非 zh-CN 时懒加载并切换），否则启动后仍是中文
+    await setAppLanguage(saved).catch(console.error);
+
     const antdModule = await def.antdLocale();
     const antdLocale = antdModule.default || antdModule;
 
