@@ -3,6 +3,7 @@ package com.ailinkcat.mobile.websocket
 import android.content.Context
 import android.util.Base64
 import android.util.Log
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.JsonRpc
 import com.ailinkcat.mobile.domain.repository.ThemeRepository
 import com.ailinkcat.mobile.utils.FileUtils
@@ -42,6 +43,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
 
     private val repository = ThemeRepository(context)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val appContext = context.applicationContext
 
     private val _state = MutableStateFlow<ReceiveState?>(null)
     val receiveState: StateFlow<ReceiveState?> = _state.asStateFlow()
@@ -90,7 +92,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         if (params.size <= 0 || params.totalChunks <= 0) {
             Log.e(TAG, "Invalid push params for ${params.themeId}")
             sendErrorResponse(requestId, ERR_INVALID_PARAMS, "Invalid push params")
-            failAtStart(params, "推送数据无效")
+            failAtStart(params, appContext.getString(R.string.invalid_push_data))
             return
         }
 
@@ -99,8 +101,8 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         val storageDir = tempFile.parentFile ?: tempFile
         if (!FileUtils.hasEnoughSpace(storageDir, params.size)) {
             Log.e(TAG, "Insufficient storage for ${params.themeId}")
-            sendErrorResponse(requestId, ERR_INVALID_PARAMS, "存储空间不足，无法接收主题包")
-            failAtStart(params, "存储空间不足，无法接收主题包")
+            sendErrorResponse(requestId, ERR_INVALID_PARAMS, "Insufficient storage")
+            failAtStart(params, appContext.getString(R.string.insufficient_storage))
             return
         }
 
@@ -131,7 +133,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
     }
 
     /**
-     * 用户点击“接收”：回复 ready 并开始接收（支持断点续传追加写入）。
+     * 用户点击"接收"：回复 ready 并开始接收（支持断点续传追加写入）。
      */
     @Synchronized
     fun acceptPending() {
@@ -144,8 +146,8 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         val tempFile = repository.tempFile(params.themeId)
         val storageDir = tempFile.parentFile ?: tempFile
         if (!FileUtils.hasEnoughSpace(storageDir, params.size)) {
-            sendErrorResponse(pendingStartId, ERR_INVALID_PARAMS, "存储空间不足，无法接收主题包")
-            abortPending(st.copy(errorMessage = "存储空间不足，无法接收主题包"))
+            sendErrorResponse(pendingStartId, ERR_INVALID_PARAMS, "Insufficient storage")
+            abortPending(st.copy(errorMessage = appContext.getString(R.string.insufficient_storage)))
             return
         }
 
@@ -156,7 +158,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         } catch (e: Exception) {
             Log.e(TAG, "Cannot create temp file: ${e.message}")
             sendErrorResponse(pendingStartId, ERR_INVALID_PARAMS, "Cannot create temp file")
-            abortPending(st.copy(errorMessage = "无法创建临时文件：${e.message}"))
+            abortPending(st.copy(errorMessage = appContext.getString(R.string.cannot_create_temp_file, e.message ?: "")))
             return
         }
 
@@ -216,7 +218,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
 
         val received = st.receivedSize + bytes.size
         if (received > st.totalSize) {
-            failCurrent("数据大小异常，接收已中止")
+            failCurrent(appContext.getString(R.string.data_size_error))
             return
         }
         val chunks = st.receivedChunks + 1
@@ -246,7 +248,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         val st = _state.value ?: return
         if (st.themeId != params.themeId || st.status != ReceiveStatus.RECEIVING) return
         if (params.status != "success") {
-            failCurrent("传输状态异常：${params.status}")
+            failCurrent(appContext.getString(R.string.transfer_status_error, params.status))
             return
         }
         closeStream()
@@ -257,7 +259,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
             when (result.status) {
                 ReceiveStatus.COMPLETED -> listener?.onPushComplete(result)
                 ReceiveStatus.FAILED ->
-                    listener?.onPushFailed(result, result.errorMessage ?: "接收失败")
+                    listener?.onPushFailed(result, result.errorMessage ?: appContext.getString(R.string.receive_failed))
                 else -> Unit
             }
         }
@@ -278,7 +280,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
     override fun onThemePushError(requestId: Int, params: ThemePushError) {
         val st = _state.value ?: return
         if (st.themeId != params.themeId || st.status != ReceiveStatus.RECEIVING) return
-        failCurrent("推送错误（${params.code}）：${params.message}")
+        failCurrent(appContext.getString(R.string.push_error_format, params.code, params.message))
     }
 
     /**
@@ -312,7 +314,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
             pendingStartParams = null
             val state = st.copy(
                 status = ReceiveStatus.INTERRUPTED,
-                errorMessage = "传输中断，等待恢复…"
+                errorMessage = appContext.getString(R.string.status_interrupted)
             )
             _state.value = state
             listener?.onPushProgress(state)
@@ -323,7 +325,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
     }
 
     /**
-     * 是否存在未完成的传输（供“发现未完成的传输，是否继续？”检查）。
+     * 是否存在未完成的传输（供"发现未完成的传输，是否继续？"检查）。
      */
     fun hasInterruptedTransfer(): Boolean {
         return _state.value?.status == ReceiveStatus.INTERRUPTED ||
@@ -352,7 +354,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         pendingStartParams = null
         cleanup(failed.themeId)
         _state.value = failed
-        listener?.onPushFailed(failed, failed.errorMessage ?: "接收失败")
+        listener?.onPushFailed(failed, failed.errorMessage ?: appContext.getString(R.string.receive_failed))
     }
 
     private fun closeStream() {
@@ -470,13 +472,13 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
             cleanup(st.themeId)
             sendCompleteResponse(requestId, "failed", st.themeId)
             resetPending()
-            return st.copy(status = ReceiveStatus.FAILED, errorMessage = "文件校验失败：无法计算哈希")
+            return st.copy(status = ReceiveStatus.FAILED, errorMessage = appContext.getString(R.string.hash_verify_failed))
         }
         if (expectedHash.isNotBlank() && !actualHash.equals(expectedHash, ignoreCase = true)) {
             cleanup(st.themeId)
             sendCompleteResponse(requestId, "failed", st.themeId)
             resetPending()
-            return st.copy(status = ReceiveStatus.FAILED, errorMessage = "文件损坏：哈希校验不通过")
+            return st.copy(status = ReceiveStatus.FAILED, errorMessage = appContext.getString(R.string.hash_mismatch))
         }
 
         // 解压到主题目录
@@ -486,7 +488,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
             repository.deleteTheme(st.themeId)
             sendCompleteResponse(requestId, "failed", st.themeId)
             resetPending()
-            return st.copy(status = ReceiveStatus.FAILED, errorMessage = "文件损坏：解压失败")
+            return st.copy(status = ReceiveStatus.FAILED, errorMessage = appContext.getString(R.string.unzip_failed))
         }
 
         // 写入元数据

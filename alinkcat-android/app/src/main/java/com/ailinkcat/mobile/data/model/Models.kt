@@ -60,7 +60,7 @@ data class StoredConfig(
     val ip: String = "192.168.1.100",
     val port: String = "9527",
     val pairCode: String = "",
-    val deviceName: String = "我的 Android",
+    val deviceName: String = "My Android",
     val lastConnectedIp: String = "",
     val lastConnectedPort: String = ""
 )

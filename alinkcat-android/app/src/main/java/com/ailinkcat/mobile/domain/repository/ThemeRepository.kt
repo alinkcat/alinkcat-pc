@@ -44,7 +44,7 @@ class ThemeRepository(private val context: Context) {
     suspend fun loadTheme(themeId: String): Result<Theme> = withContext(Dispatchers.IO) {
         runCatching {
             val file = themeFile(themeId)
-            if (!file.exists()) error("主题包文件不存在")
+            if (!file.exists()) error("Theme file does not exist")
             Theme.fromJson(JSONObject(file.readText()))
         }
     }

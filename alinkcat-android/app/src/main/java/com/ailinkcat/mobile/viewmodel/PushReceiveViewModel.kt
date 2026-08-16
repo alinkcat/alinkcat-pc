@@ -1,11 +1,13 @@
 package com.ailinkcat.mobile.viewmodel
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.websocket.PushReceiveListener
 import com.ailinkcat.mobile.websocket.PushReceiveManager
 import com.ailinkcat.mobile.websocket.models.ReceiveState
@@ -27,9 +29,10 @@ import kotlinx.coroutines.launch
  *        -> RECEIVING -> COMPLETED / CANCELLED / FAILED / INTERRUPTED（连接中断，保留 .part）
  */
 class PushReceiveViewModel(
+    application: Application,
     private val manager: PushReceiveManager,
     private val onPushCompleted: () -> Unit
-) : ViewModel(), PushReceiveListener {
+) : AndroidViewModel(application), PushReceiveListener {
 
     private val _state = MutableStateFlow<ReceiveState?>(null)
     val state: StateFlow<ReceiveState?> = _state.asStateFlow()
@@ -77,7 +80,7 @@ class PushReceiveViewModel(
         if (!terminalHandled) {
             terminalHandled = true
             onPushCompleted()
-            showSnackbar("主题包接收成功！")
+            showSnackbar(getApplication<Application>().getString(R.string.push_receive_success))
             autoClose()
         }
     }
@@ -86,7 +89,8 @@ class PushReceiveViewModel(
         confirmTimeoutJob?.cancel()
         val wasConfirming = _state.value?.status == ReceiveStatus.PENDING_CONFIRM
         _state.value = state
-        showSnackbar(if (wasConfirming) "已拒绝接收" else "主题包接收已取消")
+        val app = getApplication<Application>()
+        showSnackbar(if (wasConfirming) app.getString(R.string.push_rejected) else app.getString(R.string.push_cancelled))
         if (wasConfirming) {
             // 确认阶段被拒绝：直接关闭确认对话框
             _dialogVisible.value = false
@@ -151,7 +155,11 @@ class PushReceiveViewModel(
             manager: PushReceiveManager,
             onPushCompleted: () -> Unit
         ): ViewModelProvider.Factory = viewModelFactory {
-            initializer { PushReceiveViewModel(manager, onPushCompleted) }
+            initializer {
+                val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
+                    as Application
+                PushReceiveViewModel(app, manager, onPushCompleted)
+            }
         }
     }
 }

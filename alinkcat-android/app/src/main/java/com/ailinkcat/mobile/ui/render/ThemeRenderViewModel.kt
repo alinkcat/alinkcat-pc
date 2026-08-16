@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.DataStoreManager
 import com.ailinkcat.mobile.data.JsonRpc
 import com.ailinkcat.mobile.data.model.ConnectionStatus
@@ -60,6 +61,7 @@ class ThemeRenderViewModel(
     private var entered = false
 
     private val webSocket = WebSocketManager(
+        context = application,
         listener = object : WebSocketManager.Listener {
             override fun onHandshakeSucceeded(
                 deviceId: String?,
@@ -109,7 +111,7 @@ class ThemeRenderViewModel(
                     it.copy(
                         theme = null,
                         loading = false,
-                        error = e.message ?: "主题包加载失败"
+                        error = e.message ?: getApplication<Application>().getString(R.string.theme_load_failed)
                     )
                 }
             }
@@ -119,11 +121,12 @@ class ThemeRenderViewModel(
     private fun connect(config: StoredConfig) {
         if (config.ip.isBlank()) return
         // 预览连接使用独立设备名，避免与主界面连接互踢
-        val deviceName = config.deviceName.ifBlank { "我的 Android" }
+        val app = getApplication<Application>()
+        val deviceName = config.deviceName.ifBlank { app.getString(R.string.default_device_name) }
         webSocket.connect(
             url = "ws://${config.ip}:${config.port}",
             pairingCode = config.pairCode,
-            deviceName = "$deviceName（展示）",
+            deviceName = "$deviceName (Display)",
             appVersion = appVersion
         )
     }

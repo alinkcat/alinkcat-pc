@@ -23,9 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.domain.models.SystemMonitorWidget
 import com.ailinkcat.mobile.ui.theme.ErrorRed
 import com.ailinkcat.mobile.ui.theme.SuccessGreen
@@ -72,7 +74,7 @@ fun SystemMonitorWidgetRenderer(
             if (widget.showCpu) {
                 val cpu = v(listOf("cpu", "cpuUsage"))
                 MetricRow(
-                    label = "CPU",
+                    label = stringResource(R.string.cpu),
                     value = cpu,
                     suffix = "%",
                     color = pickColor(cpu, 50f, 80f)
@@ -81,7 +83,7 @@ fun SystemMonitorWidgetRenderer(
             if (widget.showMemory) {
                 val mem = v(listOf("memory", "memoryUsage", "mem"))
                 MetricRow(
-                    label = "内存",
+                    label = stringResource(R.string.memory),
                     value = mem,
                     suffix = "%",
                     color = pickColor(mem, 60f, 85f)
@@ -90,7 +92,7 @@ fun SystemMonitorWidgetRenderer(
             if (widget.showDisk) {
                 val disk = v(listOf("disk", "diskUsage"))
                 MetricRow(
-                    label = "磁盘",
+                    label = stringResource(R.string.disk),
                     value = disk,
                     suffix = "%",
                     color = pickColor(disk, 70f, 90f)
@@ -104,13 +106,13 @@ fun SystemMonitorWidgetRenderer(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     MetricSmall(
-                        label = "↑ 上传",
+                        label = stringResource(R.string.upload),
                         value = up,
                         suffix = "B/s",
                         color = Color(0xFF4F6EF7)
                     )
                     MetricSmall(
-                        label = "↓ 下载",
+                        label = stringResource(R.string.download),
                         value = down,
                         suffix = "B/s",
                         color = Color(0xFF34C759)

@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.ui.theme.ErrorRed
 import com.ailinkcat.mobile.ui.theme.WarningOrange
 import com.ailinkcat.mobile.utils.FileUtils
@@ -64,7 +66,7 @@ fun ReceiveConfirmDialog(
                 Text("📥", fontSize = 28.sp)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "是否接收主题包？",
+                    text = stringResource(R.string.receive_theme_confirm),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -80,7 +82,7 @@ fun ReceiveConfirmDialog(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "版本：v${state.version}    大小：${FileUtils.formatSize(state.totalSize)}",
+                    text = stringResource(R.string.theme_version_size, "v${state.version}", FileUtils.formatSize(state.totalSize)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -88,7 +90,7 @@ fun ReceiveConfirmDialog(
                 if (state.isResume) {
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        text = "发现未完成的传输，是否继续？",
+                        text = stringResource(R.string.resume_transfer_confirm),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = WarningOrange
@@ -97,7 +99,7 @@ fun ReceiveConfirmDialog(
 
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = "接收后会自动保存到本地",
+                    text = stringResource(R.string.receive_save_locally),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -110,13 +112,13 @@ fun ReceiveConfirmDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedButton(onClick = onReject) {
-                        Text("拒绝", color = ErrorRed)
+                        Text(stringResource(R.string.reject), color = ErrorRed)
                     }
                     Button(
                         onClick = onAccept,
                         colors = ButtonDefaults.buttonColors()
                     ) {
-                        Text("接收")
+                        Text(stringResource(R.string.accept))
                     }
                 }
             }

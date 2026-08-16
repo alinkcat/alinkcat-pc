@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,7 +101,7 @@ fun ProfileScreen(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "艾联猫 · iLinkCat",
+                    text = stringResource(R.string.app_brand),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -115,16 +116,18 @@ fun ProfileScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("设备信息", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.device_info), style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(8.dp))
                 InfoRow(
-                    label = "连接状态",
-                    value = when (state.status) {
-                        ConnectionStatus.Connected -> "已连接"
-                        ConnectionStatus.Connecting -> "连接中"
-                        ConnectionStatus.Error -> "连接失败"
-                        else -> "未连接"
-                    },
+                    label = stringResource(R.string.connection_status),
+                    value = stringResource(
+                        when (state.status) {
+                            ConnectionStatus.Connected -> R.string.connected
+                            ConnectionStatus.Connecting -> R.string.connecting
+                            ConnectionStatus.Error -> R.string.connection_failed
+                            else -> R.string.disconnected
+                        }
+                    ),
                     valueColor = if (state.status == ConnectionStatus.Connected) SuccessGreen
                     else MaterialTheme.colorScheme.onSurface
                 )
@@ -133,16 +136,16 @@ fun ProfileScreen(
                     color = MaterialTheme.colorScheme.surfaceVariant
                 )
                 InfoRow(
-                    label = "PC 名称",
+                    label = stringResource(R.string.pc_name),
                     value = if (state.status == ConnectionStatus.Connected)
-                        state.deviceName ?: "未知" else "—"
+                        state.deviceName ?: stringResource(R.string.unknown) else "—"
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 8.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant
                 )
                 InfoRow(
-                    label = "PC 地址",
+                    label = stringResource(R.string.pc_address),
                     value = if (state.status == ConnectionStatus.Connected)
                         "${config.ip}:${config.port}" else "—"
                 )
@@ -151,8 +154,8 @@ fun ProfileScreen(
                     color = MaterialTheme.colorScheme.surfaceVariant
                 )
                 InfoRow(
-                    label = "主题包数量",
-                    value = "${themes.size} 个"
+                    label = stringResource(R.string.theme_count),
+                    value = stringResource(R.string.theme_count_value, themes.size)
                 )
             }
         }
@@ -168,19 +171,19 @@ fun ProfileScreen(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("功能入口", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.features), style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(4.dp))
                 OutlinedButton(
                     onClick = onOpenThemes,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("📦 主题包管理")
+                    Text(stringResource(R.string.theme_management))
                 }
                 OutlinedButton(
                     onClick = { showClearDialog = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("🗑️ 清除配对信息", color = ErrorRed)
+                    Text(stringResource(R.string.clear_pairing_info), color = ErrorRed)
                 }
             }
         }
@@ -189,19 +192,19 @@ fun ProfileScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("清除配对信息") },
-            text = { Text("确定要清除本机保存的配对码吗？下次连接需重新输入或扫码。") },
+            title = { Text(stringResource(R.string.clear_pairing_info_title)) },
+            text = { Text(stringResource(R.string.clear_pairing_info_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.clearPairingInfo()
                     showClearDialog = false
                 }) {
-                    Text("清除")
+                    Text(stringResource(R.string.clear))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("取消")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

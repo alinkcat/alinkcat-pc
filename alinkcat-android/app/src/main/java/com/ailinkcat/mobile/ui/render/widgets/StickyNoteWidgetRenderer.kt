@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ailinkcat.mobile.domain.models.StickyNoteWidget
+import androidx.compose.ui.res.stringResource
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.utils.ColorParser
 
 /**
@@ -109,7 +111,7 @@ fun StickyNoteWidgetRenderer(
             }
             if (widget.notes.isEmpty()) {
                 Text(
-                    text = "暂无便签",
+                    text = stringResource(R.string.no_notes),
                     color = textColor.copy(alpha = 0.6f),
                     fontSize = adaptiveContentSize
                 )

@@ -38,9 +38,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.model.ConnectionStatus
 import com.ailinkcat.mobile.domain.models.Theme
 import com.ailinkcat.mobile.ui.render.components.DotsIndicator
@@ -108,14 +110,14 @@ private fun ErrorView(message: String?, onRetry: () -> Unit, onExit: () -> Unit)
             Text("😿", fontSize = 48.sp)
             Spacer(Modifier.height(12.dp))
             Text(
-                text = message ?: "主题包加载失败",
+                text = message ?: stringResource(R.string.theme_load_failed),
                 color = Color.White,
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(Modifier.height(16.dp))
             Row {
-                TextButton(onClick = onRetry) { Text("重试", color = Color.White) }
-                TextButton(onClick = onExit) { Text("返回", color = Color.White) }
+                TextButton(onClick = onRetry) { Text(stringResource(R.string.retry), color = Color.White) }
+                TextButton(onClick = onExit) { Text(stringResource(R.string.back), color = Color.White) }
             }
         }
     }
@@ -214,11 +216,11 @@ private fun RenderContent(
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val (dotColor, label) = when (uiState.connectionStatus) {
-                    ConnectionStatus.Connected -> SuccessGreen to "已连接"
-                    ConnectionStatus.Connecting -> WarningOrange to "连接中"
-                    ConnectionStatus.Error -> ErrorRed to "连接失败"
-                    else -> IdleGray to "未连接"
+                val (dotColor, labelRes) = when (uiState.connectionStatus) {
+                    ConnectionStatus.Connected -> SuccessGreen to R.string.connected
+                    ConnectionStatus.Connecting -> WarningOrange to R.string.connecting
+                    ConnectionStatus.Error -> ErrorRed to R.string.connection_failed
+                    else -> IdleGray to R.string.disconnected
                 }
                 Box(
                     Modifier
@@ -227,7 +229,7 @@ private fun RenderContent(
                         .background(dotColor)
                 )
                 Spacer(Modifier.width(6.dp))
-                Text(label, color = Color.White, fontSize = 12.sp)
+                Text(stringResource(labelRes), color = Color.White, fontSize = 12.sp)
             }
         }
 
@@ -246,20 +248,20 @@ private fun RenderContent(
     if (uiState.showExitConfirm) {
         AlertDialog(
             onDismissRequest = viewModel::dismissExitConfirm,
-            title = { Text("退出主题包") },
-            text = { Text("确定要退出当前主题包展示吗？") },
+            title = { Text(stringResource(R.string.exit_theme)) },
+            text = { Text(stringResource(R.string.exit_theme_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.leaveTheme()
                     viewModel.releaseConnection()
                     onExit()
                 }) {
-                    Text("退出")
+                    Text(stringResource(R.string.exit))
                 }
             },
             dismissButton = {
                 TextButton(onClick = viewModel::dismissExitConfirm) {
-                    Text("取消")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

@@ -1,8 +1,10 @@
 package com.ailinkcat.mobile.websocket
 
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.JsonRpc
 import com.ailinkcat.mobile.data.model.ConnectionErrorType
 import com.ailinkcat.mobile.websocket.models.ReceiveState
@@ -54,6 +56,7 @@ interface PushReceiveListener {
  * - 解析主题包推送通知（theme.push.*）并转发给 [PushMessageHandler]
  */
 class WebSocketManager(
+    private val context: Context,
     private val listener: Listener,
     private val pushHandler: PushMessageHandler? = null,
     private val rawListener: ((String) -> Unit)? = null
@@ -104,7 +107,7 @@ class WebSocketManager(
             Log.e(TAG, "Handshake timeout: no response in ${HANDSHAKE_TIMEOUT_MS / 1000}s")
             listener.onConnectionFailed(
                 ConnectionErrorType.HANDSHAKE_TIMEOUT,
-                "握手超时：10 秒内未收到服务端响应"
+                context.getString(R.string.handshake_timeout)
             )
         }
     }
@@ -256,28 +259,28 @@ class WebSocketManager(
         val msg = t.message ?: t.javaClass.simpleName
         return when {
             t is SocketTimeoutException ->
-                ConnectionErrorType.CONNECTION_TIMEOUT to "连接超时：请检查防火墙设置"
+                ConnectionErrorType.CONNECTION_TIMEOUT to context.getString(R.string.connection_timeout)
 
             t is ConnectException ->
-                ConnectionErrorType.PORT_CLOSED to "端口未开放：请检查 PC 端服务是否启动"
+                ConnectionErrorType.PORT_CLOSED to context.getString(R.string.port_closed)
 
             t is UnknownHostException || t is NoRouteToHostException ->
-                ConnectionErrorType.NETWORK_UNREACHABLE to "网络不可达：请检查手机和 PC 是否在同一局域网"
+                ConnectionErrorType.NETWORK_UNREACHABLE to context.getString(R.string.network_unreachable)
 
             msg.contains("timeout", ignoreCase = true) ->
-                ConnectionErrorType.CONNECTION_TIMEOUT to "连接超时：请检查防火墙设置"
+                ConnectionErrorType.CONNECTION_TIMEOUT to context.getString(R.string.connection_timeout)
 
             msg.contains("refused", ignoreCase = true) ||
                 msg.contains("ECONNREFUSED", ignoreCase = true) ->
-                ConnectionErrorType.PORT_CLOSED to "端口未开放：请检查 PC 端服务是否启动"
+                ConnectionErrorType.PORT_CLOSED to context.getString(R.string.port_closed)
 
             msg.contains("unreachable", ignoreCase = true) ||
                 msg.contains("ENETUNREACH", ignoreCase = true) ||
                 msg.contains("EHOSTUNREACH", ignoreCase = true) ||
                 msg.contains("NoRouteToHost", ignoreCase = true) ->
-                ConnectionErrorType.NETWORK_UNREACHABLE to "网络不可达：请检查手机和 PC 是否在同一局域网"
+                ConnectionErrorType.NETWORK_UNREACHABLE to context.getString(R.string.network_unreachable)
 
-            else -> ConnectionErrorType.UNKNOWN to (t.message ?: "连接失败")
+            else -> ConnectionErrorType.UNKNOWN to (t.message ?: context.getString(R.string.connection_failed))
         }
     }
 }

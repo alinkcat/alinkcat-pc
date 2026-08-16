@@ -3,6 +3,7 @@ package com.ailinkcat.mobile.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.AuthApi
 import com.ailinkcat.mobile.data.DeviceInfoProvider
 import com.ailinkcat.mobile.data.TokenManager
@@ -66,14 +67,15 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun login(onLoginSuccess: () -> Unit) {
         val state = _uiState.value
+        val app = getApplication<Application>()
 
         // 表单校验
         if (state.username.isBlank()) {
-            _uiState.value = state.copy(errorMessage = "请输入账号")
+            _uiState.value = state.copy(errorMessage = app.getString(R.string.enter_username))
             return
         }
         if (state.password.isBlank()) {
-            _uiState.value = state.copy(errorMessage = "请输入密码")
+            _uiState.value = state.copy(errorMessage = app.getString(R.string.enter_password))
             return
         }
 

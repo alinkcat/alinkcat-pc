@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,7 +62,7 @@ fun SplashScreen(onFinished: () -> Unit) {
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "艾联猫",
+                text = stringResource(R.string.app_name),
                 color = Color.White,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold

@@ -31,7 +31,7 @@ class DataStoreManager(private val context: Context) {
             ip = prefs[Keys.IP] ?: "192.168.1.100",
             port = prefs[Keys.PORT] ?: "9527",
             pairCode = prefs[Keys.PAIR_CODE] ?: "",
-            deviceName = prefs[Keys.DEVICE_NAME] ?: "我的 Android",
+            deviceName = prefs[Keys.DEVICE_NAME] ?: "My Android",
             lastConnectedIp = prefs[Keys.LAST_IP] ?: "",
             lastConnectedPort = prefs[Keys.LAST_PORT] ?: ""
         )

@@ -74,11 +74,11 @@ object JsonRpc {
                 HandshakeResult(
                     errorCode = error?.optInt("code", -1),
                     errorMessage = error?.optString("message")?.ifBlank { null }
-                        ?: "未知错误"
+                        ?: "Unknown error"
                 )
             }
         } catch (_: Exception) {
-            HandshakeResult(errorMessage = "无法解析服务端响应")
+            HandshakeResult(errorMessage = "Cannot parse server response")
         }
     }
 

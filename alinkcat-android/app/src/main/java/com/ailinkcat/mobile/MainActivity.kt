@@ -18,6 +18,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,20 +69,20 @@ private fun SignatureErrorScreen(onExit: () -> Unit) {
             Text("⚠️", fontSize = 56.sp)
             Spacer(Modifier.height(20.dp))
             Text(
-                text = "应用签名校验失败",
+                text = stringResource(R.string.signature_verify_failed),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.error
             )
             Spacer(Modifier.height(12.dp))
             Text(
-                text = "检测到当前安装包与官方签名不一致，\n应用可能已被篡改，请从官方渠道重新安装。",
+                text = stringResource(R.string.signature_tamper_warning),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
             Spacer(Modifier.height(24.dp))
             TextButton(onClick = onExit) {
-                Text("退出应用")
+                Text(stringResource(R.string.exit_app))
             }
         }
     }

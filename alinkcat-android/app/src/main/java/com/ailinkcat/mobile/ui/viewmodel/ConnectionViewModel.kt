@@ -3,6 +3,7 @@ package com.ailinkcat.mobile.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.DataStoreManager
 import com.ailinkcat.mobile.data.model.ConnectionErrorType
 import com.ailinkcat.mobile.data.model.ConnectionState
@@ -64,6 +65,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     val pushReceiveManager = PushReceiveManager(application)
 
     private val webSocket = WebSocketManager(
+        context = application,
         listener = object : WebSocketManager.Listener {
             override fun onHandshakeSucceeded(
                 deviceId: String?,
@@ -121,24 +123,25 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
      * URL 格式：ws://{ip}:{port}
      */
     fun connect(ip: String, port: String, pairCode: String) {
+        val app = getApplication<Application>()
         if (ip.isBlank()) {
             _state.value = ConnectionState(
                 status = ConnectionStatus.Error,
-                errorMessage = "请输入 PC IP 地址"
+                errorMessage = app.getString(R.string.enter_pc_ip)
             )
             return
         }
         if (port.isBlank()) {
             _state.value = ConnectionState(
                 status = ConnectionStatus.Error,
-                errorMessage = "请输入端口号"
+                errorMessage = app.getString(R.string.enter_port)
             )
             return
         }
         if (pairCode.isBlank()) {
             _state.value = ConnectionState(
                 status = ConnectionStatus.Error,
-                errorMessage = "请输入配对码"
+                errorMessage = app.getString(R.string.enter_pairing_code)
             )
             return
         }
@@ -193,7 +196,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                             val obj = appsArray.optJSONObject(i) ?: continue
                             list.add(LauncherApp(
                                 id = obj.optString("id", ""),
-                                name = obj.optString("name", "应用"),
+                                name = obj.optString("name", "App"),
                                 iconUrl = obj.optString("icon").ifBlank { null },
                                 position = obj.optInt("position", 0)
                             ))
@@ -210,7 +213,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                             val obj = itemsArray.optJSONObject(i) ?: continue
                             list.add(SnippetItem(
                                 id = obj.optString("id", ""),
-                                label = obj.optString("label", "片段"),
+                                label = obj.optString("label", "Snippet"),
                                 content = obj.optString("content", ""),
                                 category = obj.optString("category").ifBlank { null }
                             ))
@@ -264,7 +267,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                         themeId = meta.themeId,
                         name = meta.name,
                         version = meta.version,
-                        author = "PC 端",
+                        author = "PC",
                         pageCount = 1,
                         isActive = index == 0,
                         coverEmoji = "📦",
@@ -296,7 +299,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 ThemePackage(
                     name = name,
                     version = "1.0.0",
-                    author = "PC 端",
+                    author = "PC",
                     pageCount = 1,
                     isActive = index == 0
                 )
@@ -309,10 +312,10 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     private fun loadMockThemePackagesIfEmpty() {
         if (_themePackages.value.isNotEmpty()) return
         _themePackages.value = listOf(
-            ThemePackage(name = "极光蓝 · 商务风", version = "1.2.0", author = "iLinkCat Studio", pageCount = 3, isActive = true),
-            ThemePackage(name = "樱花粉 · 少女心", version = "0.9.1", author = "CatWorks", pageCount = 2, isActive = false, coverEmoji = "🌸", coverColor = 0xFFF06292),
-            ThemePackage(name = "暗夜极客", version = "2.0.0", author = "NeoPixel", pageCount = 4, isActive = false, coverEmoji = "🌙", coverColor = 0xFF343A5C),
-            ThemePackage(name = "薄荷绿 · 清新", version = "1.0.3", author = "Mint Tea", pageCount = 5, isActive = false, coverEmoji = "🍃", coverColor = 0xFF4DB6AC)
+            ThemePackage(name = "Aurora Blue · Business", version = "1.2.0", author = "iLinkCat Studio", pageCount = 3, isActive = true),
+            ThemePackage(name = "Sakura Pink · Sweet", version = "0.9.1", author = "CatWorks", pageCount = 2, isActive = false, coverEmoji = "🌸", coverColor = 0xFFF06292),
+            ThemePackage(name = "Dark Night Geek", version = "2.0.0", author = "NeoPixel", pageCount = 4, isActive = false, coverEmoji = "🌙", coverColor = 0xFF343A5C),
+            ThemePackage(name = "Mint Green · Fresh", version = "1.0.3", author = "Mint Tea", pageCount = 5, isActive = false, coverEmoji = "🍃", coverColor = 0xFF4DB6AC)
         )
     }
 }

@@ -93,7 +93,7 @@ data class ThemePushError(
             ThemePushError(
                 themeId = json.getString("themeId"),
                 code = json.optInt("code", -1),
-                message = json.optString("message", "未知错误")
+                message = json.optString("message", "Unknown error")
             )
         } catch (_: Exception) {
             null

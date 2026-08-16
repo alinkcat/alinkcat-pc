@@ -23,9 +23,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.model.ConnectionStatus
 import com.ailinkcat.mobile.ui.config.ConfigScreen
 import com.ailinkcat.mobile.ui.macro.MacroScreen
@@ -38,11 +40,11 @@ import com.ailinkcat.mobile.ui.themeList.ThemeListScreen
 import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
 import androidx.compose.material3.MaterialTheme
 
-enum class MainTab(val label: String, val emoji: String) {
-    THEMES("主题包", "🏠"),
-    MACRO("宏与片段", "⚡"),
-    CONFIG("配置", "⚙️"),
-    PROFILE("我的", "👤")
+enum class MainTab(val labelRes: Int, val emoji: String) {
+    THEMES(R.string.tab_themes, "🏠"),
+    MACRO(R.string.tab_macro, "⚡"),
+    CONFIG(R.string.tab_config, "⚙️"),
+    PROFILE(R.string.tab_profile, "👤")
 }
 
 /**
@@ -63,8 +65,8 @@ fun MainScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (selectedTab == 0) "艾联猫 · 主题包"
-                        else MainTab.entries[selectedTab].label
+                        if (selectedTab == 0) stringResource(R.string.app_title_themes)
+                        else stringResource(MainTab.entries[selectedTab].labelRes)
                     )
                 },
                 actions = {
@@ -79,7 +81,7 @@ fun MainScreen(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
                         icon = { Text(tab.emoji, fontSize = 20.sp) },
-                        label = { Text(tab.label) }
+                        label = { Text(stringResource(tab.labelRes)) }
                     )
                 }
             }
@@ -130,12 +132,14 @@ fun ConnectionStatusIndicator(status: ConnectionStatus) {
         )
         Spacer(Modifier.width(6.dp))
         Text(
-            text = when (status) {
-                ConnectionStatus.Connected -> "已连接"
-                ConnectionStatus.Connecting -> "连接中"
-                ConnectionStatus.Error -> "连接失败"
-                else -> "未连接"
-            },
+            text = stringResource(
+                when (status) {
+                    ConnectionStatus.Connected -> R.string.connected
+                    ConnectionStatus.Connecting -> R.string.connecting
+                    ConnectionStatus.Error -> R.string.connection_failed
+                    else -> R.string.disconnected
+                }
+            ),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

@@ -1,18 +1,16 @@
 package com.ailinkcat.mobile.ui.render.widgets
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -24,120 +22,130 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.domain.models.CalendarWidget
+import androidx.compose.ui.res.stringResource
+import com.ailinkcat.mobile.R
+import com.ailinkcat.mobile.utils.ColorParser
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
 /**
- * 日历组件：迷你月历网格，支持上下滑动切换月份，当前日期高亮。
+ * 日历控件：显示当月日历，支持高亮今天。
  */
 @Composable
-fun CalendarWidgetRenderer(widget: CalendarWidget) {
-    val today = LocalDate.now()
-    var currentMonth by remember { mutableStateOf(YearMonth.from(today)) }
+fun CalendarWidgetRenderer(
+    widget: CalendarWidget,
+    widgetData: Map<String, Float>
+) {
+    val background = ColorParser.parse(widget.backgroundColor, Color(0xFF1A1A2E))
+    val textColor = ColorParser.parse(widget.textColor, Color.White)
 
-    Box(
+    val today = remember { LocalDate.now() }
+    val currentMonth = remember { YearMonth.from(today) }
+    val monthLabel = currentMonth.format(DateTimeFormatter.ofPattern("yyyy M", Locale.getDefault()))
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(4.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                Brush.linearGradient(listOf(Color(0xCC1A1A2E), Color(0xCC2A1A3A)))
-            )
-            .padding(8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(background)
+            .padding(6.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
-            // 月份标题（可点击切换）
-            val monthLabel = currentMonth.format(DateTimeFormatter.ofPattern("yyyy 年 M 月", Locale.CHINESE))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("◀", fontSize = 14.sp, color = Color.White.copy(0.5f),
-                    modifier = Modifier.clickable { currentMonth = currentMonth.minusMonths(1) })
-                Text(
-                    text = monthLabel,
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text("▶", fontSize = 14.sp, color = Color.White.copy(0.5f),
-                    modifier = Modifier.clickable { currentMonth = currentMonth.plusMonths(1) })
-            }
-            Spacer(Modifier.height(6.dp))
+        val cw = maxWidth.value
+        val headerSize = (cw * 0.055f).coerceIn(10f, 14f).sp
+        val dateSize = (cw * 0.05f).coerceIn(9f, 13f).sp
+
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            // 月份标题
+            Text(
+                text = monthLabel,
+                color = textColor,
+                fontSize = headerSize,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
 
             // 星期行
-            Row(modifier = Modifier.fillMaxWidth()) {
-                listOf("一", "二", "三", "四", "五", "六", "日").forEach { day ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                val dayNames = listOf(
+                    stringResource(R.string.sun_short),
+                    stringResource(R.string.mon_short),
+                    stringResource(R.string.tue_short),
+                    stringResource(R.string.wed_short),
+                    stringResource(R.string.thu_short),
+                    stringResource(R.string.fri_short),
+                    stringResource(R.string.sat_short)
+                )
+                dayNames.forEach { day ->
                     Text(
                         text = day,
-                        color = Color.White.copy(alpha = 0.4f),
-                        fontSize = 10.sp,
+                        color = textColor.copy(alpha = 0.6f),
+                        fontSize = dateSize,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1f)
                     )
                 }
             }
-            Spacer(Modifier.height(4.dp))
+
+            Spacer(Modifier.height(2.dp))
 
             // 日期网格
-            val firstDayOfWeek = currentMonth.atDay(1).dayOfWeek.value % 7 // Monday=0...Sunday=6
+            val firstDay = currentMonth.atDay(1)
+            val startDayOfWeek = firstDay.dayOfWeek.value % 7 // 0=Sun, 1=Mon, ...
             val daysInMonth = currentMonth.lengthOfMonth()
-            val totalCells = firstDayOfWeek + daysInMonth
-            val rows = (totalCells + 6) / 7
 
-            for (row in 0 until rows) {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    for (col in 0..6) {
-                        val cellIndex = row * 7 + col
-                        val day = cellIndex - firstDayOfWeek + 1
-                        val isToday = currentMonth.atDay(day.coerceIn(1, daysInMonth)) == today && day in 1..daysInMonth
+            val weeks = (0 until (startDayOfWeek + daysInMonth + 6) / 7)
+            weeks.forEach { week ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    (0 until 7).forEach { dayOfWeek ->
+                        val day = week * 7 + dayOfWeek - startDayOfWeek + 1
                         if (day in 1..daysInMonth) {
-                            Box(
+                            val isToday = day == today.dayOfMonth
+                            Text(
+                                text = day.toString(),
+                                color = if (isToday) Color(0xFF4F6EF7) else textColor,
+                                fontSize = dateSize,
+                                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                                textAlign = TextAlign.Center,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .aspectRatio(1f)
                                     .then(
                                         if (isToday) Modifier
                                             .clip(CircleShape)
-                                            .background(Color(0xFF4F6EF7))
-                                        else Modifier
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "$day",
-                                    color = if (isToday) Color.White
-                                            else if (col >= 5) Color(0xFF4F6EF7).copy(0.6f)
-                                            else Color.White.copy(0.7f),
-                                    fontSize = 10.sp,
-                                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
-                                )
-                            }
+                                            .background(Color.White.copy(alpha = 0.15f))
+                                            .padding(vertical = 2.dp)
+                                        else Modifier.padding(vertical = 2.dp)
+                                    )
+                            )
                         } else {
-                            Spacer(Modifier.weight(1f))
+                            Text(
+                                text = "",
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
-            }
-
-            if (widget.label.isNotBlank()) {
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = widget.label,
-                    color = Color.White.copy(0.3f),
-                    fontSize = 9.sp,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                )
             }
         }
     }

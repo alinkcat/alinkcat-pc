@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -127,7 +128,7 @@ fun LoginScreen(
             Spacer(Modifier.height(20.dp))
 
             Text(
-                text = "艾联猫",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -136,7 +137,7 @@ fun LoginScreen(
             Spacer(Modifier.height(4.dp))
 
             Text(
-                text = "PC 桌面伴侣 · 副屏监控 · DIY 桌面",
+                text = stringResource(R.string.app_tagline),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -156,7 +157,7 @@ fun LoginScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "登录",
+                        text = stringResource(R.string.login),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -167,8 +168,8 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = uiState.username,
                         onValueChange = { loginViewModel.updateUsername(it) },
-                        label = { Text("账号 / 邮箱") },
-                        placeholder = { Text("请输入账号或邮箱") },
+                        label = { Text(stringResource(R.string.username_or_email)) },
+                        placeholder = { Text(stringResource(R.string.enter_username_or_email)) },
                         singleLine = true,
                         enabled = !uiState.isLoading && uiState.lockSeconds == 0,
                         modifier = Modifier.fillMaxWidth(),
@@ -186,8 +187,8 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = uiState.password,
                         onValueChange = { loginViewModel.updatePassword(it) },
-                        label = { Text("密码") },
-                        placeholder = { Text("请输入密码") },
+                        label = { Text(stringResource(R.string.password)) },
+                        placeholder = { Text(stringResource(R.string.enter_password)) },
                         singleLine = true,
                         enabled = !uiState.isLoading && uiState.lockSeconds == 0,
                         modifier = Modifier.fillMaxWidth(),
@@ -229,7 +230,7 @@ fun LoginScreen(
                         val displayText = if (uiState.lockSeconds > 0) {
                             val minutes = uiState.lockSeconds / 60
                             val seconds = uiState.lockSeconds % 60
-                            "登录尝试过于频繁，请 ${minutes}分${seconds}秒 后重试"
+                            stringResource(R.string.login_too_frequent, minutes, seconds)
                         } else {
                             uiState.errorMessage ?: ""
                         }
@@ -267,10 +268,10 @@ fun LoginScreen(
                                 strokeWidth = 2.dp
                             )
                             Spacer(Modifier.width(12.dp))
-                            Text("登录中...")
+                            Text(stringResource(R.string.logging_in))
                         } else {
                             Text(
-                                text = "登  录",
+                                text = stringResource(R.string.login_button),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -283,7 +284,7 @@ fun LoginScreen(
 
             // ── 底部提示 ──────────────────────────────────
             Text(
-                text = "首次使用？连接 PC 端后即可通过扫码快速配置",
+                text = stringResource(R.string.first_time_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

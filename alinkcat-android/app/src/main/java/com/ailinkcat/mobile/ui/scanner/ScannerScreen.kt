@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,6 +78,7 @@ import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.qrcode.QRCodeReader
+import com.ailinkcat.mobile.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -390,7 +392,7 @@ private fun ScanOverlay(
 
         // 上方提示文字
         Text(
-            text = "将二维码放入框内",
+            text = stringResource(R.string.scan_qr_hint),
             color = Color.White,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
@@ -412,10 +414,10 @@ private fun ScanOverlay(
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier.height(44.dp)
             ) {
-                Text("📁 相册")
+                Text(stringResource(R.string.album))
             }
             TextButton(onClick = onCancel) {
-                Text("取消", color = Color.White, fontSize = 15.sp)
+                Text(stringResource(R.string.cancel), color = Color.White, fontSize = 15.sp)
             }
         }
     }
@@ -453,13 +455,13 @@ private fun PermissionRequestView(onRequest: () -> Unit) {
         Text("📷", fontSize = 48.sp)
         Spacer(Modifier.height(12.dp))
         Text(
-            text = "需要相机权限才能扫码连接",
+            text = stringResource(R.string.camera_permission_needed),
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White
         )
         Spacer(Modifier.height(16.dp))
         Button(onClick = onRequest) {
-            Text("授权相机")
+            Text(stringResource(R.string.grant_camera))
         }
     }
 }

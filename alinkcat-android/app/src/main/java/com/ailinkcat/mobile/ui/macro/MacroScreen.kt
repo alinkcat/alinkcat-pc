@@ -37,12 +37,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.model.ConnectionStatus
 import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
 
@@ -68,16 +70,16 @@ fun MacroScreen(viewModel: ConnectionViewModel) {
     Column(modifier = Modifier.fillMaxSize()) {
         PrimaryTabRow(selectedTabIndex = tabIndex) {
             Tab(selected = tabIndex == 0, onClick = { tabIndex = 0 }) {
-                Text("📱 快捷启动", modifier = Modifier.padding(12.dp))
+                Text(stringResource(R.string.quick_launch), modifier = Modifier.padding(12.dp))
             }
             Tab(selected = tabIndex == 1, onClick = { tabIndex = 1 }) {
-                Text("📝 文本片段", modifier = Modifier.padding(12.dp))
+                Text(stringResource(R.string.text_snippets), modifier = Modifier.padding(12.dp))
             }
         }
 
         if (state.status != ConnectionStatus.Connected) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("请先连接 PC", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.please_connect_pc), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             return
         }
@@ -86,13 +88,13 @@ fun MacroScreen(viewModel: ConnectionViewModel) {
             0 -> LauncherGrid(
                 apps = launcherApps,
                 onAppClick = { viewModel.openLauncher(it.id) },
-                onAddClick = { Toast.makeText(context, "请在 PC 端配置快捷启动项", Toast.LENGTH_SHORT).show() }
+                onAddClick = { Toast.makeText(context, stringResource(R.string.configure_launcher_on_pc), Toast.LENGTH_SHORT).show() }
             )
             1 -> SnippetList(
                 items = snippetItems,
                 onItemClick = { content ->
                     viewModel.injectSnippet(content)
-                    Toast.makeText(context, "已发送至电脑光标处", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, stringResource(R.string.sent_to_cursor), Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -176,7 +178,7 @@ private fun AddCard(onClick: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("+", fontSize = 36.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
             Spacer(Modifier.height(4.dp))
-            Text("添加", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+            Text(stringResource(R.string.add), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
         }
     }
 }
@@ -188,7 +190,7 @@ private fun SnippetList(
 ) {
     if (items.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("暂无片段，请在 PC 端配置", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.no_snippets_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }

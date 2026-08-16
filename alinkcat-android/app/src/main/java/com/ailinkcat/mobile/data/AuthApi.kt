@@ -80,7 +80,7 @@ object AuthApi {
                 LoginResult(
                     success = false,
                     code = -1,
-                    message = "网络连接失败：${e.localizedMessage ?: "未知错误"}"
+                    message = "Network connection failed: ${e.localizedMessage ?: "Unknown error"}"
                 )
             }
         }
@@ -110,7 +110,7 @@ object AuthApi {
                 LoginResult(
                     success = false,
                     code = -1,
-                    message = "网络连接失败：${e.localizedMessage ?: "未知错误"}"
+                    message = "Network connection failed: ${e.localizedMessage ?: "Unknown error"}"
                 )
             }
         }
@@ -151,7 +151,7 @@ object AuthApi {
         return try {
             val json = JSONObject(body)
             val code = json.optInt("code", -1)
-            val message = json.optString("message", "未知错误")
+            val message = json.optString("message", "Unknown error")
 
             if (code == 200) {
                 val data = json.optJSONObject("data")
@@ -179,7 +179,7 @@ object AuthApi {
             LoginResult(
                 success = false,
                 code = -1,
-                message = "解析响应失败：${e.localizedMessage ?: "未知错误"}"
+                message = "Parse response failed: ${e.localizedMessage ?: "Unknown error"}"
             )
         }
     }

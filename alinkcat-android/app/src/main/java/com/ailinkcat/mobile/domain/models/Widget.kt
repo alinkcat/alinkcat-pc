@@ -118,7 +118,7 @@ data class ButtonWidget(
             ButtonWidget(
                 id = json.getString("id"),
                 layout = layout,
-                label = json.optString("label", "按钮"),
+                label = json.optString("label", "Button"),
                 icon = json.optString("icon").ifBlank { null },
                 action = json.optJSONObject("action")?.let {
                     Action(
@@ -162,7 +162,7 @@ data class GaugeWidget(
             GaugeWidget(
                 id = json.getString("id"),
                 layout = layout,
-                label = json.optString("label", "指标"),
+                label = json.optString("label", "Gauge"),
                 dataSource = json.optString("dataSource", ""),
                 min = json.optInt("min", -1).takeIf { it >= 0 },
                 max = json.optInt("max", -1).takeIf { it >= 0 },
@@ -200,7 +200,7 @@ data class StickyNoteWidget(
                     val n = notesArray.optJSONObject(i) ?: continue
                     add(
                         NoteItem(
-                            label = n.optString("label", "标签"),
+                            label = n.optString("label", "Label"),
                             content = n.optString("content", "")
                         )
                     )
@@ -209,7 +209,7 @@ data class StickyNoteWidget(
             StickyNoteWidget(
                 id = json.getString("id"),
                 layout = layout,
-                label = json.optString("label", "便签"),
+                label = json.optString("label", "Sticky Note"),
                 notes = notes,
                 backgroundColor = json.optString("backgroundColor").ifBlank { null },
                 textColor = json.optString("textColor").ifBlank { null }
@@ -332,7 +332,7 @@ data class MediaControlWidget(
             MediaControlWidget(
                 id = json.getString("id"),
                 layout = layout,
-                label = json.optString("label", "音乐控制"),
+                label = json.optString("label", "Music Control"),
                 displayMode = json.optString("displayMode", "always"),
                 showCover = props?.optBoolean("showCover", true) ?: true,
                 showProgress = props?.optBoolean("showProgress", true) ?: true
@@ -375,7 +375,7 @@ data class SystemMonitorWidget(
             SystemMonitorWidget(
                 id = json.getString("id"),
                 layout = layout,
-                label = json.optString("label", "系统监控"),
+                label = json.optString("label", "System Monitor"),
                 showCpu = props?.optBoolean("showCpu", true) ?: true,
                 showMemory = props?.optBoolean("showMemory", true) ?: true,
                 showDisk = props?.optBoolean("showDisk", true) ?: true,
@@ -401,7 +401,7 @@ data class LauncherIconWidget(
                 id = json.getString("id"),
                 layout = layout,
                 appId = json.optString("path", json.optString("id", "")),
-                label = json.optString("name", json.optString("label", "应用")),
+                label = json.optString("name", json.optString("label", "App")),
                 icon = json.optString("icon").ifBlank { null }
             )
         } catch (_: Exception) {
@@ -424,7 +424,7 @@ data class ClockWidget(
             ClockWidget(
                 id = json.getString("id"),
                 layout = layout,
-                label = json.optString("label", "时钟"),
+                label = json.optString("label", "Clock"),
                 format24h = props?.optBoolean("format24h", true) ?: true,
                 showSeconds = props?.optBoolean("showSeconds", true) ?: true
             )
@@ -445,7 +445,7 @@ data class DateWidget(
             DateWidget(
                 id = json.getString("id"),
                 layout = layout,
-                label = json.optString("label", "日期"),
+                label = json.optString("label", "Date"),
                 showLunar = props?.optBoolean("showLunar", false) ?: false
             )
         } catch (_: Exception) { null }
@@ -463,7 +463,7 @@ data class CalendarWidget(
             CalendarWidget(
                 id = json.getString("id"),
                 layout = layout,
-                label = json.optString("label", "日历")
+                label = json.optString("label", "Calendar")
             )
         } catch (_: Exception) { null }
     }

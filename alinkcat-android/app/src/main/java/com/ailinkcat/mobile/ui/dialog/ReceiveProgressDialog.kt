@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.ui.theme.ErrorRed
 import com.ailinkcat.mobile.ui.theme.SuccessGreen
 import com.ailinkcat.mobile.ui.theme.WarningOrange
@@ -74,13 +76,13 @@ fun ReceiveProgressDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("📥", fontSize = 22.sp)
                     Spacer(Modifier.width(8.dp))
-                    Text("接收主题包", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.receiving_theme), style = MaterialTheme.typography.titleMedium)
                 }
 
                 Spacer(Modifier.height(16.dp))
 
                 Text(
-                    text = "主题包：${state.themeName} v${state.version}",
+                    text = stringResource(R.string.theme_info, state.themeName, state.version),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -88,7 +90,7 @@ fun ReceiveProgressDialog(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "大小：${FileUtils.formatSize(state.totalSize)}",
+                    text = stringResource(R.string.size_format, FileUtils.formatSize(state.totalSize)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -115,29 +117,29 @@ fun ReceiveProgressDialog(
                 Spacer(Modifier.height(8.dp))
 
                 Text(
-                    text = "已接收：${FileUtils.formatSize(state.receivedSize)} / ${FileUtils.formatSize(state.totalSize)}",
+                    text = stringResource(R.string.received_progress, FileUtils.formatSize(state.receivedSize), FileUtils.formatSize(state.totalSize)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "速度：${FileUtils.formatSpeed(state.speed)}",
+                    text = stringResource(R.string.speed_format, FileUtils.formatSpeed(state.speed)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(Modifier.height(12.dp))
 
-                val statusText = when (state.status) {
-                    ReceiveStatus.COMPLETED -> "✅ 已完成"
-                    ReceiveStatus.CANCELLED -> "⛔ 已取消"
-                    ReceiveStatus.FAILED -> "❌ 失败"
-                    ReceiveStatus.INTERRUPTED -> "⏸ 传输中断，等待恢复…"
-                    ReceiveStatus.RECEIVING -> "接收中…"
-                    ReceiveStatus.IDLE, ReceiveStatus.PENDING_CONFIRM -> "准备中…"
+                val statusTextRes = when (state.status) {
+                    ReceiveStatus.COMPLETED -> R.string.status_completed
+                    ReceiveStatus.CANCELLED -> R.string.status_cancelled
+                    ReceiveStatus.FAILED -> R.string.status_failed
+                    ReceiveStatus.INTERRUPTED -> R.string.status_interrupted
+                    ReceiveStatus.RECEIVING -> R.string.status_receiving
+                    ReceiveStatus.IDLE, ReceiveStatus.PENDING_CONFIRM -> R.string.status_preparing
                 }
                 Text(
-                    text = statusText,
+                    text = stringResource(statusTextRes),
                     style = MaterialTheme.typography.titleSmall,
                     color = statusColor,
                     fontWeight = FontWeight.Bold
@@ -164,11 +166,11 @@ fun ReceiveProgressDialog(
                             contentColor = MaterialTheme.colorScheme.onErrorContainer
                         )
                     ) {
-                        Text(if (justStarted) "拒绝接收" else "取消接收")
+                        Text(if (justStarted) stringResource(R.string.reject_receive) else stringResource(R.string.cancel_receive))
                     }
                 } else {
                     Button(onClick = onClose) {
-                        Text("关闭")
+                        Text(stringResource(R.string.close))
                     }
                 }
             }

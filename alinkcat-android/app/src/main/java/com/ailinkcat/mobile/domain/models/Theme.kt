@@ -24,7 +24,7 @@ data class Theme(
             }
             return Theme(
                 id = json.optString("id", ""),
-                name = json.optString("name", "未命名主题"),
+                name = json.optString("name", "Unnamed Theme"),
                 version = json.optString("version", "1.0.0"),
                 author = json.optString("author", ""),
                 description = json.optString("description", ""),
@@ -67,7 +67,7 @@ data class Page(
             }
             return Page(
                 id = json.optString("id", ""),
-                label = json.optString("label", "页面"),
+                label = json.optString("label", "Page"),
                 layoutMode = if (layoutType.equals("FREE", ignoreCase = true) ||
                     layoutType.equals("free", ignoreCase = true)
                 ) LayoutMode.FREE else LayoutMode.GRID,

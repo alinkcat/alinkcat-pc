@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.ailinkcat.mobile.domain.models.MediaControlWidget
 import com.ailinkcat.mobile.domain.models.MediaState
+import androidx.compose.ui.res.stringResource
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.utils.FileUtils
 import kotlin.math.min
 
@@ -164,7 +166,7 @@ private fun ActiveMediaCard(
             ) {
                 // 歌名
                 Text(
-                    text = state.title ?: "未在播放",
+                    text = state.title ?: stringResource(R.string.not_playing),
                     color = Color.White,
                     fontSize = titleSize,
                     fontWeight = FontWeight.Bold,

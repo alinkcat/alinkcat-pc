@@ -48,11 +48,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.model.ConnectionStatus
 import com.ailinkcat.mobile.ui.theme.ErrorRed
 import com.ailinkcat.mobile.ui.theme.IdleGray
@@ -111,7 +113,7 @@ fun ConfigScreen(
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "连接状态",
+                        text = stringResource(R.string.connection_status),
                         style = MaterialTheme.typography.titleSmall
                     )
                     Spacer(Modifier.weight(1f))
@@ -129,7 +131,7 @@ fun ConfigScreen(
                     if (state.status == ConnectionStatus.Connected) {
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "已连接 PC：$it${state.serverVersion?.let { v -> " (v$v)" } ?: ""}",
+                            text = stringResource(R.string.connected_pc, it, state.serverVersion?.let { v -> " (v$v)" } ?: ""),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -152,7 +154,7 @@ fun ConfigScreen(
                 OutlinedTextField(
                     value = ip,
                     onValueChange = { ip = it },
-                    label = { Text("PC IP 地址") },
+                    label = { Text(stringResource(R.string.pc_ip_address)) },
                     placeholder = { Text("192.168.1.100") },
                     singleLine = true,
                     leadingIcon = { Text("🌐") },
@@ -168,7 +170,7 @@ fun ConfigScreen(
                 OutlinedTextField(
                     value = port,
                     onValueChange = { input -> port = input.filter { it.isDigit() }.take(5) },
-                    label = { Text("端口号") },
+                    label = { Text(stringResource(R.string.port_number)) },
                     placeholder = { Text("9527") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -178,15 +180,15 @@ fun ConfigScreen(
                 OutlinedTextField(
                     value = pairCode,
                     onValueChange = { input -> pairCode = input.filter { it.isDigit() }.take(4) },
-                    label = { Text("配对码") },
-                    placeholder = { Text("请输入配对码") },
+                    label = { Text(stringResource(R.string.pairing_code)) },
+                    placeholder = { Text(stringResource(R.string.enter_pairing_code)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Text(
-                    text = "配对码为 PC 端生成的 4 位数字，扫码连接时自动填充",
+                    text = stringResource(R.string.pairing_code_hint),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -209,7 +211,7 @@ fun ConfigScreen(
                     Spacer(Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "上次成功连接",
+                            text = stringResource(R.string.last_successful_connection),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -223,7 +225,7 @@ fun ConfigScreen(
                         ip = config.lastConnectedIp
                         port = config.lastConnectedPort
                     }) {
-                        Text("填入")
+                        Text(stringResource(R.string.fill_in))
                     }
                 }
             }
@@ -244,9 +246,9 @@ fun ConfigScreen(
                     strokeWidth = 2.dp
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("连接中…")
+                Text(stringResource(R.string.connecting_ellipsis))
             } else {
-                Text("连接", fontSize = 16.sp)
+                Text(stringResource(R.string.connect), fontSize = 16.sp)
             }
         }
 
@@ -258,7 +260,7 @@ fun ConfigScreen(
                     .fillMaxWidth()
                     .height(48.dp)
             ) {
-                Text("断开连接")
+                Text(stringResource(R.string.disconnect))
             }
         }
     }
@@ -266,15 +268,15 @@ fun ConfigScreen(
 
 @Composable
 fun ConnectionStatusChip(status: ConnectionStatus) {
-    val (background, foreground, label) = when (status) {
+    val (background, foreground, labelRes) = when (status) {
         ConnectionStatus.Connected ->
-            Triple(Color(0xFFE6F7EC), SuccessGreen, "已连接")
+            Triple(Color(0xFFE6F7EC), SuccessGreen, R.string.connected)
         ConnectionStatus.Connecting ->
-            Triple(Color(0xFFFFF3E0), WarningOrange, "连接中")
+            Triple(Color(0xFFFFF3E0), WarningOrange, R.string.connecting)
         ConnectionStatus.Error ->
-            Triple(Color(0xFFFDECEA), ErrorRed, "连接失败")
+            Triple(Color(0xFFFDECEA), ErrorRed, R.string.connection_failed)
         else ->
-            Triple(Color(0xFFEEEEEE), IdleGray, "未连接")
+            Triple(Color(0xFFEEEEEE), IdleGray, R.string.disconnected)
     }
     Surface(shape = RoundedCornerShape(50), color = background) {
         Row(
@@ -284,7 +286,7 @@ fun ConnectionStatusChip(status: ConnectionStatus) {
             ConnectionStatusDot(status = status, color = foreground)
             Spacer(Modifier.width(6.dp))
             Text(
-                text = label,
+                text = stringResource(labelRes),
                 style = MaterialTheme.typography.labelMedium,
                 color = foreground
             )
@@ -354,7 +356,7 @@ fun applyScanContent(content: String): Triple<String, String, String>? {
         // 键值对形式（JSON / query string 均可覆盖）
         Regex("\\d{1,3}(\\.\\d{1,3}){3}").find(content)?.let { newIp = it.value }
 
-        Regex("\"?(?:port|pairCode|pair_code)\"?\\s*[:=]\\s*\"?([0-9A-Za-z.-]+)\"?", RegexOption.IGNORE_CASE)
+        Regex("\"? (?:port|pairCode|pair_code)\"?\\s*[:=]\\s*\"?([0-9A-Za-z.-]+)\"?", RegexOption.IGNORE_CASE)
             .findAll(content)
             .forEach { match ->
                 val key = match.groupValues[0]

@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.model.ConnectionStatus
 import com.ailinkcat.mobile.data.model.ThemePackage
 import com.ailinkcat.mobile.ui.render.ThemeRenderActivity
@@ -76,7 +78,7 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
     fun onThemeClick(pkg: ThemePackage) {
         val themeId = pkg.themeId
         if (themeId.isNullOrBlank()) {
-            Toast.makeText(context, "该主题包尚未下载到本机", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, stringResource(R.string.theme_not_downloaded), Toast.LENGTH_SHORT).show()
             return
         }
         context.startActivity(
@@ -93,16 +95,16 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
     deleteTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("删除主题包") },
-            text = { Text("确定要删除「${target.name}」吗？\n已下载的文件将被永久移除。") },
+            title = { Text(stringResource(R.string.delete_theme)) },
+            text = { Text(stringResource(R.string.delete_theme_confirm, target.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     target.themeId?.let(viewModel::deleteTheme)
                     deleteTarget = null
-                }) { Text("删除", color = ErrorRed) }
+                }) { Text(stringResource(R.string.delete), color = ErrorRed) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) { Text("取消") }
+                TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -110,14 +112,14 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
     when {
         state.status != ConnectionStatus.Connected -> EmptyState(
             emoji = "🔌",
-            title = "请先连接 PC",
-            subtitle = "在「配置」页面完成 WebSocket 连接后即可查看主题包"
+            title = stringResource(R.string.please_connect_pc),
+            subtitle = stringResource(R.string.connect_first_hint)
         )
 
         themes.isEmpty() -> EmptyState(
             emoji = "📦",
-            title = "暂无主题包",
-            subtitle = "连接 PC 后在电脑端发布主题包，将自动同步到此处"
+            title = stringResource(R.string.no_themes),
+            subtitle = stringResource(R.string.no_themes_hint)
         )
 
         else -> LazyColumn(
@@ -217,7 +219,7 @@ fun ThemeCard(
                     if (pkg.isActive) {
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "✅ 当前使用",
+                            text = stringResource(R.string.currently_using),
                             style = MaterialTheme.typography.labelSmall,
                             color = SuccessGreen
                         )
@@ -235,7 +237,7 @@ fun ThemeCard(
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
-                        text = " ${pkg.pageCount} 页 ",
+                        text = stringResource(R.string.page_count, pkg.pageCount),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
