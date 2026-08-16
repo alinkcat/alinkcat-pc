@@ -59,5 +59,29 @@
     "backToLogin": "Back to Login",
     "processing": "Completing authorization...",
     "loginSuccess": "Login successful, redirecting..."
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Welcome to LinkCat",
+      "desc": "Create and push phone themes easily"
+    },
+    "template": {
+      "title": "Start from Templates",
+      "desc": "Choose a template to create your first theme"
+    },
+    "push": {
+      "title": "Push to Phone",
+      "desc": "Push to your phone after editing"
+    },
+    "start": "Get Started",
+    "next": "Next",
+    "skip": "Skip",
+    "editorGuide": {
+      "leftPanel": "Drag components from here to the canvas",
+      "canvas": "Canvas area, drag to adjust position and size",
+      "rightPanel": "Edit component properties here",
+      "aiPanel": "AI assistant, use natural language to operate the editor"
+    },
+    "tutorial": "Tutorial"
   }
 }

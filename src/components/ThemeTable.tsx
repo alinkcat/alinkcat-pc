@@ -1,5 +1,5 @@
 import { Table, Button, Tag, Space, Typography } from 'antd';
-import { EditOutlined, SwapOutlined, ExportOutlined, DeleteOutlined, MobileOutlined } from '@ant-design/icons';
+import { EditOutlined, SwapOutlined, ExportOutlined, DeleteOutlined, MobileOutlined, CloudSyncOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import ThemeCover from './ThemeCover';
 import { getThemeSource, sourceLabel, sourceTagColor } from '../utils/themeSource';
@@ -15,9 +15,10 @@ interface Props {
   onExport: (theme: ThemeSummary) => void;
   onDelete: (id: string, name: string) => void;
   onPush: (theme: ThemeSummary) => void;
+  onSyncAll: (theme: ThemeSummary) => void;
 }
 
-export default function ThemeTable({ themes, activeId, onEdit, onActivate, onExport, onDelete, onPush }: Props) {
+export default function ThemeTable({ themes, activeId, onEdit, onActivate, onExport, onDelete, onPush, onSyncAll }: Props) {
   const { t } = useTranslation();
   const columns = [
     {
@@ -73,6 +74,7 @@ export default function ThemeTable({ themes, activeId, onEdit, onActivate, onExp
         <Space size={0} wrap>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => onEdit(record.id)}>{t('themes.edit')}</Button>
           <Button type="link" size="small" icon={<MobileOutlined />} onClick={() => onPush(record)}>{t('themes.push')}</Button>
+          <Button type="link" size="small" icon={<CloudSyncOutlined />} onClick={() => onSyncAll(record)}>{t('themes.syncAll')}</Button>
           <Button type="link" size="small" icon={<SwapOutlined />} disabled={record.id === activeId} onClick={() => onActivate(record.id)}>
             {record.id === activeId ? t('themes.activated') : t('themes.activate')}
           </Button>

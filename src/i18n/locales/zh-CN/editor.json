@@ -105,7 +105,10 @@
       "openUrl": "打开 URL",
       "keys": "按键 (逗号分隔)",
       "path": "应用路径",
-      "urlLabel": "URL"
+      "urlLabel": "URL",
+      "executeScript": "执行脚本",
+      "switchPage": "切换页面",
+      "systemCommand": "系统命令"
     },
     "gauge": {
       "section": "数据表盘",
@@ -285,6 +288,39 @@
       "week": "周视图",
       "highlightToday": "高亮今日",
       "hint": "点击任意日期可联动查看农历 / 备忘信息。"
+    },
+    "actionConfig": {
+      "section": "点击动作",
+      "enable": "启用点击动作",
+      "actionType": "动作类型",
+      "none": "无动作",
+      "openLink": "打开链接",
+      "switchPage": "切换页面",
+      "systemCommand": "系统命令",
+      "executeScript": "执行脚本",
+      "openApp": "打开应用",
+      "keyboard": "键盘按键",
+      "url": "链接地址",
+      "urlPlaceholder": "https://...",
+      "targetPage": "目标页面",
+      "keys": "按键 (逗号分隔)",
+      "keysPlaceholder": "ctrl,c",
+      "path": "应用路径",
+      "pathPlaceholder": "notepad",
+      "script": "脚本内容",
+      "scriptPlaceholder": "脚本路径或命令",
+      "command": "命令",
+      "commandPlaceholder": "shutdown /s",
+      "args": "参数",
+      "argsPlaceholder": "逗号分隔的参数",
+      "linkage": "组件联动",
+      "triggerEvent": "联动事件",
+      "targetWidget": "目标控件",
+      "switch_page": "切换页面",
+      "toggle_widget": "显示/隐藏控件",
+      "update_data": "更新数据源",
+      "trigger_action": "触发动作",
+      "selectWidget": "选择控件..."
     }
   },
   "statusbar": {
@@ -369,5 +405,13 @@
     "presetClock": "极简时钟",
     "presetCyberpunk": "赛博朋克风格",
     "presetCustom": "自定义…"
+  },
+  "versionHistory": {
+    "title": "版本历史",
+    "current": "当前版本",
+    "rollback": "回滚到此版本",
+    "confirmRollback": "回滚后将丢失当前未保存的更改，确定继续？",
+    "noHistory": "暂无版本历史",
+    "saveVersion": "保存版本"
   }
 }
