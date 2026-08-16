@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
-import { Button, Space, Typography, Modal, Row, Col, Card, Slider, message, List, Empty, Tag, Tour } from 'antd';
+import { Button, Space, Modal, Row, Col, Card, Slider, message, List, Empty, Tag, Tour, Input } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined, UndoOutlined, RedoOutlined, HistoryOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../../utils/tauri';
@@ -22,8 +22,6 @@ import { useAIStore } from '../../store/aiStore';
 import { PAGE_TEMPLATES, clonePageTemplate } from '../../templates/page-templates';
 import { useAutoSave, getDraft, clearDraft } from '../../hooks/useAutoSave';
 import type { DraftPayload } from '../../hooks/useAutoSave';
-
-const { Text } = Typography;
 
 const LIB_LABELS: Record<string, string> = {
   'lib-button': 'editor.controlLibrary.button', 'lib-gauge': 'editor.controlLibrary.gauge',
@@ -84,7 +82,7 @@ export default function Editor() {
   const isNew = !id || id === 'new';
   const templateId = searchParams.get('template');
 
-  const { theme, orientation, zoom, saving, exporting, versionHistory, currentVersionIdx, loadTheme, replaceTheme, initNewTheme, toggleOrientation, setZoom, setSaving, setExporting, addPage, addPageFromTemplate, addWidgetAt, undo, redo, canUndo, canRedo, saveVersion, rollbackToVersion, loadVersionHistory } = useEditorStore();
+  const { theme, orientation, zoom, saving, exporting, versionHistory, currentVersionIdx, loadTheme, replaceTheme, initNewTheme, setThemeName, toggleOrientation, setZoom, setSaving, setExporting, addPage, addPageFromTemplate, addWidgetAt, undo, redo, canUndo, canRedo, saveVersion, rollbackToVersion, loadVersionHistory } = useEditorStore();
   const initAITheme = useAIStore((s) => s.initTheme);
   const [addPageOpen, setAddPageOpen] = useState(false);
   const [fileMgrOpen, setFileMgrOpen] = useState(false);
@@ -294,7 +292,13 @@ export default function Editor() {
     <div className="editor-root">
       <div className="editor-toolbar">
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/themes')}>{t('editor.toolbar.back')}</Button>
-        <Text strong style={{ fontSize: 14, color: '#e0e0e0' }}>{isNew ? t('editor.toolbar.newTheme') : t('editor.toolbar.editing', { name: theme.name || theme.id })}</Text>
+        <Input
+          size="small"
+          value={theme.name}
+          onChange={(e) => setThemeName(e.target.value)}
+          placeholder={t('editor.toolbar.newTheme')}
+          style={{ width: 180, fontSize: 14 }}
+        />
         <Space>
           <Button size="small" icon={<UndoOutlined />} disabled={!canUndo} onClick={undo} title={t('editor.toolbar.undo')} />
           <Button size="small" icon={<RedoOutlined />} disabled={!canRedo} onClick={redo} title={t('editor.toolbar.redo')} />
