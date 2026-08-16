@@ -120,6 +120,17 @@ export interface EditorState {
   setExporting: (v: boolean) => void;
   setSnapLines: (x: boolean, y: boolean) => void;
 
+  // 历史栈
+  undoStack: EditorTheme[];
+  redoStack: EditorTheme[];
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
+  clearHistory: () => void;
+  // 供 AI 调用：初始化历史（清空栈），压入快照
+  resetHistory: (initial: EditorTheme) => void;
+
   addPage: (label: string, layoutMode: 'grid' | 'free') => void;
   addPageFromTemplate: (page: EditorPage) => void;
   removePage: (idx: number) => void;
@@ -143,15 +154,16 @@ const EMPTY: EditorTheme = {
 
 const wp = (s: EditorState) => s.theme.pages[s.activePageIdx];
 
-export const useEditorStore = create<EditorState>((set) => ({
+export const useEditorStore = create<EditorState>((set, get) => ({
   theme: EMPTY, activePageIdx: 0, selectedWidgetId: null,
   orientation: 'landscape', zoom: 100, saving: false, exporting: false, snapX: false, snapY: false,
+  undoStack: [], redoStack: [], canUndo: false, canRedo: false,
 
-  loadTheme: (t) => set({ theme: themeToEditor(t), activePageIdx: 0, selectedWidgetId: null }),
-  replaceTheme: (t) => set({ theme: t, selectedWidgetId: null }),
+  loadTheme: (t) => set({ theme: themeToEditor(t), activePageIdx: 0, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false }),
+  replaceTheme: (t) => set({ theme: t, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false }),
   initNewTheme: () => set({
     theme: { id: genId('theme'), name: '新主题包', version: '1.0.0', author: '', description: '', source: 'local', pages: [{ ...EMPTY.pages[0], id: genId('page') }] },
-    activePageIdx: 0, selectedWidgetId: null,
+    activePageIdx: 0, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false,
   }),
   setActivePage: (idx) => set({ activePageIdx: idx, selectedWidgetId: null }),
   selectWidget: (id) => set({ selectedWidgetId: id }),
@@ -161,23 +173,72 @@ export const useEditorStore = create<EditorState>((set) => ({
   setExporting: (v) => set({ exporting: v }),
   setSnapLines: (x, y) => set({ snapX: x, snapY: y }),
 
+  undo: () => {
+    const s = get();
+    if (s.undoStack.length === 0) return;
+    const prev = s.undoStack[s.undoStack.length - 1];
+    const newUndo = s.undoStack.slice(0, -1);
+    set({
+      theme: prev,
+      undoStack: newUndo,
+      redoStack: [...s.redoStack, s.theme].slice(-50),
+      canUndo: newUndo.length > 0,
+      canRedo: true,
+      selectedWidgetId: null,
+    });
+  },
+  redo: () => {
+    const s = get();
+    if (s.redoStack.length === 0) return;
+    const next = s.redoStack[s.redoStack.length - 1];
+    const newRedo = s.redoStack.slice(0, -1);
+    set({
+      theme: next,
+      undoStack: [...s.undoStack, s.theme].slice(-50),
+      redoStack: newRedo,
+      canUndo: true,
+      canRedo: newRedo.length > 0,
+      selectedWidgetId: null,
+    });
+  },
+  clearHistory: () => set({ undoStack: [], redoStack: [], canUndo: false, canRedo: false }),
+  resetHistory: (initial) => set({ theme: initial, undoStack: [], redoStack: [], canUndo: false, canRedo: false }),
+
   addPage: (label, layoutMode) => set(s => {
     const pg: EditorPage = { id: genId('page'), label, layoutMode, columns: 4, rows: 6, widgets: [] };
-    return { theme: { ...s.theme, pages: [...s.theme.pages, pg] }, activePageIdx: s.theme.pages.length, selectedWidgetId: null };
+    return {
+      undoStack: [...s.undoStack, s.theme].slice(-50),
+      redoStack: [], canUndo: true, canRedo: false,
+      theme: { ...s.theme, pages: [...s.theme.pages, pg] }, activePageIdx: s.theme.pages.length, selectedWidgetId: null,
+    };
   }),
   addPageFromTemplate: (page) => set(s => {
     const pg: EditorPage = { ...page, id: genId('page') };
-    return { theme: { ...s.theme, pages: [...s.theme.pages, pg] }, activePageIdx: s.theme.pages.length, selectedWidgetId: null };
+    return {
+      undoStack: [...s.undoStack, s.theme].slice(-50),
+      redoStack: [], canUndo: true, canRedo: false,
+      theme: { ...s.theme, pages: [...s.theme.pages, pg] }, activePageIdx: s.theme.pages.length, selectedWidgetId: null,
+    };
   }),
   removePage: (idx) => set(s => {
     const pages = s.theme.pages.filter((_, i) => i !== idx);
-    return { theme: { ...s.theme, pages }, activePageIdx: Math.min(s.activePageIdx, Math.max(0, pages.length - 1)), selectedWidgetId: null };
+    return {
+      undoStack: [...s.undoStack, s.theme].slice(-50),
+      redoStack: [], canUndo: true, canRedo: false,
+      theme: { ...s.theme, pages }, activePageIdx: Math.min(s.activePageIdx, Math.max(0, pages.length - 1)), selectedWidgetId: null,
+    };
   }),
   reorderPages: (o, n) => set(s => {
     const pages = [...s.theme.pages]; const [m] = pages.splice(o, 1); pages.splice(n, 0, m);
-    return { theme: { ...s.theme, pages }, activePageIdx: n };
+    return {
+      undoStack: [...s.undoStack, s.theme].slice(-50),
+      redoStack: [], canUndo: true, canRedo: false,
+      theme: { ...s.theme, pages }, activePageIdx: n,
+    };
   }),
   updatePage: (idx, updates) => set(s => ({
+    undoStack: [...s.undoStack, s.theme].slice(-50),
+    redoStack: [], canUndo: true, canRedo: false,
     theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === idx ? { ...p, ...updates } : p) },
   })),
 
@@ -185,30 +246,50 @@ export const useEditorStore = create<EditorState>((set) => ({
     const pg = wp(s); if (!pg) return s;
     const [c, r] = nextFree(pg.widgets, pg.columns, pg.rows);
     const w = makeWidget(type, c, r);
-    return { theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: [...p.widgets, w] } : p) }, selectedWidgetId: w.id };
+    return {
+      undoStack: [...s.undoStack, s.theme].slice(-50),
+      redoStack: [], canUndo: true, canRedo: false,
+      theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: [...p.widgets, w] } : p) }, selectedWidgetId: w.id,
+    };
   }),
   addWidgetAt: (type, col, row) => set(s => {
     const pg = wp(s); if (!pg) return s;
     const w = makeWidget(type, col, row);
-    return { theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: [...p.widgets, w] } : p) }, selectedWidgetId: w.id };
+    return {
+      undoStack: [...s.undoStack, s.theme].slice(-50),
+      redoStack: [], canUndo: true, canRedo: false,
+      theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: [...p.widgets, w] } : p) }, selectedWidgetId: w.id,
+    };
   }),
   removeWidget: (id) => set(s => ({
+    undoStack: [...s.undoStack, s.theme].slice(-50),
+    redoStack: [], canUndo: true, canRedo: false,
     theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.filter(w => w.id !== id) } : p) },
     selectedWidgetId: s.selectedWidgetId === id ? null : s.selectedWidgetId,
   })),
   moveWidget: (id, col, row) => set(s => ({
+    undoStack: [...s.undoStack, s.theme].slice(-50),
+    redoStack: [], canUndo: true, canRedo: false,
     theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(w => w.id === id ? { ...w, gridCol: col, gridRow: row } : w) } : p) },
   })),
   resizeWidget: (id, w, h) => set(s => ({
+    undoStack: [...s.undoStack, s.theme].slice(-50),
+    redoStack: [], canUndo: true, canRedo: false,
     theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(ww => ww.id === id ? { ...ww, gridW: w, gridH: h } : ww) } : p) },
   })),
   moveWidgetFree: (id, x, y) => set(s => ({
+    undoStack: [...s.undoStack, s.theme].slice(-50),
+    redoStack: [], canUndo: true, canRedo: false,
     theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(w => w.id === id ? { ...w, freeX: x, freeY: y } : w) } : p) },
   })),
   resizeWidgetFree: (id, w, h) => set(s => ({
+    undoStack: [...s.undoStack, s.theme].slice(-50),
+    redoStack: [], canUndo: true, canRedo: false,
     theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(ww => ww.id === id ? { ...ww, freeW: w, freeH: h } : ww) } : p) },
   })),
   updateWidget: (id, values) => set(s => ({
+    undoStack: [...s.undoStack, s.theme].slice(-50),
+    redoStack: [], canUndo: true, canRedo: false,
     theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(w => w.id === id ? { ...w, ...values } : w) } : p) },
   })),
 }));
