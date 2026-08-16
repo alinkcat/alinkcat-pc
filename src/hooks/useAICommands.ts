@@ -58,6 +58,7 @@ export function parseInstructions(text: string): AIInstruction[] {
           pageIndex: obj.pageIndex,
           widget: obj.widget,
           params: obj.params,
+          theme: obj.theme,
           executed: false,
           confirmed: false,
         });
@@ -245,6 +246,30 @@ export function executeInstruction(instr: AIInstruction): boolean {
           ok = executeInstruction(sub) && ok;
         }
         return ok;
+      }
+      // ─── 整页生成 ──────────────────────────────────
+      case 'generate_full_theme': {
+        const theme = instr.theme;
+        if (!theme) return false;
+        // 为每个 widget 生成唯一 ID（如果缺少）
+        if (Array.isArray(theme.pages)) {
+          theme.pages = theme.pages.map((page: Record<string, unknown>) => {
+            if (!page.id) page.id = `page-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
+            if (Array.isArray(page.widgets)) {
+              page.widgets = page.widgets.map((w: Record<string, unknown>) => {
+                if (!w.id) w.id = `w-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
+                return w;
+              });
+            }
+            return page;
+          });
+        }
+        // 确保主题有 id
+        if (!theme.id) theme.id = `theme-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
+        if (!theme.version) theme.version = '1.0.0';
+        if (!theme.author) theme.author = '';
+        st.replaceTheme(theme as import('../pages/Editor/types').EditorTheme);
+        return true;
       }
       default:
         return false;

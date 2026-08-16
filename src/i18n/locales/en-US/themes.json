@@ -58,7 +58,21 @@
       "clock": "Clock",
       "weather": "Weather",
       "media": "Media",
-      "blank": "Blank"
+      "blank": "Blank",
+      "minimal": "Minimal",
+      "dark": "Dark",
+      "gaming": "Gaming",
+      "business": "Business",
+      "nature": "Nature",
+      "allround": "All-Round",
+      "cute": "Cute",
+      "retro": "Retro",
+      "sports": "Sports"
     }
-  }
+  },
+  "share": "Share",
+  "sharePoster": "Share Poster",
+  "downloadPoster": "Download Poster",
+  "sharePosterLoading": "Generating poster...",
+  "sharePosterFailed": "Failed to generate poster"
 }

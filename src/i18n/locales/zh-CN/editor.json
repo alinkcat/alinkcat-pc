@@ -295,7 +295,12 @@
     "needThemeId": "请填写主题 ID",
     "needThemeName": "请填写主题名称",
     "saved": "主题包已保存",
-    "exported": "导出成功"
+    "exported": "导出成功",
+    "draftRecoverTitle": "检测到未保存的草稿",
+    "draftRecoverNew": "检测到未保存的编辑草稿，是否恢复？",
+    "draftRecoverExisting": "检测到草稿，可能与已保存版本不同，是否覆盖？",
+    "draftRecover": "恢复",
+    "draftDiscard": "放弃"
   },
   "aiPanel": {
     "title": "🤖 AI 助手",
@@ -357,6 +362,10 @@
     "settingsSaved": "AI 设置已保存",
     "fetchHint": "请先填写 API 地址",
     "fetchSuccess": "已获取 {{count}} 个模型",
-    "fetchNoModels": "未找到模型列表"
+    "fetchNoModels": "未找到模型列表",
+    "presetMonitor": "生成监控桌面",
+    "presetClock": "极简时钟",
+    "presetCyberpunk": "赛博朋克风格",
+    "presetCustom": "自定义…"
   }
 }

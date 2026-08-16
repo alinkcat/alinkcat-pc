@@ -13,6 +13,15 @@ const CATEGORY_EMOJI: Record<string, string> = {
   weather: '⛅',
   media: '🎵',
   blank: '🎨',
+  minimal: '⚪',
+  dark: '🌙',
+  gaming: '🎮',
+  business: '💼',
+  nature: '🌿',
+  allround: '🗂️',
+  cute: '🌸',
+  retro: '📻',
+  sports: '🏃',
 };
 
 interface Props {

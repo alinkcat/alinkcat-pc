@@ -58,7 +58,21 @@
       "clock": "时钟",
       "weather": "天气",
       "media": "媒体",
-      "blank": "空白"
+      "blank": "空白",
+      "minimal": "极简",
+      "dark": "暗色",
+      "gaming": "游戏",
+      "business": "商务",
+      "nature": "自然",
+      "allround": "全能",
+      "cute": "可爱",
+      "retro": "复古",
+      "sports": "运动"
     }
-  }
+  },
+  "share": "分享",
+  "sharePoster": "分享海报",
+  "downloadPoster": "下载海报",
+  "sharePosterLoading": "正在生成海报...",
+  "sharePosterFailed": "生成海报失败"
 }

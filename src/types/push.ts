@@ -1,6 +1,6 @@
 export type PushStatus =
   | 'idle' | 'packing' | 'awaiting_confirm' | 'connecting' | 'pushing'
-  | 'completed' | 'failed' | 'cancelled';
+  | 'completed' | 'failed' | 'cancelled' | 'retrying';
 
 export interface PushState {
   themeId: string;

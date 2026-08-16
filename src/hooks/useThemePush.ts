@@ -3,7 +3,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { tauriInvoke } from '../utils/tauri';
 import { sendPushCancel } from './useWebSocket';
 import type { PushState, PushProgressEvent, PushResult } from '../types/push';
-import { INITIAL_PUSH_STATE } from '../types/push';
+import { INITIAL_PUSH_STATE, PUSH_CONFIG } from '../types/push';
 
 type StartOpts = {
   themeId: string;
@@ -11,17 +11,30 @@ type StartOpts = {
   startChunk?: number;
 };
 
+const AUTO_RETRY_DELAY = 3000; // 3 秒后自动重试
+const MAX_AUTO_RETRIES = 2;    // 最多重试 2 次
+
 /**
  * 主题包推送 Hook：
  * - push_theme_to_device（后端分块推送 + awaiting_confirm + busy/超时重试）
  * - 监听 Tauri 事件 theme-push-progress / theme-push-complete / theme-push-failed
  * - 失败后支持「继续」（断点续传）与「重传」
+ * - 自动重试：失败后等待 3 秒自动重试，最多 2 次，用户可取消
  */
 export function useThemePush() {
-  const [state, setState] = useState<PushState>(INITIAL_PUSH_STATE);
+  const [state, setState] = useState<PushState & { autoRetryCount: number }>({ ...INITIAL_PUSH_STATE, autoRetryCount: 0 });
   const stateRef = useRef(state);
   stateRef.current = state;
   const unlisteners = useRef<UnlistenFn[]>([]);
+  const autoRetryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 清理自动重试定时器
+  const clearAutoRetry = useCallback(() => {
+    if (autoRetryTimer.current !== null) {
+      clearTimeout(autoRetryTimer.current);
+      autoRetryTimer.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     const setup = async () => {
@@ -40,13 +53,20 @@ export function useThemePush() {
         }));
       });
       const un2 = await listen<{ themeId: string; status: string }>('theme-push-complete', () => {
+        clearAutoRetry();
         setState((s) => ({ ...s, status: 'completed', progress: 100, waiting: false, stage: 'complete' }));
       });
       const un3 = await listen<{ themeId: string; error: string }>('theme-push-failed', (e) => {
         setState((s) => {
           // 已传输部分数据 → 可从下一块续传；否则从头开始
           const resumeChunk = s.sentSize > 0 ? s.currentChunk + 1 : 0;
-          return { ...s, status: 'failed', waiting: false, resumeChunk, errorMessage: e.payload.error };
+          // 检查是否还能自动重试
+          const retryCount = s.autoRetryCount || 0;
+          if (retryCount < MAX_AUTO_RETRIES) {
+            // 进入 retrying 状态，稍后会自动重试
+            return { ...s, status: 'retrying', waiting: false, resumeChunk, errorMessage: e.payload.error, autoRetryCount: retryCount + 1 };
+          }
+          return { ...s, status: 'failed', waiting: false, resumeChunk, errorMessage: e.payload.error, autoRetryCount: 0 };
         });
       });
       unlisteners.current = [un1, un2, un3];
@@ -55,16 +75,33 @@ export function useThemePush() {
     return () => {
       unlisteners.current.forEach((fn) => fn());
       unlisteners.current = [];
+      clearAutoRetry();
     };
-  }, []);
+  }, [clearAutoRetry]);
 
-  const invokePush = useCallback(async ({ themeId, deviceId, startChunk = 0 }: StartOpts) => {
+  // 当状态变为 retrying 时，自动启动重试定时器
+  useEffect(() => {
+    if (state.status === 'retrying') {
+      clearAutoRetry();
+      autoRetryTimer.current = setTimeout(() => {
+        const cur = stateRef.current;
+        if (cur.status !== 'retrying') return;
+        const startChunk = cur.resumeChunk > 0 ? cur.resumeChunk : 0;
+        doInvokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk, isAutoRetry: true });
+      }, AUTO_RETRY_DELAY);
+    }
+    return () => {
+      // 清理只清理自己设置的定时器，而不影响 autoRetryTimer 跨渲染
+    };
+  }, [state.status, state.autoRetryCount, clearAutoRetry]);
+
+  const doInvokePush = useCallback(async ({ themeId, deviceId, startChunk = 0, isAutoRetry = false }: StartOpts & { isAutoRetry?: boolean }) => {
     setState((s) => ({
       ...s,
       themeId,
       deviceId,
       resumeChunk: startChunk,
-      status: startChunk > 0 ? 'pushing' : 'awaiting_confirm',
+      status: isAutoRetry ? 'retrying' : (startChunk > 0 ? 'pushing' : 'awaiting_confirm'),
       stage: 'start',
       progress: 0,
       sentSize: 0,
@@ -85,29 +122,47 @@ export function useThemePush() {
         totalChunks: result.totalChunks,
       }));
     } catch (e) {
-      setState((s) => ({ ...s, status: 'failed', errorMessage: String(e) }));
+      setState((s) => {
+        const retryCount = s.autoRetryCount || 0;
+        if (retryCount < MAX_AUTO_RETRIES) {
+          return { ...s, status: 'retrying', errorMessage: String(e), autoRetryCount: retryCount + 1 };
+        }
+        return { ...s, status: 'failed', errorMessage: String(e), autoRetryCount: 0 };
+      });
     }
   }, []);
 
   const startPush = useCallback((themeId: string, deviceId: string) => {
-    invokePush({ themeId, deviceId, startChunk: 0 });
-  }, [invokePush]);
+    clearAutoRetry();
+    setState((s) => ({ ...INITIAL_PUSH_STATE, autoRetryCount: 0, themeId, deviceId }));
+    doInvokePush({ themeId, deviceId, startChunk: 0 });
+  }, [doInvokePush, clearAutoRetry]);
 
   /** 断点续传：从上次中断的 chunk 继续 */
   const resumePush = useCallback(() => {
+    clearAutoRetry();
     const cur = stateRef.current;
     if (!cur.themeId || !cur.deviceId || cur.resumeChunk <= 0) return;
-    invokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk: cur.resumeChunk });
-  }, [invokePush]);
+    doInvokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk: cur.resumeChunk });
+  }, [doInvokePush, clearAutoRetry]);
 
   /** 重传：从头开始 */
   const retryPush = useCallback(() => {
+    clearAutoRetry();
     const cur = stateRef.current;
     if (!cur.themeId || !cur.deviceId) return;
-    invokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk: 0 });
-  }, [invokePush]);
+    setState((s) => ({ ...s, autoRetryCount: 0 }));
+    doInvokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk: 0 });
+  }, [doInvokePush, clearAutoRetry]);
+
+  /** 取消自动重试（回到 failed 状态让用户手动操作） */
+  const cancelAutoRetry = useCallback(() => {
+    clearAutoRetry();
+    setState((s) => ({ ...s, status: 'failed', autoRetryCount: 0 }));
+  }, [clearAutoRetry]);
 
   const cancelPush = useCallback(async () => {
+    clearAutoRetry();
     const cur = stateRef.current;
     if (cur.deviceId && cur.themeId) {
       try {
@@ -115,9 +170,12 @@ export function useThemePush() {
       } catch { /* ignore */ }
     }
     setState((s) => ({ ...s, status: 'cancelled' }));
-  }, []);
+  }, [clearAutoRetry]);
 
-  const reset = useCallback(() => setState(INITIAL_PUSH_STATE), []);
+  const reset = useCallback(() => {
+    clearAutoRetry();
+    setState((s) => ({ ...INITIAL_PUSH_STATE, autoRetryCount: 0 }));
+  }, [clearAutoRetry]);
 
-  return { state, startPush, resumePush, retryPush, cancelPush, reset };
+  return { state, startPush, resumePush, retryPush, cancelPush, cancelAutoRetry, reset };
 }

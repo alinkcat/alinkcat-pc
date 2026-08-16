@@ -18,7 +18,13 @@
     "interrupted": "Transfer interrupted ({{pct}}% sent). Resume?",
     "resumeHint": "Click Resume to continue from the breakpoint, or Retry to start over",
     "unknownDevice": "Unknown Device",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "eta": "ETA",
+    "etaSeconds": "{{s}}s",
+    "etaMinutes": "{{m}}m {{s}}s",
+    "autoRetry": "Auto retrying ({{n}}/{{max}})...",
+    "cancelAutoRetry": "Cancel auto retry",
+    "doNotRetry": "Stop retrying"
   },
   "status": {
     "packing": "Packing...",
@@ -28,6 +34,7 @@
     "completed": "Push completed",
     "failed": "Push failed",
     "cancelled": "Cancelled",
-    "idle": "Ready"
+    "idle": "Ready",
+    "retrying": "Auto retrying..."
   }
 }

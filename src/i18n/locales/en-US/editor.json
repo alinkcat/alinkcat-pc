@@ -295,7 +295,12 @@
     "needThemeId": "Please enter a theme ID",
     "needThemeName": "Please enter a theme name",
     "saved": "Theme package saved",
-    "exported": "Export successful"
+    "exported": "Export successful",
+    "draftRecoverTitle": "Unsaved Draft Found",
+    "draftRecoverNew": "We found an unsaved edit draft. Would you like to restore it?",
+    "draftRecoverExisting": "We found an unsaved draft that may differ from the saved version. Would you like to overwrite the current theme with the draft?",
+    "draftRecover": "Restore",
+    "draftDiscard": "Discard"
   },
   "aiPanel": {
     "title": "🤖 AI Assistant",
@@ -357,6 +362,10 @@
     "settingsSaved": "AI settings saved",
     "fetchHint": "Please enter the API URL first",
     "fetchSuccess": "Fetched {{count}} models",
-    "fetchNoModels": "No models found"
+    "fetchNoModels": "No models found",
+    "presetMonitor": "Monitor Desktop",
+    "presetClock": "Minimal Clock",
+    "presetCyberpunk": "Cyberpunk Style",
+    "presetCustom": "Custom..."
   }
 }
