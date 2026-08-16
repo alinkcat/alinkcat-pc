@@ -232,13 +232,22 @@ async fn handle_theme_leave(
 }
 
 async fn handle_launcher_open(req: &JsonRpcRequest) -> JsonRpcResponse {
-    let id = req.params.as_ref().and_then(|p| p.get("id")).and_then(|v| v.as_str()).unwrap_or("");
-    if id.is_empty() {
-        return JsonRpcResponse::error(-32602, "Missing id", req.id.clone());
-    }
-    match launcher_service::open(id) {
-        Ok(()) => JsonRpcResponse::success(serde_json::json!({"status": "ok"}), req.id.clone()),
-        Err(e) => JsonRpcResponse::error(-32000, &e, req.id.clone()),
+    // 支持两种方式：path 直接启动，id 按注册项查找
+    let path = req.params.as_ref().and_then(|p| p.get("path")).and_then(|v| v.as_str()).filter(|s| !s.is_empty());
+    let id = req.params.as_ref().and_then(|p| p.get("id")).and_then(|v| v.as_str()).filter(|s| !s.is_empty());
+
+    if let Some(p) = path {
+        match launcher_service::launch_path(p) {
+            Ok(()) => JsonRpcResponse::success(serde_json::json!({"status": "ok"}), req.id.clone()),
+            Err(e) => JsonRpcResponse::error(-32000, &e, req.id.clone()),
+        }
+    } else if let Some(id_val) = id {
+        match launcher_service::open(id_val) {
+            Ok(()) => JsonRpcResponse::success(serde_json::json!({"status": "ok"}), req.id.clone()),
+            Err(e) => JsonRpcResponse::error(-32000, &e, req.id.clone()),
+        }
+    } else {
+        JsonRpcResponse::error(-32602, "Missing path or id", req.id.clone())
     }
 }
 
