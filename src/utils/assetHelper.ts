@@ -45,6 +45,9 @@ export async function resolveThemeImages(meta: ThemeMeta): Promise<ThemeMeta> {
       if (typeof wv.icon === 'string' && isRelativePath(wv.icon)) {
         wv.icon = await getAssetUrl(clone.id, wv.icon);
       }
+      if (typeof wv.cardImage === 'string' && isRelativePath(wv.cardImage)) {
+        wv.cardImage = await getAssetUrl(clone.id, wv.cardImage);
+      }
     }
   }
 
