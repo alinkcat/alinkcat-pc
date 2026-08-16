@@ -114,6 +114,7 @@ export interface EditorState {
   loadTheme: (t: ThemeMeta) => void;
   initNewTheme: () => void;
   replaceTheme: (t: EditorTheme) => void;
+  setThemeName: (name: string) => void;
   setActivePage: (idx: number) => void;
   selectWidget: (id: string | null) => void;
   toggleOrientation: () => void;
@@ -180,6 +181,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ theme: t, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false });
     get().loadVersionHistory(themeId);
   },
+  setThemeName: (name) => set(s => ({ theme: { ...s.theme, name } })),
   initNewTheme: () => {
     const newTheme = { id: genId('theme'), name: '新主题包', version: '1.0.0', author: '', description: '', source: 'local', pages: [{ ...EMPTY.pages[0], id: genId('page') }] };
     set({
