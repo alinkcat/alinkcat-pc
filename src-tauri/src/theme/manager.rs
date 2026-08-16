@@ -426,7 +426,7 @@ fn extract_embedded_assets(meta: &mut ThemeMeta, dir: &Path) -> Result<(), Strin
             &mut seen, &assets_dir, &icons_dir,
         )?;
         for w in &mut page.widgets {
-            for key in &["src", "icon", "backgroundImage"] {
+            for key in &["src", "icon", "backgroundImage", "cardImage"] {
                 extract_and_replace_in_map(
                     &mut w.extra, key,
                     &mut seen, &assets_dir, &icons_dir,
@@ -514,7 +514,7 @@ fn collect_referenced_assets(meta: &ThemeMeta) -> Vec<String> {
         }
         // 控件中的 src / icon
         for w in &page.widgets {
-            for key in ["src", "icon"] {
+            for key in ["src", "icon", "cardImage"] {
                 if let Some(val) = w.extra.get(key).and_then(|v| v.as_str()) {
                     // 如果存的是相对路径（非 data URL 和非 http），加入引用列表
                     if !val.starts_with("data:") && !val.starts_with("http") {
