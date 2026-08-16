@@ -72,6 +72,10 @@ export async function migrateImagesToAssets(meta: ThemeMeta): Promise<ThemeMeta>
       if (typeof wv.icon === 'string' && wv.icon.startsWith('data:image/')) {
         tasks.push(saveIcon(wv.icon, `w-${w.id}`).then((rel) => { wv.icon = rel; }));
       }
+      // Card 组件的图片
+      if (typeof wv.cardImage === 'string' && wv.cardImage.startsWith('data:')) {
+        tasks.push(save(wv.cardImage, `w-${w.id}`).then((rel) => { wv.cardImage = rel; }));
+      }
     }
   }
 
