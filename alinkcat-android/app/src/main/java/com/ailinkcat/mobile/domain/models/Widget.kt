@@ -529,14 +529,18 @@ data class CalendarWidget(
     override val id: String,
     override val type: WidgetType = WidgetType.CALENDAR,
     override val layout: WidgetLayout,
-    val label: String
+    val label: String,
+    val backgroundColor: String? = null,
+    val textColor: String? = null
 ) : Widget() {
     companion object {
         fun fromJson(json: JSONObject, layout: WidgetLayout): CalendarWidget? = try {
             CalendarWidget(
                 id = json.getString("id"),
                 layout = layout,
-                label = json.optString("label", "Calendar")
+                label = json.optString("label", "Calendar"),
+                backgroundColor = json.optString("backgroundColor", null).takeIf { !it.isNullOrBlank() },
+                textColor = json.optString("textColor", null).takeIf { !it.isNullOrBlank() }
             )
         } catch (_: Exception) { null }
     }

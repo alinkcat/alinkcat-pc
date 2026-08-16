@@ -60,6 +60,7 @@ fun ProfileScreen(
 
     var showClearDialog by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
+    val privacyPolicyUrl = stringResource(R.string.privacy_policy_url)
 
     Column(
         modifier = Modifier
@@ -189,7 +190,7 @@ fun ProfileScreen(
                 }
                 OutlinedButton(
                     onClick = {
-                        uriHandler.openUri(stringResource(R.string.privacy_policy_url))
+                        uriHandler.openUri(privacyPolicyUrl)
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {

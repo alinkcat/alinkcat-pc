@@ -114,7 +114,7 @@ private fun NumberBattery(
                             color = Color.White.copy(alpha = 0.7f),
                             fontSize = adaptiveValueSize * 0.5f,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(start = 2.dp, top = adaptiveValueSize * 0.15f)
+                            modifier = Modifier.padding(start = 2.dp, top = (adaptiveValueSize.value * 0.15f).dp)
                         )
                     }
                 }
@@ -303,7 +303,7 @@ private fun BarBattery(
                 Box(
                     modifier = Modifier
                         .width(capWidth)
-                        .height(barHeight.value * 0.5f)
+                        .height(barHeight * 0.5f)
                         .clip(RoundedCornerShape(topStart = 0.dp, topEnd = 2.dp, bottomEnd = 2.dp, bottomStart = 0.dp))
                         .background(Color.White.copy(alpha = 0.35f))
                 )

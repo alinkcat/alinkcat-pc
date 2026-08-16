@@ -88,13 +88,13 @@ fun MacroScreen(viewModel: ConnectionViewModel) {
             0 -> LauncherGrid(
                 apps = launcherApps,
                 onAppClick = { viewModel.openLauncher(it.id) },
-                onAddClick = { Toast.makeText(context, stringResource(R.string.configure_launcher_on_pc), Toast.LENGTH_SHORT).show() }
+                onAddClick = { Toast.makeText(context, context.getString(R.string.configure_launcher_on_pc), Toast.LENGTH_SHORT).show() }
             )
             1 -> SnippetList(
                 items = snippetItems,
                 onItemClick = { content ->
                     viewModel.injectSnippet(content)
-                    Toast.makeText(context, stringResource(R.string.sent_to_cursor), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.sent_to_cursor), Toast.LENGTH_SHORT).show()
                 }
             )
         }

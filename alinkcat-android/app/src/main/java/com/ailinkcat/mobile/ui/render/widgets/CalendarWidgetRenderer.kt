@@ -30,8 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.domain.models.CalendarWidget
-import androidx.compose.ui.res.stringResource
-import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.utils.ColorParser
 import java.time.DayOfWeek
 import java.time.LocalDate

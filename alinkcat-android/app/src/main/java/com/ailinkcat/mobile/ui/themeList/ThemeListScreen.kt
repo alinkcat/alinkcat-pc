@@ -78,7 +78,7 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
     fun onThemeClick(pkg: ThemePackage) {
         val themeId = pkg.themeId
         if (themeId.isNullOrBlank()) {
-            Toast.makeText(context, stringResource(R.string.theme_not_downloaded), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.theme_not_downloaded), Toast.LENGTH_SHORT).show()
             return
         }
         context.startActivity(
