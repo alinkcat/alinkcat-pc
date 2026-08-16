@@ -56,7 +56,9 @@ export function themeToEditor(t: ThemeMeta): EditorTheme {
   return {
     id: t.id, name: t.name, version: t.version, author: t.author, description: t.description,
     source: t.source, market_id: t.market_id, downloaded_at: t.downloaded_at,
+    orientation: t.orientation,
     pages: t.pages.map(p => ({
+      id: p.id, label: p.label,
       id: p.id, label: p.label,
       layoutMode: (p.layout.type === 'free' ? 'free' : 'grid') as 'grid' | 'free',
       columns: p.layout.columns ?? 4, rows: p.layout.rows ?? 6,
@@ -83,6 +85,7 @@ export function editorToThemeMeta(t: EditorTheme): ThemeMeta {
   return {
     id: t.id, name: t.name, version: t.version, author: t.author, description: t.description,
     source: t.source, market_id: t.market_id, downloaded_at: t.downloaded_at,
+    orientation: t.orientation,
     pages: t.pages.map(p => ({
       id: p.id, label: p.label,
       layout: {
