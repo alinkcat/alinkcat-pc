@@ -121,6 +121,7 @@ export interface EditorState {
   setSnapLines: (x: boolean, y: boolean) => void;
 
   addPage: (label: string, layoutMode: 'grid' | 'free') => void;
+  addPageFromTemplate: (page: EditorPage) => void;
   removePage: (idx: number) => void;
   reorderPages: (o: number, n: number) => void;
   updatePage: (idx: number, updates: Partial<EditorPage>) => void;
@@ -162,6 +163,10 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   addPage: (label, layoutMode) => set(s => {
     const pg: EditorPage = { id: genId('page'), label, layoutMode, columns: 4, rows: 6, widgets: [] };
+    return { theme: { ...s.theme, pages: [...s.theme.pages, pg] }, activePageIdx: s.theme.pages.length, selectedWidgetId: null };
+  }),
+  addPageFromTemplate: (page) => set(s => {
+    const pg: EditorPage = { ...page, id: genId('page') };
     return { theme: { ...s.theme, pages: [...s.theme.pages, pg] }, activePageIdx: s.theme.pages.length, selectedWidgetId: null };
   }),
   removePage: (idx) => set(s => {
