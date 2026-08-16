@@ -10,7 +10,8 @@
     "export": "导出",
     "file": "文件",
     "save": "保存",
-    "alcFilter": "主题包 (.alc)"
+    "alcFilter": "主题包 (.alc)",
+    "saveAsNew": "另存为新版本"
   },
   "addPageModal": {
     "title": "添加页面",
@@ -383,7 +384,8 @@
     "draftRecoverNew": "检测到未保存的编辑草稿，是否恢复？",
     "draftRecoverExisting": "检测到草稿，可能与已保存版本不同，是否覆盖？",
     "draftRecover": "恢复",
-    "draftDiscard": "放弃"
+    "draftDiscard": "放弃",
+    "savedAsNew": "已另存为新版本"
   },
   "aiPanel": {
     "title": "🤖 AI 助手",
