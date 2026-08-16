@@ -44,7 +44,7 @@ export default function TemplatePicker({ open, onClose }: Props) {
 
   return (
     <Modal
-      title={t('templates.title')}
+      title={t('themes.templates.title')}
       open={open}
       onCancel={onClose}
       footer={null}
@@ -53,12 +53,12 @@ export default function TemplatePicker({ open, onClose }: Props) {
     >
       <div style={{ padding: '8px 0' }}>
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          {t('templates.subtitle')}
+          {t('themes.templates.subtitle')}
         </Text>
         {categories.map(([cat, list]) => (
           <div key={cat} style={{ marginBottom: 20 }}>
             <Divider orientation="left" plain style={{ margin: '0 0 12px' }}>
-              <span>{CATEGORY_EMOJI[cat] || '📦'} {t(`templates.category.${cat}`)}</span>
+              <span>{CATEGORY_EMOJI[cat] || '📦'} {t(`themes.templates.category.${cat}`)}</span>
             </Divider>
             <Row gutter={[12, 12]}>
               {list.map((tpl) => (

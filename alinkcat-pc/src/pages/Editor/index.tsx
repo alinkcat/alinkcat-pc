@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
-import { Button, Space, Typography, Modal, Form, Input, Select, Slider, message } from 'antd';
+import { Button, Space, Typography, Modal, Slider, message } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../../utils/tauri';
@@ -19,6 +19,7 @@ import PropertyPanel from './components/PropertyPanel';
 import PageTabs from './components/PageTabs';
 import AIPanel from './components/AIPanel';
 import { useAIStore } from '../../store/aiStore';
+import { PAGE_TEMPLATES, clonePageTemplate } from '../../templates/page-templates';
 
 const { Text } = Typography;
 
@@ -27,20 +28,48 @@ const LIB_LABELS: Record<string, string> = {
   'lib-snippet-list': 'editor.controlLibrary.snippet-list', 'lib-text': 'editor.controlLibrary.text', 'lib-shape': 'editor.controlLibrary.shape', 'lib-system-monitor': 'editor.controlLibrary.system-monitor', 'lib-media-control': 'editor.controlLibrary.media-control', 'lib-quick-action': 'editor.controlLibrary.quick-action', 'lib-launcher': 'editor.controlLibrary.launcher', 'lib-webview': 'editor.controlLibrary.webview', 'lib-image': 'editor.controlLibrary.image',
 };
 
-function AddPageModal({ open, onOk, onCancel }: {
-  open: boolean; onOk: (label: string, mode: 'grid' | 'free') => void; onCancel: () => void;
+// 页面模板选择器（替换旧 AddPageModal）
+const CATEGORY_EMOJI: Record<string, string> = {
+  blank: '📄', monitor: '📊', clock: '🕐', weather: '⛅', media: '🎵',
+};
+
+function PageTemplateModal({ open, onSelect, onCancel }: {
+  open: boolean; onSelect: (page: import('../../templates/page-templates').PageTemplateDef) => void; onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const [form] = Form.useForm();
+  const categories = useMemo(() => {
+    const map = new Map<string, typeof PAGE_TEMPLATES>();
+    for (const pt of PAGE_TEMPLATES) {
+      const cat = pt.category;
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(pt);
+    }
+    return Array.from(map.entries());
+  }, []);
   return (
-    <Modal title={t('editor.addPageModal.title')} open={open} onCancel={onCancel} destroyOnHidden width={400}
-      onOk={() => form.validateFields().then(v => { onOk(v.label, v.mode); form.resetFields(); })}>
-      <Form form={form} layout="vertical" initialValues={{ label: t('editor.addPageModal.newPage'), mode: 'grid' }}>
-        <Form.Item name="label" label={t('editor.addPageModal.pageName')} rules={[{ required: true }]}><Input /></Form.Item>
-        <Form.Item name="mode" label={t('editor.addPageModal.layoutMode')}>
-          <Select options={[{ label: t('editor.addPageModal.gridLayout'), value: 'grid' }, { label: t('editor.addPageModal.freeLayout'), value: 'free' }]} />
-        </Form.Item>
-      </Form>
+    <Modal title={t('editor.addPageModal.title')} open={open} onCancel={onCancel} footer={null} width={600} destroyOnHidden>
+      {categories.map(([cat, list]) => (
+        <div key={cat} style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 13, color: '#888' }}>
+            {CATEGORY_EMOJI[cat] || '📦'} {t(`themes.templates.category.${cat}`)}
+          </div>
+          <Row gutter={[8, 8]}>
+            {list.map((pt) => (
+              <Col key={pt.id} xs={12} sm={8}>
+                <Card
+                  hoverable size="small"
+                  onClick={() => { onSelect(pt); onCancel(); }}
+                  style={{ textAlign: 'center', cursor: 'pointer' }}
+                >
+                  <div style={{ fontSize: 24, marginBottom: 4 }}>{CATEGORY_EMOJI[pt.category] || '📄'}</div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{pt.label}</div>
+                  <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{pt.description}</div>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+      ))}
     </Modal>
   );
 }
@@ -53,7 +82,7 @@ export default function Editor() {
   const isNew = !id || id === 'new';
   const templateId = searchParams.get('template');
 
-  const { theme, orientation, zoom, saving, exporting, loadTheme, replaceTheme, initNewTheme, toggleOrientation, setZoom, setSaving, setExporting, addPage, addWidgetAt } = useEditorStore();
+  const { theme, orientation, zoom, saving, exporting, loadTheme, replaceTheme, initNewTheme, toggleOrientation, setZoom, setSaving, setExporting, addPage, addPageFromTemplate, addWidgetAt } = useEditorStore();
   const initAITheme = useAIStore((s) => s.initTheme);
   const [addPageOpen, setAddPageOpen] = useState(false);
   const [fileMgrOpen, setFileMgrOpen] = useState(false);
@@ -231,7 +260,7 @@ export default function Editor() {
         <span>{orientation === 'portrait' ? t('editor.statusbar.portrait') : t('editor.statusbar.landscape')}</span>
       </div>
 
-      <AddPageModal open={addPageOpen} onOk={(label, mode) => { addPage(label, mode); setAddPageOpen(false); }} onCancel={() => setAddPageOpen(false)} />
+      <PageTemplateModal open={addPageOpen} onSelect={(pt) => { addPageFromTemplate(clonePageTemplate(pt.page)); setAddPageOpen(false); }} onCancel={() => setAddPageOpen(false)} />
       <ThemeFileManager themeId={theme.id} open={fileMgrOpen} onClose={() => setFileMgrOpen(false)} />
     </div>
   );
