@@ -49,7 +49,8 @@ import kotlin.math.min
 @Composable
 fun BatteryWidgetRenderer(
     widget: BatteryWidget,
-    value: Float?
+    value: Float?,
+    temperature: Float? = null
 ) {
     val style = widget.batteryStyle ?: "bar"
     val showLevel = widget.showLevel
@@ -68,9 +69,9 @@ fun BatteryWidgetRenderer(
     val color = if (value != null && level <= lowThreshold) lowColor else barColor
 
     when (style) {
-        "number" -> NumberBattery(widget, value, color, showLevel, showCharging, showTemp)
-        "ring" -> RingBattery(widget, value, ratio, color, showLevel, showCharging, showTemp)
-        else -> BarBattery(widget, value, ratio, color, showLevel, showCharging, showTemp)
+        "number" -> NumberBattery(widget, value, temperature, color, showLevel, showCharging, showTemp)
+        "ring" -> RingBattery(widget, value, temperature, ratio, color, showLevel, showCharging, showTemp)
+        else -> BarBattery(widget, value, temperature, ratio, color, showLevel, showCharging, showTemp)
     }
 }
 
@@ -78,6 +79,7 @@ fun BatteryWidgetRenderer(
 private fun NumberBattery(
     widget: BatteryWidget,
     value: Float?,
+    temperature: Float?,
     color: Color,
     showLevel: Boolean,
     showCharging: Boolean,
@@ -131,7 +133,7 @@ private fun NumberBattery(
                     }
                     if (showTemp) {
                         Text(
-                            text = formatTemp(widget, null),
+                            text = formatTemp(widget, temperature),
                             color = Color.White.copy(alpha = 0.6f),
                             fontSize = adaptiveSubSize
                         )
@@ -146,6 +148,7 @@ private fun NumberBattery(
 private fun RingBattery(
     widget: BatteryWidget,
     value: Float?,
+    temperature: Float?,
     ratio: Float,
     color: Color,
     showLevel: Boolean,
@@ -211,7 +214,7 @@ private fun RingBattery(
                         }
                         if (showTemp) {
                             Text(
-                                text = formatTemp(widget, null),
+                                text = formatTemp(widget, temperature),
                                 color = Color.White.copy(alpha = 0.6f),
                                 fontSize = adaptiveSubSize
                             )
@@ -227,6 +230,7 @@ private fun RingBattery(
 private fun BarBattery(
     widget: BatteryWidget,
     value: Float?,
+    temperature: Float?,
     ratio: Float,
     color: Color,
     showLevel: Boolean,
@@ -268,7 +272,7 @@ private fun BarBattery(
                     }
                     if (showTemp) {
                         Text(
-                            text = formatTemp(widget, null),
+                            text = formatTemp(widget, temperature),
                             color = Color.White.copy(alpha = 0.6f),
                             fontSize = adaptiveSubSize
                         )

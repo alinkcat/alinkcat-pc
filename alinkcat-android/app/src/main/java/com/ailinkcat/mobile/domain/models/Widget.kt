@@ -3,7 +3,7 @@ package com.ailinkcat.mobile.domain.models
 import org.json.JSONArray
 import org.json.JSONObject
 
-enum class WidgetType { BUTTON, GAUGE, BATTERY, STICKY_NOTE, IMAGE, TEXT, SHAPE, WEBVIEW, MEDIA_CONTROL, SYSTEM_MONITOR, LAUNCHER_ICON, CLOCK, DATE, CALENDAR, CARD }
+enum class WidgetType { BUTTON, GAUGE, BATTERY, STICKY_NOTE, IMAGE, TEXT, SHAPE, WEBVIEW, MEDIA_CONTROL, SYSTEM_MONITOR, LAUNCHER_ICON, CLOCK, DATE, CALENDAR, CARD, QUICK_ACTION }
 
 /**
  * 控件定位。
@@ -95,6 +95,7 @@ sealed class Widget {
                 "date" -> DateWidget.fromJson(json, layout)
                 "calendar" -> CalendarWidget.fromJson(json, layout)
                 "card" -> CardWidget.fromJson(json, layout)
+                "quick-action" -> QuickActionWidget.fromJson(json, layout)
                 else -> null
             }
         }
@@ -588,6 +589,82 @@ data class CardWidget(
                 fontSize = json.optInt("fontSize", -1).takeIf { it > 0 },
                 fontWeight = json.optString("fontWeight").ifBlank { null },
                 borderRadius = json.optInt("borderRadius", -1).takeIf { it >= 0 }
+            )
+        } catch (_: Exception) { null }
+    }
+}
+
+/**
+ * 快捷面板中的文本片段项。
+ */
+data class QuickActionSnippetItem(
+    val id: String = "",
+    val label: String = "",
+    val content: String = ""
+)
+
+/**
+ * 快捷面板中的单个单元格。
+ * - launcher: type="launcher", name, path
+ * - snippet: type="snippet", title, snippets
+ */
+data class QuickActionCell(
+    val type: String, // "launcher" or "snippet"
+    val name: String = "",
+    val path: String = "",
+    val title: String = "",
+    val snippets: List<QuickActionSnippetItem> = emptyList()
+)
+
+/**
+ * 快捷面板：2x2 或自定义行列的网格，每格为启动器或文本片段集合。
+ * PC 端字段：columns, rows, cells[]。
+ */
+data class QuickActionWidget(
+    override val id: String,
+    override val type: WidgetType = WidgetType.QUICK_ACTION,
+    override val layout: WidgetLayout,
+    val columns: Int = 2,
+    val rows: Int = 2,
+    val cells: List<QuickActionCell> = emptyList()
+) : Widget() {
+    companion object {
+        fun fromJson(json: JSONObject, layout: WidgetLayout): QuickActionWidget? = try {
+            val cellsArray = json.optJSONArray("cells") ?: JSONArray()
+            val cells = buildList {
+                for (i in 0 until cellsArray.length()) {
+                    val cell = cellsArray.optJSONObject(i) ?: continue
+                    val type = cell.optString("type", "launcher")
+                    val snippetsArray = cell.optJSONArray("snippets") ?: JSONArray()
+                    val snippets = buildList {
+                        for (j in 0 until snippetsArray.length()) {
+                            val s = snippetsArray.optJSONObject(j) ?: continue
+                            add(
+                                QuickActionSnippetItem(
+                                    id = s.optString("id", ""),
+                                    label = s.optString("label", ""),
+                                    content = s.optString("content", "")
+                                )
+                            )
+                        }
+                    }
+                    add(
+                        QuickActionCell(
+                            type = type,
+                            name = cell.optString("name", ""),
+                            path = cell.optString("path", ""),
+                            title = cell.optString("title", ""),
+                            snippets = snippets
+                        )
+                    )
+                }
+            }
+            QuickActionWidget(
+                id = json.getString("id"),
+                layout = layout,
+                columns = json.optInt("columns", 2).coerceIn(1, 6),
+                rows = json.optInt("rows", 2).coerceIn(1, 6),
+                cells = cells
             )
         } catch (_: Exception) { null }
     }

@@ -124,6 +124,10 @@
     <string name="signature_tamper_warning">检测到当前安装包与官方签名不一致，\n应用可能已被篡改，请从官方渠道重新安装。</string>
     <string name="exit_app">退出应用</string>
 
+    <!-- Privacy Policy -->
+    <string name="privacy_policy">隐私政策</string>
+    <string name="privacy_policy_url">https://top.atqx.cn/privacy</string>
+
     <!-- Widget Renderers -->
     <string name="cpu">CPU</string>
     <string name="memory">内存</string>
@@ -132,6 +136,7 @@
     <string name="download">↓ 下载</string>
     <string name="not_playing">未在播放</string>
     <string name="no_notes">暂无便签</string>
+    <string name="snippet_count">%d 条</string>
 
     <!-- Push Receive / Error Messages -->
     <string name="push_receive_success">已从 PC 端同步主题包</string>

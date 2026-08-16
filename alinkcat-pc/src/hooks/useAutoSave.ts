@@ -4,12 +4,14 @@ import type { EditorTheme } from '../pages/Editor/types';
 
 export const DRAFT_KEY = 'ilinkcat_editor_draft';
 const DEBOUNCE_MS = 5000;
+const DRAFT_MAX_AGE_DAYS = 7;
 
 export interface DraftPayload {
   theme: EditorTheme;
   activePageIdx: number;
   orientation: 'portrait' | 'landscape';
   zoom: number;
+  createdAt?: string;
 }
 
 /**
@@ -41,6 +43,7 @@ export function useAutoSave() {
           activePageIdx: state.activePageIdx,
           orientation: state.orientation,
           zoom: state.zoom,
+          createdAt: new Date().toISOString(),
         };
         try {
           localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
@@ -64,12 +67,21 @@ export function clearDraft(): void {
   localStorage.removeItem(DRAFT_KEY);
 }
 
-/** 获取本地草稿（解析失败时自动清除） */
+/** 获取本地草稿（解析失败或过期时自动清除） */
 export function getDraft(): DraftPayload | null {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as DraftPayload;
+    const payload = JSON.parse(raw) as DraftPayload;
+    // 检查草稿是否过期（超过 7 天自动清除）
+    if (payload.createdAt) {
+      const age = Date.now() - new Date(payload.createdAt).getTime();
+      if (age > DRAFT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000) {
+        localStorage.removeItem(DRAFT_KEY);
+        return null;
+      }
+    }
+    return payload;
   } catch {
     localStorage.removeItem(DRAFT_KEY);
     return null;

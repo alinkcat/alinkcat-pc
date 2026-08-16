@@ -53,6 +53,7 @@ export default function App() {
   const [gate, setGate] = useState<Gate | null>(null);
   const [allowed, setAllowed] = useState(false);
   const checked = useRef(false);
+  const retried = useRef(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
 
@@ -69,45 +70,82 @@ export default function App() {
     if (checked.current) return;
     checked.current = true;
 
-    clientVersionApi.check('windows', APP_VERSION)
-      .then((resp) => {
-        if (resp.code !== 200 || !resp.data) { setAllowed(true); return; }
-        const { version, announcements } = resp.data;
+    let resolved = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
-        if (version.status === 2) {
-          setGate({ type: 'deprecated', message: t('versionGate.deprecated'), url: version.updateUrl });
-          return;
-        }
-        if (version.forceUpdate === 1) {
-          setGate({ type: 'force_update', message: t('versionGate.forceUpdate'), url: version.updateUrl, changelog: version.changelog });
-          return;
-        }
-        if (version.status === 1) {
-          setGate({ type: 'maintenance', message: t('versionGate.maintenance'), url: version.updateUrl });
-          return;
-        }
+    function allowEntry() {
+      if (resolved) return;
+      resolved = true;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      setAllowed(true);
+    }
 
-        // 弹窗公告
-        const seen = getSeenIds();
-        const now = new Date().toISOString();
-        const valid = announcements.filter((a) => {
-          if (a.status !== 1) return false;
-          if (a.targetPlatform && a.targetPlatform !== 'windows') return false;
-          if (a.popupType === 'once' && seen.has(a.id)) return false;
-          if (a.startAt && a.startAt > now) return false;
-          if (a.endAt && a.endAt < now) return false;
-          return true;
+    function setGateOnce(g: Gate) {
+      if (resolved) return;
+      resolved = true;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      setGate(g);
+    }
+
+    function doCheck() {
+      clientVersionApi.check('windows', APP_VERSION)
+        .then((resp) => {
+          if (resp.code !== 200 || !resp.data) { allowEntry(); return; }
+          const { version, announcements } = resp.data;
+
+          if (version.status === 2) {
+            setGateOnce({ type: 'deprecated', message: t('versionGate.deprecated'), url: version.updateUrl });
+            return;
+          }
+          if (version.forceUpdate === 1) {
+            setGateOnce({ type: 'force_update', message: t('versionGate.forceUpdate'), url: version.updateUrl, changelog: version.changelog });
+            return;
+          }
+          if (version.status === 1) {
+            setGateOnce({ type: 'maintenance', message: t('versionGate.maintenance'), url: version.updateUrl });
+            return;
+          }
+
+          // 弹窗公告
+          const seen = getSeenIds();
+          const now = new Date().toISOString();
+          const valid = announcements.filter((a) => {
+            if (a.status !== 1) return false;
+            if (a.targetPlatform && a.targetPlatform !== 'windows') return false;
+            if (a.popupType === 'once' && seen.has(a.id)) return false;
+            if (a.startAt && a.startAt > now) return false;
+            if (a.endAt && a.endAt < now) return false;
+            return true;
+          });
+          if (valid.length > 0) {
+            const a = valid[0];
+            markSeen(a.id);
+            setGateOnce({ type: 'announcement', title: a.title, message: a.content || '' });
+            return;
+          }
+
+          allowEntry();
+        })
+        .catch(() => {
+          if (!retried.current) {
+            retried.current = true;
+            // 30 秒后重试一次
+            retryTimer = setTimeout(() => { doCheck(); }, 30000);
+            // 安全兜底：若重试请求悬挂超过 60 秒仍未完成则放行
+            fallbackTimer = setTimeout(() => { allowEntry(); }, 60000);
+          } else {
+            allowEntry();
+          }
         });
-        if (valid.length > 0) {
-          const a = valid[0];
-          markSeen(a.id);
-          setGate({ type: 'announcement', title: a.title, message: a.content || '' });
-          return;
-        }
+    }
 
-        setAllowed(true);
-      })
-      .catch(() => { setAllowed(true); });
+    doCheck();
+
+    return () => {
+      if (retryTimer) clearTimeout(retryTimer);
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+    };
   }, []);
 
   // 检测首次启动，显示引导弹窗

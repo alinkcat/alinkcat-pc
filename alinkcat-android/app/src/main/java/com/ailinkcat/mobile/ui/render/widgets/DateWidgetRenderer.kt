@@ -73,6 +73,15 @@ fun DateWidgetRenderer(widget: DateWidget) {
 
 /**
  * 农历日期映射（2026 年做参考）。
+ *
+ * TODO: 替换为完整的农历计算工具类。
+ *   当前硬编码的农历映射仅覆盖 2026 年部分日期，无法正确处理：
+ *   - 2027 年及以后的农历日期
+ *   - 闰月（2026 年无闰月，但其他年份有）
+ *   建议方案：
+ *   1. 引入第三方农历库（如 cn.jpush:androidutils 或 com.derzhang:lunar-calendar）
+ *   2. 或实现基于查表法的 LunarCalendar 工具类（需要 1900-2100 年农历数据表）
+ *   3. 降级方案：当 key 不在 map 中时返回空字符串而非 "Lunar"
  */
 private fun getLunarDateString(date: LocalDate): String {
     val key = date.toString()

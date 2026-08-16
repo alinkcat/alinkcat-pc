@@ -39,6 +39,9 @@
 # ── 保留 JSON 解析相关 ──────────────────────────────────
 -dontwarn org.json.**
 
+# ── 保持 Widget 数据类不被混淆 (JSON 反射解析依赖字段名) ──
+-keep class com.ailinkcat.mobile.domain.models.** { *; }
+
 # ── 保留 Manifest 中声明的 Activity（必须） ─────────────
 -keep class com.ailinkcat.mobile.MainActivity { *; }
 -keep class com.ailinkcat.mobile.ui.render.ThemeRenderActivity { *; }

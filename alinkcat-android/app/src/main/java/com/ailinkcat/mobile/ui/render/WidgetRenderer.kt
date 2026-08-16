@@ -51,6 +51,8 @@ import com.ailinkcat.mobile.ui.render.widgets.StickyNoteWidgetRenderer
 import com.ailinkcat.mobile.ui.render.widgets.SystemMonitorWidgetRenderer
 import com.ailinkcat.mobile.ui.render.widgets.TextWidgetRenderer
 import com.ailinkcat.mobile.ui.render.widgets.WebViewWidgetRenderer
+import com.ailinkcat.mobile.domain.models.QuickActionWidget
+import com.ailinkcat.mobile.ui.render.widgets.QuickActionWidgetRenderer
 import java.io.File
 
 /**
@@ -89,7 +91,8 @@ fun WidgetRenderer(
 
         is BatteryWidget -> BatteryWidgetRenderer(
             widget = widget,
-            value = widgetData[DataSourceResolver.resolve(widget.dataSource)]
+            value = widgetData[DataSourceResolver.resolve(widget.dataSource)],
+            temperature = widgetData[DataSourceResolver.resolve("system.battery.temperature")]
         )
 
         is StickyNoteWidget -> StickyNoteWidgetRenderer(
@@ -141,6 +144,12 @@ fun WidgetRenderer(
         is CalendarWidget -> CalendarWidgetRenderer(widget = widget)
 
         is CardWidget -> CardWidgetRenderer(widget = widget)
+
+        is QuickActionWidget -> QuickActionWidgetRenderer(
+            widget = widget,
+            onButtonClick = onButtonClick,
+            onSnippetClick = onSnippetClick
+        )
 
         else -> PlaceholderWidget(widget.id)
     }

@@ -124,6 +124,10 @@
     <string name="signature_tamper_warning">The current installation package does not match the official signature.\nThe app may have been tampered with. Please reinstall from the official source.</string>
     <string name="exit_app">Exit App</string>
 
+    <!-- Privacy Policy -->
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="privacy_policy_url">https://top.atqx.cn/privacy</string>
+
     <!-- Widget Renderers -->
     <string name="cpu">CPU</string>
     <string name="memory">Memory</string>
@@ -132,6 +136,7 @@
     <string name="download">↓ Download</string>
     <string name="not_playing">Not Playing</string>
     <string name="no_notes">No notes</string>
+    <string name="snippet_count">%d items</string>
 
     <!-- Push Receive / Error Messages -->
     <string name="push_receive_success">Theme synced from PC</string>

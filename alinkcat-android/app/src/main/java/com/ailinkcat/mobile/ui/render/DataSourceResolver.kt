@@ -14,12 +14,13 @@ object DataSourceResolver {
         "system.network.upload" to "network.upload",
         "system.network.download" to "network.download",
         "system.uptime" to "uptime",
-        "system.battery.level" to "battery"
+        "system.battery.level" to "battery",
+        "system.battery.temperature" to "battery.temperature"
     )
 
     /** 订阅时使用的源列表。 */
     val SUBSCRIBE_SOURCES: List<String> =
-        listOf("cpu", "memory", "network", "disk", "uptime", "battery")
+        listOf("cpu", "memory", "network", "disk", "uptime", "battery", "battery.temperature")
 
     /** 内部键（用于订阅）。 */
     val INTERNAL_KEYS: Set<String> = MAP.values.toSet()

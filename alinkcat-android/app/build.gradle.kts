@@ -5,14 +5,12 @@ plugins {
 
 android {
     namespace = "com.ailinkcat.mobile"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.ailinkcat.mobile"
         minSdk = 24
-        targetSdk = 37
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
 
@@ -30,6 +28,18 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = providers.gradleProperty("RELEASE_STORE_FILE").orNull
+            if (keystorePath != null) {
+                storeFile = file(keystorePath)
+                storePassword = providers.gradleProperty("RELEASE_STORE_PASSWORD").get()
+                keyAlias = providers.gradleProperty("RELEASE_KEY_ALIAS").get()
+                keyPassword = providers.gradleProperty("RELEASE_KEY_PASSWORD").get()
+            }
+        }
+    }
+
     buildTypes {
         release {
             // AGP 9 新 DSL：开启 R8 优化（内联、合并等）
@@ -43,6 +53,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = if (providers.gradleProperty("RELEASE_STORE_FILE").orNull != null)
+                signingConfigs.getByName("release") else null
         }
     }
     compileOptions {
@@ -91,6 +103,7 @@ dependencies {
     implementation(libs.androidx.security.crypto)
 
     testImplementation(libs.junit)
+    testImplementation(libs.orgjson)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
