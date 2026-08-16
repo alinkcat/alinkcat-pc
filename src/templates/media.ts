@@ -24,7 +24,7 @@ const template: EditorTheme = {
           id: 'w-media', type: 'media-control', label: '音乐控制',
           gridCol: 0, gridRow: 0, gridW: 4, gridH: 3,
           backgroundColor: '#3d1553', backgroundOpacity: 100, textColor: '#ffffff', fontSize: 12, fontWeight: 'normal', borderRadius: 8,
-          label: '音乐控制', displayMode: 'always', showCover: true, showProgress: true,
+          displayMode: 'always', showCover: true, showProgress: true,
         },
         {
           id: 'w-clock', type: 'clock', label: '时钟',
@@ -42,7 +42,7 @@ const template: EditorTheme = {
           id: 'w-launcher', type: 'launcher', label: '应用启动',
           gridCol: 2, gridRow: 3, gridW: 2, gridH: 3,
           backgroundColor: '#3d1553', backgroundOpacity: 100, textColor: '#ffffff', fontSize: 12, fontWeight: 'normal', borderRadius: 8,
-          label: '应用启动', name: 'QQ 音乐', path: 'qqmusic', icon: '🎵',
+          name: 'QQ 音乐', path: 'qqmusic', icon: '🎵',
         },
       ],
     },
