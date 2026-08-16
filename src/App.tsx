@@ -236,12 +236,12 @@ export default function App() {
         <Modal
           open={onboardingOpen}
           closable={false}
-          maskClosable={false}
+          mask={{ closable: false }}
           keyboard={false}
           footer={null}
           width={420}
           centered
-          destroyOnClose
+          destroyOnHidden
         >
           <div style={{ textAlign: 'center', padding: '24px 0 12px' }}>
             <div style={{ fontSize: 56, marginBottom: 16 }}>
