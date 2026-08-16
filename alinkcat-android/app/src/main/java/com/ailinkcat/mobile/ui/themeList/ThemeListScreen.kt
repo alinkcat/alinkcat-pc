@@ -159,7 +159,7 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(themes, key = { it.themeId ?: it.name }) { pkg ->
+            items(displayThemes, key = { it.themeId ?: it.name }) { pkg ->
                 ThemeCard(
                     pkg = pkg,
                     onClick = { onThemeClick(pkg) },
