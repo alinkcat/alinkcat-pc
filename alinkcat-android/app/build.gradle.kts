@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.ailinkcat.mobile"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.ailinkcat.mobile"
