@@ -4,6 +4,25 @@ import { Tooltip } from 'antd';
 import { SendOutlined, PlusOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { useAIStore } from '../../../../store/aiStore';
 
+const PRESETS: { key: string; prompt: string }[] = [
+  {
+    key: 'editor.aiPanel.presetMonitor',
+    prompt: '创建一个系统监控主题，包含 CPU 监控、内存监控、磁盘监控、网络监控、时钟和日期组件，深色背景',
+  },
+  {
+    key: 'editor.aiPanel.presetClock',
+    prompt: '创建一个极简时钟主题，大字体时钟居中，下方显示日期，再下方显示便签，浅色背景',
+  },
+  {
+    key: 'editor.aiPanel.presetCyberpunk',
+    prompt: '创建一个赛博朋克风格的主题，霓虹紫色和青色配色，包含 CPU 监控表盘、内存监控、时钟、日期、网络监控，深紫色背景',
+  },
+  {
+    key: 'editor.aiPanel.presetCustom',
+    prompt: '',
+  },
+];
+
 export default function AIPanelInput() {
   const { t } = useTranslation();
   const { sendMessage, sending, droppedImages, removeDroppedImage } = useAIStore();
@@ -67,6 +86,44 @@ export default function AIPanelInput() {
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
     >
+      {/* 预设按钮 */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+        {PRESETS.map((preset) => (
+          <button
+            key={preset.key}
+            type="button"
+            onClick={() => {
+              if (preset.prompt) {
+                sendMessage(preset.prompt);
+              } else {
+                // 自定义：聚焦输入框让用户自己输入
+                textareaRef.current?.focus();
+              }
+            }}
+            disabled={sending}
+            style={{
+              border: '1px solid rgba(79,110,247,0.3)',
+              background: 'rgba(79,110,247,0.06)',
+              cursor: sending ? 'default' : 'pointer',
+              borderRadius: 14,
+              padding: '3px 12px',
+              fontSize: 12,
+              color: '#4F6EF7',
+              transition: 'all 0.2s',
+              opacity: sending ? 0.5 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (!sending) e.currentTarget.style.background = 'rgba(79,110,247,0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(79,110,247,0.06)';
+            }}
+          >
+            {t(preset.key)}
+          </button>
+        ))}
+      </div>
+
       {/* 已上传图片预览（大图） */}
       {droppedImages.length > 0 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>

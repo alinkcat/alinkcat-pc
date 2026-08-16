@@ -33,9 +33,11 @@ import {
   AppstoreOutlined,
   UnorderedListOutlined,
   ImportOutlined,
+  ShareAltOutlined,
 } from '@ant-design/icons';
 import { useDownloadStore } from '../store/downloadStore';
 import TemplatePicker from '../components/TemplatePicker';
+import { generateSharePoster, downloadPoster } from '../utils/sharePoster';
 import type { ThemeSummary } from '../types/theme';
 
 const { Text } = Typography;
@@ -54,6 +56,9 @@ export default function Themes() {
   const [category, setCategory] = useState<ThemeCategory>('all');
   const [pushTarget, setPushTarget] = useState<ThemeSummary | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [sharePoster, setSharePoster] = useState<string | null>(null);
+  const [shareTheme, setShareTheme] = useState<ThemeSummary | null>(null);
+  const [sharing, setSharing] = useState(false);
   const { queue, importTheme, importAll, remove, importing: queueImporting } = useDownloadStore();
 
   const fetchData = useCallback(async () => {
@@ -167,6 +172,25 @@ export default function Themes() {
         }
       },
     });
+  };
+
+  const handleShare = async (theme: ThemeSummary) => {
+    setShareTheme(theme);
+    setSharing(true);
+    setSharePoster(null);
+    try {
+      const dataUrl = await generateSharePoster({
+        name: theme.name,
+        version: theme.version,
+        author: theme.author,
+        cover_url: theme.cover_url,
+      });
+      setSharePoster(dataUrl);
+    } catch (e) {
+      message.error(t('themes.sharePosterFailed'));
+    } finally {
+      setSharing(false);
+    }
   };
 
   return (
@@ -345,6 +369,9 @@ export default function Themes() {
                         <Button size="small" icon={<MobileOutlined />} onClick={() => setPushTarget(theme)}>
                           {t('themes.push')}
                         </Button>
+                        <Button size="small" icon={<ShareAltOutlined />} onClick={() => handleShare(theme)}>
+                          {t('themes.share')}
+                        </Button>
                         <Button size="small" icon={<SwapOutlined />} disabled={isActive} onClick={() => handleActivate(theme.id)}>
                           {isActive ? t('themes.activated') : t('themes.activate')}
                         </Button>
@@ -377,6 +404,37 @@ export default function Themes() {
         open={templateOpen}
         onClose={() => setTemplateOpen(false)}
       />
+
+      {/* 分享海报 Modal */}
+      <Modal
+        title={t('themes.sharePoster')}
+        open={!!shareTheme}
+        onCancel={() => { setShareTheme(null); setSharePoster(null); }}
+        footer={
+          sharePoster ? (
+            <Button type="primary" onClick={() => downloadPoster(sharePoster!, `${shareTheme?.name || 'theme'}-poster.png`)}>
+              {t('themes.downloadPoster')}
+            </Button>
+          ) : null
+        }
+        width={480}
+        destroyOnHidden
+      >
+        {sharing ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin size="large" />
+            <p style={{ marginTop: 16, color: '#8c8c8c' }}>{t('themes.sharePosterLoading')}</p>
+          </div>
+        ) : sharePoster ? (
+          <div style={{ textAlign: 'center' }}>
+            <img
+              src={sharePoster}
+              alt={t('themes.sharePoster')}
+              style={{ maxWidth: '100%', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+            />
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }
