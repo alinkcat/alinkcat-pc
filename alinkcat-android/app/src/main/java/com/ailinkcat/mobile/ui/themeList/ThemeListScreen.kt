@@ -49,24 +49,54 @@ import coil.compose.AsyncImage
 import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.model.ConnectionStatus
 import com.ailinkcat.mobile.data.model.ThemePackage
+import com.ailinkcat.mobile.domain.repository.ThemeRepository
 import com.ailinkcat.mobile.ui.render.ThemeRenderActivity
 import com.ailinkcat.mobile.ui.theme.ErrorRed
 import com.ailinkcat.mobile.ui.theme.SuccessGreen
 import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
  * Tab 1：主题包列表。
- * 支持本地主题包展示、点击切换、长按删除。
+ * - 未连接 PC 时显示本地已安装主题（离线模式）
+ * - 连接后显示 PC 同步的主题列表
+ * - 支持点击切换、长按删除。
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ThemeListScreen(viewModel: ConnectionViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val themes by viewModel.themePackages.collectAsStateWithLifecycle()
+    val csThemes by viewModel.themePackages.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var deleteTarget by remember { mutableStateOf<ThemePackage?>(null) }
+    var localThemes by remember { mutableStateOf<List<ThemePackage>>(emptyList()) }
+    var localLoaded by remember { mutableStateOf(false) }
+
+    // 页面加载时直接扫描本地已安装的主题（不依赖连接状态）
+    LaunchedEffect(Unit) {
+        val repo = ThemeRepository(context)
+        val metas = withContext(Dispatchers.IO) { repo.loadThemes() }
+        localThemes = if (metas.isNotEmpty()) {
+            metas.mapIndexed { index, meta ->
+                ThemePackage(
+                    themeId = meta.themeId,
+                    name = meta.name,
+                    version = meta.version,
+                    author = "",
+                    pageCount = 1,
+                    coverEmoji = "📦",
+                    coverColor = 0xFF4F6EF7,
+                    isActive = index == 0
+                )
+            }
+        } else {
+            emptyList()
+        }
+        localLoaded = true
+    }
 
     // 连接成功后刷新已安装主题包
     LaunchedEffect(state.status) {
@@ -109,19 +139,21 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
         )
     }
 
+    // 决定显示哪些主题：连接时用 PC 同步列表，否则用本地列表
+    val displayThemes = if (state.status == ConnectionStatus.Connected) csThemes else localThemes
+
     when {
-        state.status != ConnectionStatus.Connected -> EmptyState(
-            emoji = "🔌",
-            title = stringResource(R.string.please_connect_pc),
+        !localLoaded -> { /* 加载中，不显示 */ }
+        state.status != ConnectionStatus.Connected && displayThemes.isEmpty() -> EmptyState(
+            emoji = "📦",
+            title = stringResource(R.string.no_themes),
             subtitle = stringResource(R.string.connect_first_hint)
         )
-
-        themes.isEmpty() -> EmptyState(
+        displayThemes.isEmpty() -> EmptyState(
             emoji = "📦",
             title = stringResource(R.string.no_themes),
             subtitle = stringResource(R.string.no_themes_hint)
         )
-
         else -> LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
