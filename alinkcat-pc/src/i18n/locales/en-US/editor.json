@@ -10,7 +10,8 @@
     "export": "Export",
     "file": "Files",
     "save": "Save",
-    "alcFilter": "Theme Package (.alc)"
+    "alcFilter": "Theme Package (.alc)",
+    "saveAsNew": "Save as New"
   },
   "addPageModal": {
     "title": "Add Page",
@@ -383,7 +384,8 @@
     "draftRecoverNew": "We found an unsaved edit draft. Would you like to restore it?",
     "draftRecoverExisting": "We found an unsaved draft that may differ from the saved version. Would you like to overwrite the current theme with the draft?",
     "draftRecover": "Restore",
-    "draftDiscard": "Discard"
+    "draftDiscard": "Discard",
+    "savedAsNew": "Saved as new version"
   },
   "aiPanel": {
     "title": "🤖 AI Assistant",
