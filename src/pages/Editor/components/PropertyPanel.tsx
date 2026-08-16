@@ -72,6 +72,41 @@ function CommonStyleFields({ widget, up }: { widget: Record<string, unknown>; up
   );
 }
 
+
+function ActionConfigFields({ widget, up, pageOptions }: { widget: Record<string, unknown>; up: (k: string, v: unknown) => void; pageOptions?: { label: string; value: string }[] }) {
+  const { t } = useTranslation();
+  const { theme } = useEditorStore();
+  const action = (widget.clickAction as Record<string, unknown>) || {};
+  const actionType = (action.type as string) || 'none';
+
+  const allPageOptions = pageOptions || theme.pages.map((p, i) => ({ label: p.label || t('editor.propertyPanel.actionConfig.switchPage'), value: String(i) }));
+
+  return (
+    <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
+      <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.actionConfig.section')}</Text>
+      <Form.Item label={t('editor.propertyPanel.actionConfig.actionType')} style={{ marginBottom: 8 }}>
+        <Select value={actionType} onChange={val => up('clickAction', { type: val })}
+          options={[
+            { label: t('editor.propertyPanel.actionConfig.none'), value: 'none' },
+            { label: t('editor.propertyPanel.actionConfig.openLink'), value: 'url' },
+            { label: t('editor.propertyPanel.actionConfig.switchPage'), value: 'switch_page' },
+          ]} />
+      </Form.Item>
+      {actionType === 'url' && (
+        <Form.Item label={t('editor.propertyPanel.actionConfig.url')} style={{ marginBottom: 8 }}>
+          <Input value={(action.url as string) || ''} onChange={e => up('clickAction', { ...action, url: e.target.value })} placeholder={t('editor.propertyPanel.actionConfig.urlPlaceholder')} />
+        </Form.Item>
+      )}
+      {actionType === 'switch_page' && (
+        <Form.Item label={t('editor.propertyPanel.actionConfig.targetPage')} style={{ marginBottom: 8 }}>
+          <Select value={(action.targetPage as string) || ''} onChange={val => up('clickAction', { ...action, targetPage: val })}
+            options={allPageOptions} />
+        </Form.Item>
+      )}
+    </div>
+  );
+}
+
 function PageProperties() {
   const { t } = useTranslation();
   const { theme, activePageIdx, updatePage } = useEditorStore();
@@ -142,6 +177,7 @@ function PageProperties() {
   );
 }
 
+
 function WidgetProperties() {
   const { t } = useTranslation();
   const { theme, activePageIdx, selectedWidgetId, updateWidget } = useEditorStore();
@@ -195,24 +231,46 @@ function WidgetProperties() {
         <Form.Item label={t('editor.propertyPanel.button.icon')}><Input value={(v.icon as string) || ''} onChange={e => up('icon', e.target.value)} style={{ width: 80 }} /></Form.Item>
         <Form.Item label={t('editor.propertyPanel.button.actionType')}>
           <Select value={(v.action as Record<string, unknown>)?.type as string || 'keyboard'}
-            onChange={val => up('action', { type: val, keys: [], path: '', url: '' })}
+            onChange={val => up('action', { type: val, keys: [], path: '', url: '', targetPage: '', script: '', command: '', args: [] })}
             options={[
               { label: t('editor.propertyPanel.button.keyboard'), value: 'keyboard' },
               { label: t('editor.propertyPanel.button.openApp'), value: 'open' },
               { label: t('editor.propertyPanel.button.openUrl'), value: 'url' },
+              { label: t('editor.propertyPanel.button.executeScript'), value: 'script' },
+              { label: t('editor.propertyPanel.button.switchPage'), value: 'switch_page' },
+              { label: t('editor.propertyPanel.button.systemCommand'), value: 'command' },
             ]} />
         </Form.Item>
         {((v.action as Record<string, unknown>)?.type === 'keyboard') && (
           <Form.Item label={t('editor.propertyPanel.button.keys')}><Input value={((v.action as Record<string, unknown>)?.keys as string[])?.join(',') || ''}
-            onChange={e => up('action', { ...(v.action as Record<string, unknown>), keys: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} placeholder="ctrl,c" /></Form.Item>
+            onChange={e => up('action', { ...(v.action as Record<string, unknown>), keys: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} placeholder={t('editor.propertyPanel.actionConfig.keysPlaceholder')} /></Form.Item>
         )}
         {((v.action as Record<string, unknown>)?.type === 'open') && (
           <Form.Item label={t('editor.propertyPanel.button.path')}><Input value={(v.action as Record<string, unknown>)?.path as string || ''}
-            onChange={e => up('action', { ...(v.action as Record<string, unknown>), path: e.target.value })} placeholder="notepad" /></Form.Item>
+            onChange={e => up('action', { ...(v.action as Record<string, unknown>), path: e.target.value })} placeholder={t('editor.propertyPanel.actionConfig.pathPlaceholder')} /></Form.Item>
         )}
         {((v.action as Record<string, unknown>)?.type === 'url') && (
           <Form.Item label={t('editor.propertyPanel.button.urlLabel')}><Input value={(v.action as Record<string, unknown>)?.url as string || ''}
-            onChange={e => up('action', { ...(v.action as Record<string, unknown>), url: e.target.value })} placeholder="https://..." /></Form.Item>
+            onChange={e => up('action', { ...(v.action as Record<string, unknown>), url: e.target.value })} placeholder={t('editor.propertyPanel.actionConfig.urlPlaceholder')} /></Form.Item>
+        )}
+        {((v.action as Record<string, unknown>)?.type === 'script') && (
+          <Form.Item label={t('editor.propertyPanel.actionConfig.script')} style={{ marginBottom: 8 }}>
+            <Input value={(v.action as Record<string, unknown>)?.script as string || ''}
+              onChange={e => up('action', { ...(v.action as Record<string, unknown>), script: e.target.value })} placeholder={t('editor.propertyPanel.actionConfig.scriptPlaceholder')} />
+          </Form.Item>
+        )}
+        {((v.action as Record<string, unknown>)?.type === 'switch_page') && (
+          <Form.Item label={t('editor.propertyPanel.actionConfig.targetPage')} style={{ marginBottom: 8 }}>
+            <Select value={(v.action as Record<string, unknown>)?.targetPage as string || ''}
+              onChange={val => up('action', { ...(v.action as Record<string, unknown>), targetPage: val })}
+              options={theme.pages.map((p, i) => ({ label: p.label || String(i), value: String(i) }))} />
+          </Form.Item>
+        )}
+        {((v.action as Record<string, unknown>)?.type === 'command') && (
+          <Form.Item label={t('editor.propertyPanel.actionConfig.command')} style={{ marginBottom: 8 }}>
+            <Input value={(v.action as Record<string, unknown>)?.command as string || ''}
+              onChange={e => up('action', { ...(v.action as Record<string, unknown>), command: e.target.value })} placeholder={t('editor.propertyPanel.actionConfig.commandPlaceholder')} />
+          </Form.Item>
         )}
       </>)}
 
@@ -285,6 +343,7 @@ function WidgetProperties() {
               { label: t('editor.propertyPanel.image.fill'), value: 'fill' },
             ]} />
         </Form.Item>
+        <ActionConfigFields widget={v} up={up} />
       </>)}
 
       {widget.type === 'text' && (<>
@@ -329,6 +388,7 @@ function WidgetProperties() {
         <Form.Item label={t('editor.propertyPanel.text.borderRadius')}>
           <Slider min={0} max={20} value={(v.borderRadius as number) ?? 0} onChange={val => up('borderRadius', val)} />
         </Form.Item>
+        <ActionConfigFields widget={v} up={up} />
       </>)}
 
       {widget.type === 'shape' && (<>
@@ -536,10 +596,11 @@ function WidgetProperties() {
         <Form.Item label={t('editor.propertyPanel.systemMonitor.showNetwork')} valuePropName="checked">
           <Switch checked={(v.showNetwork as boolean) ?? true} onChange={val => up('showNetwork', val)} />
         </Form.Item>
-<Form.Item label={t('editor.propertyPanel.systemMonitor.refreshInterval')}>
+        <Form.Item label={t('editor.propertyPanel.systemMonitor.refreshInterval')}>
           <InputNumber min={1} max={60} value={(v.refreshInterval as number) ?? 2} style={{ width: '100%' }}
             onChange={val => up('refreshInterval', val ?? 2)} />
         </Form.Item>
+        <ActionConfigFields widget={v} up={up} />
       </>)}
 
       {widget.type === 'quick-action' && (<>
@@ -650,9 +711,43 @@ function WidgetProperties() {
           {t('editor.propertyPanel.calendar.hint')}
         </Text>
       </>)}
+      {/* 组件联动配置 - 所有控件通用 */}
+      <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
+        <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.actionConfig.linkage')}</Text>
+        <Form.Item label={t('editor.propertyPanel.actionConfig.triggerEvent')} style={{ marginBottom: 8 }}>
+          <Select
+            value={(v.triggerEvent as string) || ''}
+            onChange={val => {
+              up('triggerEvent', val || undefined);
+              if (!val) up('targetWidgetId', undefined);
+            }}
+            allowClear
+            placeholder={t('editor.propertyPanel.actionConfig.none')}
+            options={[
+              { label: t('editor.propertyPanel.actionConfig.switch_page'), value: 'switch_page' },
+              { label: t('editor.propertyPanel.actionConfig.toggle_widget'), value: 'toggle_widget' },
+              { label: t('editor.propertyPanel.actionConfig.update_data'), value: 'update_data' },
+              { label: t('editor.propertyPanel.actionConfig.trigger_action'), value: 'trigger_action' },
+            ]} />
+        </Form.Item>
+        {(v.triggerEvent as string) && (
+          <Form.Item label={t('editor.propertyPanel.actionConfig.targetWidget')} style={{ marginBottom: 0 }}>
+            <Select
+              value={(v.targetWidgetId as string) || ''}
+              onChange={val => up('targetWidgetId', val || undefined)}
+              allowClear
+              placeholder={t('editor.propertyPanel.actionConfig.selectWidget')}
+              options={theme.pages[activePageIdx]?.widgets
+                .filter(w => w.id !== selectedWidgetId)
+                .map(w => ({ label: `${w.label || w.id} (${w.type})`, value: w.id })) || []} />
+          </Form.Item>
+        )}
+      </div>
+
     </Form>
   );
 }
+
 
 export default function PropertyPanel({ onAddPage }: { onAddPage: () => void }) {
   const { t } = useTranslation();

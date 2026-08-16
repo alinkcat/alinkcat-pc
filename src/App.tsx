@@ -27,7 +27,7 @@ import AdminThemeReview from './pages/AdminThemeReview';
 import AdminTickets from './pages/AdminTickets';
 import './styles.css';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 interface Gate {
   type: 'deprecated' | 'maintenance' | 'force_update' | 'announcement';
@@ -53,6 +53,10 @@ export default function App() {
   const [gate, setGate] = useState<Gate | null>(null);
   const [allowed, setAllowed] = useState(false);
   const checked = useRef(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+
+  const ONBOARDING_KEY = 'ilinkcat_onboarding_done';
 
   useEffect(() => { initLogger(); hydrate(); }, []);
 
@@ -105,6 +109,47 @@ export default function App() {
       })
       .catch(() => { setAllowed(true); });
   }, []);
+
+  // 检测首次启动，显示引导弹窗
+  useEffect(() => {
+    if (allowed) {
+      const done = localStorage.getItem(ONBOARDING_KEY);
+      if (!done) {
+        setOnboardingOpen(true);
+      }
+    }
+  }, [allowed]);
+
+  const ONBOARDING_STEPS = [
+    {
+      emoji: '👋',
+      title: t('onboarding.welcome.title'),
+      desc: t('onboarding.welcome.desc'),
+      img: '🎨',
+    },
+    {
+      emoji: '📋',
+      title: t('onboarding.template.title'),
+      desc: t('onboarding.template.desc'),
+      img: '📁',
+    },
+    {
+      emoji: '📱',
+      title: t('onboarding.push.title'),
+      desc: t('onboarding.push.desc'),
+      img: '📲',
+    },
+  ];
+
+  const handleOnboardingFinish = () => {
+    localStorage.setItem(ONBOARDING_KEY, '1');
+    setOnboardingOpen(false);
+    setOnboardingStep(0);
+  };
+
+  const handleOnboardingSkip = () => {
+    handleOnboardingFinish();
+  };
 
   const isDark = mode === 'dark';
 
@@ -186,6 +231,64 @@ export default function App() {
             </BrowserRouter>
           </ErrorBoundary>
         )}
+
+        {/* 首次使用引导弹窗 */}
+        <Modal
+          open={onboardingOpen}
+          closable={false}
+          maskClosable={false}
+          keyboard={false}
+          footer={null}
+          width={420}
+          centered
+          destroyOnClose
+        >
+          <div style={{ textAlign: 'center', padding: '24px 0 12px' }}>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>
+              {ONBOARDING_STEPS[onboardingStep].img}
+            </div>
+            <Title level={4} style={{ margin: 0, marginBottom: 8 }}>
+              {ONBOARDING_STEPS[onboardingStep].title}
+            </Title>
+            <Text type="secondary" style={{ fontSize: 14, lineHeight: 1.6 }}>
+              {ONBOARDING_STEPS[onboardingStep].desc}
+            </Text>
+          </div>
+          {/* 步骤指示器 */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
+            {ONBOARDING_STEPS.map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  background: i === onboardingStep ? '#4F6EF7' : '#d9d9d9',
+                  transition: 'all 0.3s',
+                }}
+              />
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Button type="text" onClick={handleOnboardingSkip}>
+              {t('onboarding.skip')}
+            </Button>
+            <Space>
+              <Button disabled={onboardingStep === 0} onClick={() => setOnboardingStep(s => s - 1)}>
+                {t('back')}
+              </Button>
+              {onboardingStep < ONBOARDING_STEPS.length - 1 ? (
+                <Button type="primary" onClick={() => setOnboardingStep(s => s + 1)}>
+                  {t('onboarding.next')}
+                </Button>
+              ) : (
+                <Button type="primary" onClick={handleOnboardingFinish}>
+                  {t('onboarding.start')}
+                </Button>
+              )}
+            </Space>
+          </div>
+        </Modal>
       </AntApp>
     </ConfigProvider>
   );

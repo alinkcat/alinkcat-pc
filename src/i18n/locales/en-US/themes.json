@@ -74,5 +74,11 @@
   "sharePoster": "Share Poster",
   "downloadPoster": "Download Poster",
   "sharePosterLoading": "Generating poster...",
-  "sharePosterFailed": "Failed to generate poster"
+  "sharePosterFailed": "Failed to generate poster",
+  "syncAll": "Sync to All Devices",
+  "syncToDevice": "Sync to Device",
+  "syncSuccess": "Synced to {{count}} device(s)",
+  "syncFailed": "Failed to sync to {{count}} device(s)",
+  "noDevices": "No connected devices. Please connect your phone first.",
+  "themeNotFound": "Theme not found"
 }

@@ -31,13 +31,19 @@ export interface WidgetBase {
   textColor?: string;
   fontSize?: number;
   fontWeight?: 'normal' | 'bold' | 'bolder';
+  /** 点击动作 */
+  clickAction?: { type: string; keys?: string[]; path?: string; url?: string; targetPage?: string; script?: string; command?: string; args?: string[] };
+  /** 联动事件类型 */
+  triggerEvent?: 'switch_page' | 'toggle_widget' | 'update_data' | 'trigger_action';
+  /** 联动目标控件 ID */
+  targetWidgetId?: string;
 }
 
 // 每个 widget 具体类型一个接口（discriminated union）
 interface ButtonWidget extends WidgetBase {
   type: 'button';
   icon?: string;
-  action?: { type: string; keys?: string[] };
+  action?: { type: string; keys?: string[]; path?: string; url?: string; targetPage?: string; script?: string; command?: string; args?: string[] };
 }
 interface GaugeWidget extends WidgetBase {
   type: 'gauge';
@@ -72,11 +78,15 @@ interface TextWidget extends WidgetBase {
   content?: string;
   textAlign?: 'left' | 'center' | 'right';
   padding?: number;
+  /** 点击动作 */
+  clickAction?: { type: string; keys?: string[]; url?: string; targetPage?: string };
 }
 interface ImageWidget extends WidgetBase {
   type: 'image';
   src?: string;
   objectFit?: 'cover' | 'contain' | 'fill';
+  /** 点击动作 */
+  clickAction?: { type: string; keys?: string[]; url?: string; targetPage?: string };
 }
 interface ShapeWidget extends WidgetBase {
   type: 'shape';
@@ -121,6 +131,8 @@ interface SystemMonitorWidget extends WidgetBase {
   showDisk?: boolean;
   showNetwork?: boolean;
   refreshInterval?: number;
+  /** 点击动作 */
+  clickAction?: { type: string; keys?: string[]; url?: string; targetPage?: string };
 }
 interface QuickActionWidget extends WidgetBase {
   type: 'quick-action';

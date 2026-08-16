@@ -74,5 +74,11 @@
   "sharePoster": "分享海报",
   "downloadPoster": "下载海报",
   "sharePosterLoading": "正在生成海报...",
-  "sharePosterFailed": "生成海报失败"
+  "sharePosterFailed": "生成海报失败",
+  "syncAll": "同步到所有设备",
+  "syncToDevice": "同步到设备",
+  "syncSuccess": "已同步到 {{count}} 台设备",
+  "syncFailed": "有 {{count}} 台设备同步失败",
+  "noDevices": "无已连接设备，请先连接手机",
+  "themeNotFound": "未找到对应的主题包"
 }

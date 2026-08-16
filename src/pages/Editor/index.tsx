@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
-import { Button, Space, Typography, Modal, Row, Col, Card, Slider, message } from 'antd';
-import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined, UndoOutlined, RedoOutlined } from '@ant-design/icons';
+import { Button, Space, Typography, Modal, Row, Col, Card, Slider, message, List, Empty, Tag, Tour } from 'antd';
+import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined, UndoOutlined, RedoOutlined, HistoryOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../../utils/tauri';
 import ThemeFileManager from '../../components/ThemeFileManager';
@@ -12,7 +12,7 @@ import { generateThemeCover, generateDefaultCover } from '../../utils/coverGener
 import { migrateImagesToAssets } from '../../utils/coverHelper';
 import { resolveThemeImages } from '../../utils/assetHelper';
 import { getTemplateById, cloneTemplate } from '../../templates';
-import type { ThemeMeta } from '../../types/theme';
+import type { ThemeMeta, ThemeVersion } from '../../types/theme';
 import ControlLibrary from './components/ControlLibrary';
 import PreviewArea from './components/PreviewArea';
 import PropertyPanel from './components/PropertyPanel';
@@ -84,13 +84,21 @@ export default function Editor() {
   const isNew = !id || id === 'new';
   const templateId = searchParams.get('template');
 
-  const { theme, orientation, zoom, saving, exporting, loadTheme, replaceTheme, initNewTheme, toggleOrientation, setZoom, setSaving, setExporting, addPage, addPageFromTemplate, addWidgetAt, undo, redo, canUndo, canRedo } = useEditorStore();
+  const { theme, orientation, zoom, saving, exporting, versionHistory, currentVersionIdx, loadTheme, replaceTheme, initNewTheme, toggleOrientation, setZoom, setSaving, setExporting, addPage, addPageFromTemplate, addWidgetAt, undo, redo, canUndo, canRedo, saveVersion, rollbackToVersion, loadVersionHistory } = useEditorStore();
   const initAITheme = useAIStore((s) => s.initTheme);
   const [addPageOpen, setAddPageOpen] = useState(false);
   const [fileMgrOpen, setFileMgrOpen] = useState(false);
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draftModal, setDraftModal] = useState<DraftPayload | null>(null);
+  const [editorGuideOpen, setEditorGuideOpen] = useState(false);
   const mousePosRef = useRef({ x: 0, y: 0 });
+  const guideRefLeftPanel = useRef<HTMLDivElement>(null);
+  const guideRefCanvas = useRef<HTMLDivElement>(null);
+  const guideRefRightPanel = useRef<HTMLDivElement>(null);
+  const guideRefAIPanel = useRef<HTMLDivElement>(null);
+
+  const EDITOR_GUIDE_KEY = 'ilinkcat_editor_guide_done';
 
   // 启用自动保存草稿
   useAutoSave();
@@ -139,6 +147,23 @@ export default function Editor() {
     // 注意：这里的依赖故意不包含 draft，因为只在挂载时执行一次
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isNew, templateId, loadTheme, initNewTheme, initAITheme]);
+
+  // 编辑器首次使用引导
+  useEffect(() => {
+    if (isNew && !draftModal) {
+      const done = localStorage.getItem(EDITOR_GUIDE_KEY);
+      if (!done) {
+        // 延迟显示，确保 DOM 已渲染完毕
+        const timer = setTimeout(() => setEditorGuideOpen(true), 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isNew, draftModal]);
+
+  const handleOpenEditorGuide = () => {
+    localStorage.removeItem(EDITOR_GUIDE_KEY);
+    setEditorGuideOpen(true);
+  };
 
   // Ctrl+Z 撤销 / Ctrl+Y Ctrl+Shift+Z 重做
   useEffect(() => {
@@ -225,6 +250,8 @@ export default function Editor() {
       await tauriInvoke('save_theme', { theme: themeMeta, coverPath: null, coverData });
       // 保存成功，清除本地草稿
       clearDraft();
+      // 保存版本历史快照
+      saveVersion();
       message.success(t('editor.messages.saved'));
     } catch (e) { message.error(String(e)); }
     finally { setSaving(false); }
@@ -277,17 +304,19 @@ export default function Editor() {
           <Slider min={50} max={150} value={zoom} onChange={setZoom} style={{ width: 100 }} tooltip={{ formatter: v => `${v}%` }} />
           <Button icon={<ExportOutlined />} loading={exporting} onClick={handleExport} disabled={!theme.id}>{t('editor.toolbar.export')}</Button>
           <Button icon={<FolderOutlined />} onClick={() => setFileMgrOpen(true)} disabled={!theme.id}>{t('editor.toolbar.file')}</Button>
+          <Button icon={<HistoryOutlined />} onClick={() => { loadVersionHistory(theme.id); setVersionHistoryOpen(true); }} disabled={!theme.id} title={t('editor.versionHistory.title')} />
           <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}>{t('editor.toolbar.save')}</Button>
+          <Button size="small" icon={<QuestionCircleOutlined />} onClick={handleOpenEditorGuide} title={t('onboarding.tutorial')} />
         </Space>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="editor-body">
-          <div style={{ width: leftPanel.width, flexShrink: 0, overflow: 'hidden' }}><ControlLibrary /></div>
+          <div ref={guideRefLeftPanel} style={{ width: leftPanel.width, flexShrink: 0, overflow: 'hidden' }}><ControlLibrary /></div>
           <div className="editor-divider" onMouseDown={leftPanel.onMouseDown} />
-          <PreviewArea />
+          <div ref={guideRefCanvas} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}><PreviewArea /></div>
           <div className="editor-divider" onMouseDown={rightPanel.onRightMouseDown} />
-          <div style={{ width: rightPanel.width, flexShrink: 0, overflow: 'hidden' }}>
+          <div ref={guideRefRightPanel} style={{ width: rightPanel.width, flexShrink: 0, overflow: 'hidden' }}>
             <PropertyPanel onAddPage={() => setAddPageOpen(true)} />
           </div>
         </div>
@@ -296,7 +325,7 @@ export default function Editor() {
         </DragOverlay>
       </DndContext>
 
-      <AIPanel />
+      <div ref={guideRefAIPanel}><AIPanel /></div>
       <PageTabs onAddPage={() => setAddPageOpen(true)} />
       <div className="editor-statusbar">
         <span>{t('editor.statusbar.widgets', { count: totalWidgets })}</span>
@@ -368,6 +397,97 @@ export default function Editor() {
       >
         <p>{isNew ? t('editor.messages.draftRecoverNew') : t('editor.messages.draftRecoverExisting')}</p>
       </Modal>
+      {/* 版本历史弹窗 */}
+      <Modal
+        title={t('editor.versionHistory.title')}
+        open={versionHistoryOpen}
+        onCancel={() => setVersionHistoryOpen(false)}
+        footer={null}
+        width={560}
+      >
+        {versionHistory.length === 0 ? (
+          <Empty description={t('editor.versionHistory.noHistory')} />
+        ) : (
+          <List
+            dataSource={[...versionHistory].reverse()}
+            renderItem={(ver: ThemeVersion, i: number) => {
+              const realIdx = versionHistory.length - 1 - i;
+              const isCurrent = realIdx === currentVersionIdx;
+              return (
+                <List.Item
+                  actions={[
+                    !isCurrent ? (
+                      <Button
+                        size="small"
+                        danger
+                        onClick={() => {
+                          Modal.confirm({
+                            title: t('editor.versionHistory.rollback'),
+                            content: t('editor.versionHistory.confirmRollback'),
+                            onOk: () => {
+                              rollbackToVersion(realIdx);
+                              setVersionHistoryOpen(false);
+                            },
+                          });
+                        }}
+                      >
+                        {t('editor.versionHistory.rollback')}
+                      </Button>
+                    ) : (
+                      <Tag color="blue">{t('editor.versionHistory.current')}</Tag>
+                    ),
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={
+                      <span>
+                        v{ver.version}
+                        {isCurrent && <Tag color="blue" style={{ marginLeft: 8 }}>{t('editor.versionHistory.current')}</Tag>}
+                      </span>
+                    }
+                    description={
+                      <div>
+                        <div style={{ fontSize: 12, color: '#999' }}>{new Date(ver.timestamp).toLocaleString()}</div>
+                        {ver.changelog && <div style={{ marginTop: 4 }}>{ver.changelog}</div>}
+                      </div>
+                    }
+                  />
+                </List.Item>
+              );
+            }}
+          />
+        )}
+      </Modal>
+      {/* 编辑器引导 Tour */}
+      <Tour
+        open={editorGuideOpen}
+        onClose={() => {
+          localStorage.setItem(EDITOR_GUIDE_KEY, '1');
+          setEditorGuideOpen(false);
+        }}
+        steps={[
+          {
+            title: t('onboarding.editorGuide.leftPanel'),
+            description: t('onboarding.editorGuide.leftPanel'),
+            target: () => guideRefLeftPanel.current!,
+          },
+          {
+            title: t('onboarding.editorGuide.canvas'),
+            description: t('onboarding.editorGuide.canvas'),
+            target: () => guideRefCanvas.current!,
+          },
+          {
+            title: t('onboarding.editorGuide.rightPanel'),
+            description: t('onboarding.editorGuide.rightPanel'),
+            target: () => guideRefRightPanel.current!,
+          },
+          {
+            title: t('onboarding.editorGuide.aiPanel'),
+            description: t('onboarding.editorGuide.aiPanel'),
+            target: () => guideRefAIPanel.current!,
+          },
+        ]}
+      />
     </div>
   );
 }

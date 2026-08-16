@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { EditorPage, EditorWidget, EditorTheme, WidgetBase } from '../types';
-import type { ThemeMeta, PageDefinition, WidgetDefinition } from '../../../types/theme';
+import type { ThemeMeta, PageDefinition, WidgetDefinition, ThemeVersion } from '../../../types/theme';
 
 function genId(p: string): string {
   return `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -131,6 +131,13 @@ export interface EditorState {
   // 供 AI 调用：初始化历史（清空栈），压入快照
   resetHistory: (initial: EditorTheme) => void;
 
+  // 版本历史
+  versionHistory: ThemeVersion[];
+  currentVersionIdx: number;
+  saveVersion: (changelog?: string) => void;
+  rollbackToVersion: (idx: number) => void;
+  loadVersionHistory: (themeId: string) => void;
+
   addPage: (label: string, layoutMode: 'grid' | 'free') => void;
   addPageFromTemplate: (page: EditorPage) => void;
   removePage: (idx: number) => void;
@@ -158,13 +165,27 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   theme: EMPTY, activePageIdx: 0, selectedWidgetId: null,
   orientation: 'landscape', zoom: 100, saving: false, exporting: false, snapX: false, snapY: false,
   undoStack: [], redoStack: [], canUndo: false, canRedo: false,
+  versionHistory: [], currentVersionIdx: -1,
 
-  loadTheme: (t) => set({ theme: themeToEditor(t), activePageIdx: 0, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false }),
-  replaceTheme: (t) => set({ theme: t, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false }),
-  initNewTheme: () => set({
-    theme: { id: genId('theme'), name: '新主题包', version: '1.0.0', author: '', description: '', source: 'local', pages: [{ ...EMPTY.pages[0], id: genId('page') }] },
-    activePageIdx: 0, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false,
-  }),
+  loadTheme: (t) => {
+    const themeId = t.id;
+    set({ theme: themeToEditor(t), activePageIdx: 0, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false });
+    // 加载版本历史
+    get().loadVersionHistory(themeId);
+  },
+  replaceTheme: (t) => {
+    const themeId = t.id;
+    set({ theme: t, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false });
+    get().loadVersionHistory(themeId);
+  },
+  initNewTheme: () => {
+    const newTheme = { id: genId('theme'), name: '新主题包', version: '1.0.0', author: '', description: '', source: 'local', pages: [{ ...EMPTY.pages[0], id: genId('page') }] };
+    set({
+      theme: newTheme,
+      activePageIdx: 0, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false,
+      versionHistory: [], currentVersionIdx: -1,
+    });
+  },
   setActivePage: (idx) => set({ activePageIdx: idx, selectedWidgetId: null }),
   selectWidget: (id) => set({ selectedWidgetId: id }),
   toggleOrientation: () => set(s => ({ orientation: s.orientation === 'portrait' ? 'landscape' : 'portrait' })),
@@ -203,6 +224,58 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   clearHistory: () => set({ undoStack: [], redoStack: [], canUndo: false, canRedo: false }),
   resetHistory: (initial) => set({ theme: initial, undoStack: [], redoStack: [], canUndo: false, canRedo: false }),
+
+  // ─── 版本历史 ───────────────────────────────────────────
+
+  saveVersion: (changelog?) => {
+    const s = get();
+    const meta = editorToThemeMeta(s.theme);
+    const ver: ThemeVersion = {
+      version: meta.version || '1.0.0',
+      timestamp: new Date().toISOString(),
+      changelog,
+      snapshot: JSON.parse(JSON.stringify(meta)),
+    };
+    const history = [...s.versionHistory, ver].slice(-20);
+    const idx = history.length - 1;
+    set({ versionHistory: history, currentVersionIdx: idx });
+    // 持久化到 localStorage
+    if (s.theme.id) {
+      localStorage.setItem(`ilinkcat_version_history_${s.theme.id}`, JSON.stringify(history));
+    }
+  },
+  rollbackToVersion: (idx) => {
+    const s = get();
+    const hist = s.versionHistory;
+    if (idx < 0 || idx >= hist.length) return;
+    const ver = hist[idx];
+    if (ver) {
+      // 用快照替换编辑器状态
+      const editorTheme = themeToEditor(ver.snapshot);
+      set({
+        theme: editorTheme,
+        selectedWidgetId: null,
+        undoStack: [],
+        redoStack: [],
+        canUndo: false,
+        canRedo: false,
+        currentVersionIdx: idx,
+      });
+    }
+  },
+  loadVersionHistory: (themeId) => {
+    try {
+      const raw = localStorage.getItem(`ilinkcat_version_history_${themeId}`);
+      if (raw) {
+        const history: ThemeVersion[] = JSON.parse(raw);
+        set({ versionHistory: history, currentVersionIdx: history.length - 1 });
+      } else {
+        set({ versionHistory: [], currentVersionIdx: -1 });
+      }
+    } catch {
+      set({ versionHistory: [], currentVersionIdx: -1 });
+    }
+  },
 
   addPage: (label, layoutMode) => set(s => {
     const pg: EditorPage = { id: genId('page'), label, layoutMode, columns: 4, rows: 6, widgets: [] };

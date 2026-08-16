@@ -19,6 +19,10 @@ export interface WidgetDefinition {
   freeH: number;
   borderRadius?: number;
   objectFit?: 'cover' | 'contain' | 'fill';
+  /** 联动事件类型 */
+  triggerEvent?: 'switch_page' | 'toggle_widget' | 'update_data' | 'trigger_action';
+  /** 联动目标控件 ID */
+  targetWidgetId?: string;
   [key: string]: unknown;
 }
 
@@ -71,6 +75,13 @@ export interface ThemeSummary {
   source?: string;
   market_id?: string;
   path: string;
+}
+
+export interface ThemeVersion {
+  version: string;
+  timestamp: string;
+  changelog?: string;
+  snapshot: ThemeMeta;
 }
 
 export interface AppConfig {

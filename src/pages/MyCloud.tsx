@@ -5,7 +5,7 @@ import {
   Card, Row, Col, Statistic, Button, Table, Typography, Space, Progress, Modal, Checkbox,
 } from 'antd';
 import {
-  CloudUploadOutlined, DeleteOutlined, DownloadOutlined, AppstoreOutlined,
+  CloudUploadOutlined, DeleteOutlined, DownloadOutlined, AppstoreOutlined, CloudSyncOutlined,
 } from '@ant-design/icons';
 import { cloudApi } from '../api/cloudApi';
 import { useAuthStore } from '../store/authStore';
@@ -115,6 +115,54 @@ export default function MyCloud() {
     } catch (e) { msg.error(String(e)); }
   };
 
+  const handleSyncToDevice = async (item: CloudFile) => {
+    try {
+      // 1. Download cloud backup
+      const resp = await cloudApi.downloadUrl(item.id);
+      if (resp.code !== 200 || !resp.data) {
+        msg.warning(t('cloud.downloadFailed'));
+        return;
+      }
+      const filename = item.originalName || item.fileName;
+      const filePath = await tauriInvoke<string>('download_theme_file', { url: resp.data, filename });
+      await tauriInvoke('import_theme_from_file', { path: filePath });
+
+      // 2. Get connected devices
+      const devices = await tauriInvoke<import('../types/theme').ClientInfo[]>('get_connections');
+      if (devices.length === 0) {
+        msg.warning(t('themes.noDevices'));
+        return;
+      }
+
+      // 3. Scan to find the imported theme ID
+      const themes = await tauriInvoke<import('../types/theme').ThemeSummary[]>('scan_themes');
+      const themeName = (item.originalName || item.fileName).replace(/\.alc$/, '');
+      const theme = themes.find(t => t.name === themeName);
+      if (!theme) {
+        msg.error(t('themes.themeNotFound'));
+        return;
+      }
+
+      // 4. Push to all devices
+      let successCount = 0;
+      for (const device of devices) {
+        try {
+          await tauriInvoke('push_theme_to_device', {
+            themeId: theme.id,
+            clientId: device.client_id,
+            startChunk: 0,
+          });
+          successCount++;
+        } catch (e) {
+          console.error('Failed to sync to device ' + device.device_name, e);
+        }
+      }
+      if (successCount > 0) {
+        msg.success(t('themes.syncSuccess', { count: successCount }));
+      }
+    } catch (e) { msg.error(String(e)); }
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="page-container">
@@ -133,6 +181,7 @@ export default function MyCloud() {
       render: (_: unknown, r: CloudFile) => (
         <Space>
           <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(r)}>{t('cloud.restore')}</Button>
+          <Button size="small" icon={<CloudSyncOutlined />} onClick={() => handleSyncToDevice(r)}>{t('themes.syncToDevice')}</Button>
           <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r.id, r.fileName)}>{t('cloud.delete')}</Button>
         </Space>
       ),
