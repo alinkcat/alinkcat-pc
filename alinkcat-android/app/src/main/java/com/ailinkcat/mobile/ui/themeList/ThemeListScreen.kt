@@ -27,9 +27,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.ailinkcat.mobile.R
@@ -64,7 +67,7 @@ import java.io.File
  * - 连接后显示 PC 同步的主题列表
  * - 支持点击切换、长按删除。
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ThemeListScreen(viewModel: ConnectionViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -74,6 +77,54 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
     var deleteTarget by remember { mutableStateOf<ThemePackage?>(null) }
     var localThemes by remember { mutableStateOf<List<ThemePackage>>(emptyList()) }
     var localLoaded by remember { mutableStateOf(false) }
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    // 页面加载时直接扫描本地已安装的主题（不依赖连接状态）
+    LaunchedEffect(Unit) {
+        val repo = ThemeRepository(context)
+        val metas = withContext(Dispatchers.IO) { repo.loadThemes() }
+        localThemes = if (metas.isNotEmpty()) {
+            metas.mapIndexed { index, meta ->
+                ThemePackage(
+                    themeId = meta.themeId,
+                    name = meta.name,
+                    version = meta.version,
+                    author = "",
+                    pageCount = 1,
+                    coverEmoji = "📦",
+                    coverColor = 0xFF4F6EF7,
+                    isActive = index == 0
+                )
+            }
+        } else {
+            emptyList()
+        }
+        localLoaded = true
+    }
+
+    // 下拉刷新
+    val onRefresh: () -> Unit = {
+        isRefreshing = true
+        if (state.status == ConnectionStatus.Connected) {
+            viewModel.refreshThemePackages()
+        } else {
+            val repo = ThemeRepository(context)
+            val metas = withContext(Dispatchers.IO) { repo.loadThemes() }
+            localThemes = metas.mapIndexed { index, meta ->
+                ThemePackage(
+                    themeId = meta.themeId,
+                    name = meta.name,
+                    version = meta.version,
+                    author = "",
+                    pageCount = 1,
+                    coverEmoji = "📦",
+                    coverColor = 0xFF4F6EF7,
+                    isActive = index == 0
+                )
+            }
+        }
+        isRefreshing = false
+    }
 
     // 页面加载时直接扫描本地已安装的主题（不依赖连接状态）
     LaunchedEffect(Unit) {
@@ -154,17 +205,22 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
             title = stringResource(R.string.no_themes),
             subtitle = stringResource(R.string.no_themes_hint)
         )
-        else -> LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        else -> PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh
         ) {
-            items(displayThemes, key = { it.themeId ?: it.name }) { pkg ->
-                ThemeCard(
-                    pkg = pkg,
-                    onClick = { onThemeClick(pkg) },
-                    onLongClick = { onThemeLongClick(pkg) }
-                )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(displayThemes, key = { it.themeId ?: it.name }) { pkg ->
+                    ThemeCard(
+                        pkg = pkg,
+                        onClick = { onThemeClick(pkg) },
+                        onLongClick = { onThemeLongClick(pkg) }
+                    )
+                }
             }
         }
     }
