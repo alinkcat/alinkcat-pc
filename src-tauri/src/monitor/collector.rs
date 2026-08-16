@@ -47,6 +47,9 @@ impl Collector {
         if sources.contains("disk") {
             snap.disk = self.collect_disk();
         }
+        if sources.contains("battery") {
+            snap.battery = self.collect_battery();
+        }
         if sources.contains("uptime") {
             snap.uptime = self.collect_uptime();
         }
@@ -623,5 +626,85 @@ impl Collector {
             let now = time(std::ptr::null_mut());
             Some((now - boot.tv_sec) as u64)
         }
+    }
+
+
+    // ─── Battery ────────────────────────────────────────────
+
+    #[cfg(target_os = "windows")]
+    fn collect_battery(&self) -> Option<BatteryInfo> {
+        #[repr(C)]
+        struct SYSTEM_POWER_STATUS {
+            ACLineStatus: u8,
+            BatteryFlag: u8,
+            BatteryLifePercent: u8,
+            _reserved: u8,
+            BatteryLifeTime: u32,
+            BatteryFullLifeTime: u32,
+        }
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn GetSystemPowerStatus(lpStatus: *mut SYSTEM_POWER_STATUS) -> i32;
+        }
+        unsafe {
+            let mut status = SYSTEM_POWER_STATUS {
+                ACLineStatus: 255,
+                BatteryFlag: 255,
+                BatteryLifePercent: 255,
+                _reserved: 0,
+                BatteryLifeTime: 0,
+                BatteryFullLifeTime: 0,
+            };
+            if GetSystemPowerStatus(&mut status) == 0 {
+                return None;
+            }
+            if status.BatteryLifePercent == 255 {
+                return None;
+            }
+            Some(BatteryInfo {
+                level: status.BatteryLifePercent as f64,
+                charging: Some(status.ACLineStatus == 1),
+                temperature: None,
+            })
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn collect_battery(&self) -> Option<BatteryInfo> {
+        let base = std::path::Path::new("/sys/class/power_supply");
+        let mut level: Option<f64> = None;
+        let mut charging: Option<bool> = None;
+        if let Ok(entries) = std::fs::read_dir(base) {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                if !name.starts_with("BAT") {
+                    continue;
+                }
+                let dir = entry.path();
+                let cap_path = dir.join("capacity");
+                if let Ok(cap_str) = std::fs::read_to_string(&cap_path) {
+                    if let Ok(cap) = cap_str.trim().parse::<f64>() {
+                        level = Some(cap);
+                    }
+                }
+                let status_path = dir.join("status");
+                if let Ok(status_str) = std::fs::read_to_string(&status_path) {
+                    let s = status_str.trim();
+                    charging = Some(s == "Charging");
+                }
+                break;
+            }
+        }
+        level.map(|lvl| BatteryInfo {
+            level: lvl,
+            charging,
+            temperature: None,
+        })
+    }
+
+    #[cfg(target_os = "macos")]
+    fn collect_battery(&self) -> Option<BatteryInfo> {
+        None
     }
 }

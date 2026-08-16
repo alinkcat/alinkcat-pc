@@ -26,6 +26,7 @@
     "launcher": "App Launcher",
     "button": "Quick Action",
     "gauge": "Data Gauge",
+    "battery": "Battery",
     "snippet-list": "Snippets",
     "clock": "Clock",
     "date": "Date",
@@ -35,7 +36,8 @@
     "system-monitor": "System Monitor",
     "media-control": "Media Control",
     "webview": "WebView",
-    "image": "Image"
+    "image": "Image",
+    "card": "Info Card"
   },
   "pageManager": {
     "title": "📐 Page Manager",
@@ -131,6 +133,20 @@
       "low": "Low",
       "mid": "Mid",
       "high": "High"
+    },
+    "battery": {
+      "section": "Battery",
+      "style": "Style",
+      "bar": "Bar",
+      "ring": "Ring",
+      "number": "Number",
+      "showLevel": "Show Level",
+      "showCharging": "Show Charging",
+      "showTemp": "Show Temp",
+      "barColor": "Battery Color",
+      "lowColor": "Low Color",
+      "lowThreshold": "Low Threshold",
+      "dataSource": "Data Source"
     },
     "snippet": {
       "section": "Snippets",
@@ -266,7 +282,18 @@
       "format24h": "24-Hour Format",
       "showSeconds": "Show Seconds",
       "showAmpm": "Show AM/PM",
-      "hint": "Shows AM/PM in 12-hour mode. Auto-hidden in 24-hour mode."
+      "hint": "Shows AM/PM in 12-hour mode. Auto-hidden in 24-hour mode.",
+      "clockDisplay": "Display Mode",
+      "digital": "Digital",
+      "analog": "Analog",
+      "tickMarks": "Show Tick Marks",
+      "showNumbers": "Show Numbers",
+      "handStyle": "Hand Style",
+      "classic": "Classic",
+      "modern": "Modern",
+      "thin": "Thin",
+      "faceColor": "Face Color",
+      "handColor": "Hand Color"
     },
     "date": {
       "section": "Date",
@@ -288,6 +315,24 @@
       "week": "Week View",
       "highlightToday": "Highlight Today",
       "hint": "Click any date to view lunar calendar and notes."
+    },
+    "card": {
+      "section": "Info Card",
+      "title": "Title",
+      "titlePlaceholder": "Enter card title",
+      "desc": "Description",
+      "descPlaceholder": "Enter card description",
+      "image": "Image",
+      "upload": "Upload Image",
+      "set": "Set",
+      "imagePosition": "Image Position",
+      "top": "Top",
+      "left": "Left",
+      "right": "Right",
+      "tags": "Tags",
+      "addTag": "Type a tag and press Enter to add",
+      "footer": "Footer",
+      "footerPlaceholder": "Enter footer text"
     },
     "actionConfig": {
       "section": "Click Action",

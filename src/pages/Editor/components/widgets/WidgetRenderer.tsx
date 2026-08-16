@@ -1,6 +1,7 @@
 import type { EditorWidget } from '../../types';
 import ButtonWidget from './ButtonWidget';
 import GaugeWidget from './GaugeWidget';
+import BatteryWidget from './BatteryWidget';
 import StickyNoteWidget from './StickyNoteWidget';
 import ImageWidget from './ImageWidget';
 import TextWidget from './TextWidget';
@@ -13,6 +14,7 @@ import LauncherWidget from './LauncherWidget';
 import ClockWidget from './ClockWidget';
 import DateWidget from './DateWidget';
 import CalendarWidget from './CalendarWidget';
+import CardWidget from './CardWidget';
 
 function hexToRgb(hex: string): [number, number, number] {
   if (hex.startsWith('#') && hex.length >= 7) {
@@ -25,6 +27,7 @@ function renderContent(widget: EditorWidget) {
   switch (widget.type) {
     case 'button': return <ButtonWidget widget={widget} />;
     case 'gauge': return <GaugeWidget widget={widget} />;
+    case 'battery': return <BatteryWidget widget={widget} />;
     case 'snippet-list': return <StickyNoteWidget widget={widget} />;
     case 'image': return <ImageWidget widget={widget} />;
     case 'text': return <TextWidget widget={widget} />;
@@ -37,6 +40,7 @@ function renderContent(widget: EditorWidget) {
     case 'clock': return <ClockWidget widget={widget} />;
     case 'date': return <DateWidget widget={widget} />;
     case 'calendar': return <CalendarWidget widget={widget} />;
+    case 'card': return <CardWidget widget={widget} />;
     default: return <div className="cw-unknown">{widget.label || '?'}</div>;
   }
 }

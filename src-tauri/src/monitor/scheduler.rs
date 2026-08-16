@@ -8,7 +8,7 @@ use super::types::PerfSnapshot;
 use crate::websocket::server::ClientHandle;
 use tokio::task::JoinHandle;
 
-const ALL_SOURCES: &[&str] = &["cpu", "memory", "network", "disk", "uptime"];
+const ALL_SOURCES: &[&str] = &["cpu", "memory", "network", "disk", "uptime", "battery"];
 
 pub struct MonitorScheduler {
     clients: Arc<tokio::sync::Mutex<HashMap<String, ClientHandle>>>,
@@ -96,7 +96,8 @@ let handle = tokio::spawn(async move {
                         "disk": snapshot.disk,
                         "upload": upload,
                         "download": download,
-                        "uptime": snapshot.uptime
+                        "uptime": snapshot.uptime,
+                        "battery": snapshot.battery
                     }
                 });
                 let payload = serde_json::to_string(&msg).unwrap_or_default();

@@ -201,6 +201,19 @@ function WidgetProperties() {
     input.click();
   };
 
+  const handleCardImageUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => up('cardImage', reader.result as string);
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
+
   return (
     <Form layout="vertical" size="small">
       <Form.Item label={t('editor.propertyPanel.widget.type')}><Tag color="blue">{t(`editor.controlLibrary.${widget.type}`) || t('editor.propertyPanel.widget.unknown')}</Tag></Form.Item>
@@ -309,6 +322,47 @@ function WidgetProperties() {
           <div style={{ flex: 1 }}><Text style={{ fontSize: 10, color: '#888' }}>{t('editor.propertyPanel.gauge.mid')}</Text><ColorInput value={(v.ringColorMid as string) || '#faad14'} onChange={val => up('ringColorMid', val)} /></div>
           <div style={{ flex: 1 }}><Text style={{ fontSize: 10, color: '#888' }}>{t('editor.propertyPanel.gauge.high')}</Text><ColorInput value={(v.ringColorHigh as string) || '#ff4d4f'} onChange={val => up('ringColorHigh', val)} /></div>
         </div>
+      </>)}
+
+      {widget.type === 'battery' && (<>
+        <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.battery.section')}</Text>
+        </div>
+        <Form.Item label={t('editor.propertyPanel.battery.style')}>
+          <Select value={(v.batteryStyle as string) || 'bar'} onChange={val => up('batteryStyle', val)}
+            options={[
+              { label: t('editor.propertyPanel.battery.bar'), value: 'bar' },
+              { label: t('editor.propertyPanel.battery.ring'), value: 'ring' },
+              { label: t('editor.propertyPanel.battery.number'), value: 'number' },
+            ]} />
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.battery.showLevel')} valuePropName="checked">
+          <Switch checked={(v.showLevel as boolean) ?? true} onChange={val => up('showLevel', val)} />
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.battery.showCharging')} valuePropName="checked">
+          <Switch checked={(v.showCharging as boolean) ?? true} onChange={val => up('showCharging', val)} />
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.battery.showTemp')} valuePropName="checked">
+          <Switch checked={(v.showTemp as boolean) ?? false} onChange={val => up('showTemp', val)} />
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.battery.barColor')}>
+          <ColorInput value={(v.barColor as string) || '#52c41a'} onChange={val => up('barColor', val)} />
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.battery.lowColor')}>
+          <ColorInput value={(v.lowColor as string) || '#ff4d4f'} onChange={val => up('lowColor', val)} />
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.battery.lowThreshold')}>
+          <Slider min={0} max={50} value={(v.lowThreshold as number) ?? 20} onChange={val => up('lowThreshold', val)} />
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.battery.dataSource')}>
+          <Select value={(v.dataSource as string) || 'system.battery.level'} onChange={val => up('dataSource', val)}
+            options={[
+              { label: 'system.battery.level', value: 'system.battery.level' },
+              { label: t('editor.propertyPanel.gauge.cpuUsage'), value: 'system.cpu.usage' },
+              { label: t('editor.propertyPanel.gauge.memoryUsage'), value: 'system.memory.usage' },
+              { label: t('editor.propertyPanel.gauge.diskUsage'), value: 'system.disk.usage' },
+            ]} />
+        </Form.Item>
       </>)}
 
       {widget.type === 'snippet-list' && (<>
@@ -653,18 +707,51 @@ function WidgetProperties() {
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
           <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.clock.section')}</Text>
         </div>
-        <Form.Item label={t('editor.propertyPanel.clock.format24h')} valuePropName="checked">
-          <Switch checked={(v.format24h as boolean) ?? true} onChange={val => up('format24h', val)} />
+        <Form.Item label={t('editor.propertyPanel.clock.clockDisplay')}>
+          <Select value={(v.clockDisplay as string) || 'digital'} onChange={val => up('clockDisplay', val)}
+            options={[
+              { label: t('editor.propertyPanel.clock.digital'), value: 'digital' },
+              { label: t('editor.propertyPanel.clock.analog'), value: 'analog' },
+            ]} />
         </Form.Item>
-        <Form.Item label={t('editor.propertyPanel.clock.showSeconds')} valuePropName="checked">
-          <Switch checked={(v.showSeconds as boolean) ?? true} onChange={val => up('showSeconds', val)} />
-        </Form.Item>
-        <Form.Item label={t('editor.propertyPanel.clock.showAmpm')} valuePropName="checked">
-          <Switch checked={(v.showAmpm as boolean) ?? true} onChange={val => up('showAmpm', val)} />
-        </Form.Item>
-        <Text style={{ fontSize: 11, color: '#888', display: 'block' }}>
-          {t('editor.propertyPanel.clock.hint')}
-        </Text>
+
+        {(v.clockDisplay as string) === 'digital' && (<>
+          <Form.Item label={t('editor.propertyPanel.clock.format24h')} valuePropName="checked">
+            <Switch checked={(v.format24h as boolean) ?? true} onChange={val => up('format24h', val)} />
+          </Form.Item>
+          <Form.Item label={t('editor.propertyPanel.clock.showSeconds')} valuePropName="checked">
+            <Switch checked={(v.showSeconds as boolean) ?? true} onChange={val => up('showSeconds', val)} />
+          </Form.Item>
+          <Form.Item label={t('editor.propertyPanel.clock.showAmpm')} valuePropName="checked">
+            <Switch checked={(v.showAmpm as boolean) ?? true} onChange={val => up('showAmpm', val)} />
+          </Form.Item>
+          <Text style={{ fontSize: 11, color: '#888', display: 'block' }}>
+            {t('editor.propertyPanel.clock.hint')}
+          </Text>
+        </>)}
+
+        {(v.clockDisplay as string) === 'analog' && (<>
+          <Form.Item label={t('editor.propertyPanel.clock.tickMarks')} valuePropName="checked">
+            <Switch checked={(v.tickMarks as boolean) ?? true} onChange={val => up('tickMarks', val)} />
+          </Form.Item>
+          <Form.Item label={t('editor.propertyPanel.clock.showNumbers')} valuePropName="checked">
+            <Switch checked={(v.showNumbers as boolean) ?? true} onChange={val => up('showNumbers', val)} />
+          </Form.Item>
+          <Form.Item label={t('editor.propertyPanel.clock.handStyle')}>
+            <Select value={(v.handStyle as string) || 'classic'} onChange={val => up('handStyle', val)}
+              options={[
+                { label: t('editor.propertyPanel.clock.classic'), value: 'classic' },
+                { label: t('editor.propertyPanel.clock.modern'), value: 'modern' },
+                { label: t('editor.propertyPanel.clock.thin'), value: 'thin' },
+              ]} />
+          </Form.Item>
+          <Form.Item label={t('editor.propertyPanel.clock.faceColor')}>
+            <ColorInput value={(v.faceColor as string) || '#ffffff'} onChange={val => up('faceColor', val)} />
+          </Form.Item>
+          <Form.Item label={t('editor.propertyPanel.clock.handColor')} style={{ marginBottom: 0 }}>
+            <ColorInput value={(v.handColor as string) || '#333333'} onChange={val => up('handColor', val)} />
+          </Form.Item>
+        </>)}
       </>)}
 
       {widget.type === 'date' && (<>
@@ -710,6 +797,55 @@ function WidgetProperties() {
         <Text style={{ fontSize: 11, color: '#888', display: 'block' }}>
           {t('editor.propertyPanel.calendar.hint')}
         </Text>
+      </>)}
+
+      {widget.type === 'card' && (<>
+        <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
+          <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.card.section')}</Text>
+        </div>
+        <Form.Item label={t('editor.propertyPanel.card.title')}>
+          <Input value={(v.cardTitle as string) || ''} onChange={e => up('cardTitle', e.target.value)} placeholder={t('editor.propertyPanel.card.titlePlaceholder')} />
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.card.desc')}>
+          <Input.TextArea value={(v.cardDesc as string) || ''} onChange={e => up('cardDesc', e.target.value)} rows={3} placeholder={t('editor.propertyPanel.card.descPlaceholder')} />
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.card.image')}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <Button size="small" onClick={handleCardImageUpload}>{t('editor.propertyPanel.card.upload')}</Button>
+            {(v.cardImage as string) && <Tag color="blue">{t('editor.propertyPanel.card.set')}</Tag>}
+          </div>
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.card.imagePosition')}>
+          <Select value={(v.cardImagePosition as string) || 'top'} onChange={val => up('cardImagePosition', val)}
+            options={[
+              { label: t('editor.propertyPanel.card.top'), value: 'top' },
+              { label: t('editor.propertyPanel.card.left'), value: 'left' },
+              { label: t('editor.propertyPanel.card.right'), value: 'right' },
+            ]} />
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.card.tags')}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+            {((v.cardTags as string[]) || []).map((tag, idx) => (
+              <Tag key={idx} closable onClose={() => up('cardTags', ((v.cardTags as string[]) || []).filter((_, i) => i !== idx))}>
+                {tag}
+              </Tag>
+            ))}
+          </div>
+          <Input
+            placeholder={t('editor.propertyPanel.card.addTag')}
+            size="small"
+            onPressEnter={(e) => {
+              const val = (e.target as HTMLInputElement).value.trim();
+              if (val) {
+                up('cardTags', [...((v.cardTags as string[]) || []), val]);
+                (e.target as HTMLInputElement).value = '';
+              }
+            }}
+          />
+        </Form.Item>
+        <Form.Item label={t('editor.propertyPanel.card.footer')}>
+          <Input value={(v.cardFooter as string) || ''} onChange={e => up('cardFooter', e.target.value)} placeholder={t('editor.propertyPanel.card.footerPlaceholder')} />
+        </Form.Item>
       </>)}
       {/* 组件联动配置 - 所有控件通用 */}
       <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
