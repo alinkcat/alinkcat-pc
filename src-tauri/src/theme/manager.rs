@@ -86,7 +86,7 @@ fn validate_theme(meta: &ThemeMeta) -> Result<(), String> {
         }
         for widget in &page.widgets {
             match widget.widget_type.as_str() {
-                "button" | "gauge" | "snippet-list" | "image" | "icon" | "text" | "shape"
+                "button" | "gauge" | "battery" | "card" | "snippet-list" | "image" | "icon" | "text" | "shape"
                 | "webview" | "media-control" | "system-monitor" | "quick-action" | "launcher"
                 | "clock" | "date" | "calendar" => {}
                 other => {
