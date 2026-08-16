@@ -143,7 +143,7 @@ fun WidgetRenderer(
 
         is CalendarWidget -> CalendarWidgetRenderer(widget = widget, widgetData = widgetData)
 
-        is CardWidget -> CardWidgetRenderer(widget = widget)
+        is CardWidget -> CardWidgetRenderer(widget = widget, themeDir = themeDir, themeId = themeId)
 
         is QuickActionWidget -> QuickActionWidgetRenderer(
             widget = widget,

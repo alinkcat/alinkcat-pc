@@ -49,7 +49,8 @@ class ThemeRenderViewModel(
         val mediaState: MediaState = MediaState(),
         val connectionStatus: ConnectionStatus = ConnectionStatus.Idle,
         val showExitConfirm: Boolean = false,
-        val isLandscape: Boolean = true
+        val isLandscape: Boolean = true,
+        val actionError: String? = null
     )
 
     private val _uiState = MutableStateFlow(RenderUiState())
@@ -192,6 +193,13 @@ class ThemeRenderViewModel(
     private fun handleRawMessage(text: String) {
         try {
             val root = JSONObject(text)
+            // 处理 JSON-RPC error 响应（如 launcher.open 失败）
+            if (root.has("error") && root.optJSONObject("error") != null) {
+                val err = root.optJSONObject("error")
+                val msg = err?.optString("message") ?: "操作失败"
+                _uiState.update { it.copy(actionError = msg) }
+                return
+            }
             val method = root.optString("method")
             Log.d("RenderVM", "handleRawMessage: method=$method text=$text")
             when (method) {
@@ -405,6 +413,10 @@ class ThemeRenderViewModel(
 
     fun dismissExitConfirm() {
         _uiState.update { it.copy(showExitConfirm = false) }
+    }
+
+    fun clearActionError() {
+        _uiState.update { it.copy(actionError = null) }
     }
 
     fun retry() {

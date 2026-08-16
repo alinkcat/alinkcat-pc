@@ -34,11 +34,14 @@ import java.io.File
 /**
  * 信息卡片控件：整合文本（标题/描述）+ 配图 + 标签 + 底部辅助文字。
  * 图片位置支持 top / left / right，Use Coil for image loading.
+ * 图片路径解析：data: URI 直接使用，否则相对于 themeDir/themeId 目录。
  * 适配移动端：自适应容器尺寸，文字溢出省略号，标签药丸样式。
  */
 @Composable
 fun CardWidgetRenderer(
-    widget: CardWidget
+    widget: CardWidget,
+    themeDir: File,
+    themeId: String
 ) {
     val bg = ColorParser.withOpacity(
         ColorParser.parse(widget.backgroundColor, Color(0xFFF0F2F5)),
@@ -52,6 +55,14 @@ fun CardWidgetRenderer(
     val tagFontSize = (baseFontSize.value * 0.75f).coerceAtLeast(9f).sp
 
     val hasImage = !widget.cardImage.isNullOrBlank()
+    // 解析图片路径：data: URI 直接使用，否则拼接主题目录
+    val resolvedImage = remember(widget.cardImage) {
+        when {
+            widget.cardImage.isNullOrBlank() -> null
+            widget.cardImage.startsWith("data:") -> widget.cardImage
+            else -> File(themeDir, themeId).resolve(widget.cardImage).toURI().toString()
+        }
+    }
 
     // top layout: column, side layout: row
     val isSide = widget.cardImagePosition == "left" || widget.cardImagePosition == "right"
@@ -69,7 +80,7 @@ fun CardWidgetRenderer(
             ) {
                 if (widget.cardImagePosition == "left") {
                     CardImageSection(
-                        imageUrl = widget.cardImage,
+                        imageUrl = resolvedImage,
                         hasImage = hasImage,
                         isSide = true,
                         modifier = Modifier.weight(0.4f).fillMaxSize()
@@ -99,7 +110,7 @@ fun CardWidgetRenderer(
                         modifier = Modifier.weight(0.6f).fillMaxSize()
                     )
                     CardImageSection(
-                        imageUrl = widget.cardImage,
+                        imageUrl = resolvedImage,
                         hasImage = hasImage,
                         isSide = true,
                         modifier = Modifier.weight(0.4f).fillMaxSize()
@@ -112,7 +123,7 @@ fun CardWidgetRenderer(
                 modifier = Modifier.fillMaxSize()
             ) {
                 CardImageSection(
-                    imageUrl = widget.cardImage,
+                    imageUrl = resolvedImage,
                     hasImage = hasImage,
                     isSide = false,
                     modifier = Modifier.fillMaxWidth().weight(0.5f)

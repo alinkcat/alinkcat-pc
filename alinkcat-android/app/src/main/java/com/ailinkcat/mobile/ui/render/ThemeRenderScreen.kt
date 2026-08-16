@@ -68,6 +68,15 @@ fun ThemeRenderScreen(
     onExit: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // 显示操作错误提示（如启动应用失败）
+    LaunchedEffect(uiState.actionError) {
+        uiState.actionError?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            viewModel.clearActionError()
+        }
+    }
 
     // 进入主题包页面时激活订阅，离开时取消
     LaunchedEffect(Unit) {
