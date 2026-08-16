@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Select, Space, Typography, Button, Progress, Tag, Empty } from 'antd';
-import { MobileOutlined, SendOutlined, ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { MobileOutlined, SendOutlined, ReloadOutlined, PlayCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../utils/tauri';
 import { useThemePush } from '../hooks/useThemePush';
@@ -22,22 +22,64 @@ interface Props {
   onClose: () => void;
 }
 
+function statusLabel(t: ReturnType<typeof useTranslation>['t'], status: string): string {
+  switch (status) {
+    case 'idle': return t('push.status.idle');
+    case 'packing': return t('push.status.packing');
+    case 'awaiting_confirm': return t('push.status.awaiting_confirm');
+    case 'connecting': return t('push.status.connecting');
+    case 'pushing': return t('push.status.pushing');
+    case 'completed': return t('push.status.completed');
+    case 'failed': return t('push.status.failed');
+    case 'cancelled': return t('push.status.cancelled');
+    case 'retrying': return t('push.status.retrying');
+    default: return status;
+  }
+}
+
 export default function PushDialog({ themeId, themeName, themeVersion, open, onClose }: Props) {
   const { t } = useTranslation();
   const [devices, setDevices] = useState<ClientInfo[]>([]);
   const [deviceId, setDeviceId] = useState<string>('');
-  const { state, startPush, resumePush, retryPush, cancelPush, reset } = useThemePush();
+  const { state, startPush, resumePush, retryPush, cancelPush, cancelAutoRetry, reset } = useThemePush();
+  const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (!open) return;
     setDeviceId('');
     reset();
+    startTimeRef.current = 0;
     tauriInvoke<ClientInfo[]>('get_connections').then(setDevices).catch(() => setDevices([]));
   }, [open, reset]);
 
+  // 记录推送开始时间（用于 ETA 计算）
+  useEffect(() => {
+    if (state.status === 'pushing' && state.sentSize > 0 && startTimeRef.current === 0) {
+      startTimeRef.current = Date.now();
+    }
+    if (state.status === 'completed' || state.status === 'failed' || state.status === 'cancelled') {
+      startTimeRef.current = 0;
+    }
+  }, [state.status, state.sentSize]);
+
+  // 计算预计剩余时间（ETA）
+  const etaText = useMemo(() => {
+    if (state.status !== 'pushing' || state.speed <= 0 || state.sentSize <= 0) return null;
+    const remaining = state.totalSize - state.sentSize;
+    const etaSeconds = Math.ceil(remaining / (state.speed * 1024));
+    if (etaSeconds <= 0) return null;
+    if (etaSeconds < 60) {
+      return t('push.dialog.etaSeconds', { s: etaSeconds });
+    }
+    const m = Math.floor(etaSeconds / 60);
+    const s = etaSeconds % 60;
+    return t('push.dialog.etaMinutes', { m, s });
+  }, [state.status, state.speed, state.sentSize, state.totalSize, t]);
+
   const active = state.status === 'pushing' || state.status === 'packing' || state.status === 'awaiting_confirm';
-  const canStart = !!deviceId && !active;
   const failed = state.status === 'failed';
+  const retrying = state.status === 'retrying';
+  const canStart = !!deviceId && !active && !retrying;
   const canResume = failed && state.resumeChunk > 0;
   const interruptedPct = state.totalChunks > 0
     ? Math.round((state.currentChunk / state.totalChunks) * 100)
@@ -52,6 +94,11 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
         <Space>
           {active ? (
             <Button danger onClick={cancelPush}>{t('push.dialog.cancel')}</Button>
+          ) : retrying ? (
+            <>
+              <Button icon={<CloseCircleOutlined />} onClick={cancelAutoRetry}>{t('push.dialog.cancelAutoRetry')}</Button>
+              <Button onClick={onClose}>{t('push.dialog.close')}</Button>
+            </>
           ) : failed ? (
             <>
               {canResume && (
@@ -62,7 +109,10 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
             </>
           ) : (
             <>
-              <Button type="primary" icon={<SendOutlined />} disabled={!canStart} onClick={() => startPush(themeId, deviceId)}>
+              <Button type="primary" icon={<SendOutlined />} disabled={!canStart} onClick={() => {
+                startTimeRef.current = 0;
+                startPush(themeId, deviceId);
+              }}>
                 {t('push.dialog.start')}
               </Button>
               <Button onClick={onClose}>{t('push.dialog.close')}</Button>
@@ -74,7 +124,7 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
       destroyOnHidden
     >
       <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-        {devices.length === 0 ? (
+        {devices.length === 0 && !active && !failed && !retrying ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('push.dialog.needStart')} />
         ) : (
           <div>
@@ -84,6 +134,7 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
               onChange={setDeviceId}
               placeholder={t('push.dialog.noDevice')}
               style={{ width: '100%' }}
+              disabled={active || retrying}
               options={devices.map((d) => ({
                 value: d.client_id,
                 label: (
@@ -101,22 +152,34 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
           <Text strong>{themeName} <Text type="secondary">v{themeVersion}</Text></Text>
         </div>
 
-        {active && state.totalSize > 0 && (
+        {(active || retrying) && state.totalSize > 0 && (
           <div>
             <Text style={{ display: 'block', marginBottom: 6 }}>{t('push.dialog.progress')}</Text>
             <Progress
               percent={Math.round(state.progress)}
-              status={state.status === 'awaiting_confirm' || state.stage === 'start' ? 'normal' : 'active'}
+              status={state.status === 'retrying' ? 'exception' : (state.status === 'awaiting_confirm' || state.stage === 'start' ? 'normal' : 'active')}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
               <Text type="secondary">{t('push.dialog.sent')}: {formatBytes(state.sentSize)} / {formatBytes(state.totalSize)}</Text>
               <Text type="secondary">{t('push.dialog.speed')}: {Math.round(state.speed)} KB/s</Text>
             </div>
+            {/* ETA 显示 */}
+            {etaText && state.status === 'pushing' && (
+              <div style={{ marginTop: 4, fontSize: 12 }}>
+                <Text type="secondary">{t('push.dialog.eta')}: {etaText}</Text>
+              </div>
+            )}
             <div style={{ marginTop: 6 }}>
               <Text type="secondary">{t('push.dialog.status')}: </Text>
-              <Tag color={state.status === 'awaiting_confirm' || state.stage === 'start' ? 'warning' : 'processing'}>
-                {t(`push.status.${state.status}`)}
+              <Tag color={state.status === 'retrying' ? 'error' : (state.status === 'awaiting_confirm' || state.stage === 'start' ? 'warning' : 'processing')}>
+                {statusLabel(t, state.status)}
               </Tag>
+              {/* 自动重试提示 */}
+              {state.status === 'retrying' && (
+                <Text type="warning" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+                  {t('push.dialog.autoRetry', { n: state.autoRetryCount, max: 2 })}
+                </Text>
+              )}
             </div>
           </div>
         )}

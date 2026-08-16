@@ -20,6 +20,8 @@ import PageTabs from './components/PageTabs';
 import AIPanel from './components/AIPanel';
 import { useAIStore } from '../../store/aiStore';
 import { PAGE_TEMPLATES, clonePageTemplate } from '../../templates/page-templates';
+import { useAutoSave, getDraft, clearDraft } from '../../hooks/useAutoSave';
+import type { DraftPayload } from '../../hooks/useAutoSave';
 
 const { Text } = Typography;
 
@@ -87,13 +89,25 @@ export default function Editor() {
   const [addPageOpen, setAddPageOpen] = useState(false);
   const [fileMgrOpen, setFileMgrOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [draftModal, setDraftModal] = useState<DraftPayload | null>(null);
   const mousePosRef = useRef({ x: 0, y: 0 });
+
+  // 启用自动保存草稿
+  useAutoSave();
 
   const leftPanel = usePanelResize(110, 'editor-left-w', 80, 200);
   const rightPanel = usePanelResize(260, 'editor-right-w', 200, 400);
 
   useEffect(() => {
+    // 检查是否有本地草稿需要恢复
+    const draft = getDraft();
+
     if (isNew) {
+      if (draft) {
+        // 有草稿，弹出恢复询问
+        setDraftModal(draft);
+        return;
+      }
       if (templateId) {
         const tpl = getTemplateById(templateId);
         if (tpl) {
@@ -115,9 +129,15 @@ export default function Editor() {
           loadTheme(resolved);
           // 加载该主题包的 AI 对话历史
           initAITheme(id);
+          // 主题加载完成后，如果有草稿也弹出询问
+          if (draft) {
+            setDraftModal(draft);
+          }
         })
         .catch(e => message.error(String(e)));
     }
+    // 注意：这里的依赖故意不包含 draft，因为只在挂载时执行一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isNew, templateId, loadTheme, initNewTheme, initAITheme]);
 
   // Ctrl+Z 撤销 AI 执行的操作
@@ -183,6 +203,8 @@ export default function Editor() {
         coverData = null;
       }
       await tauriInvoke('save_theme', { theme: themeMeta, coverPath: null, coverData });
+      // 保存成功，清除本地草稿
+      clearDraft();
       message.success(t('editor.messages.saved'));
     } catch (e) { message.error(String(e)); }
     finally { setSaving(false); }
@@ -262,6 +284,68 @@ export default function Editor() {
 
       <PageTemplateModal open={addPageOpen} onSelect={(pt) => { addPageFromTemplate(clonePageTemplate(pt.page)); setAddPageOpen(false); }} onCancel={() => setAddPageOpen(false)} />
       <ThemeFileManager themeId={theme.id} open={fileMgrOpen} onClose={() => setFileMgrOpen(false)} />
+      {/* 草稿恢复弹窗 */}
+      <Modal
+        title={t('editor.messages.draftRecoverTitle')}
+        open={!!draftModal}
+        onCancel={() => {
+          clearDraft();
+          setDraftModal(null);
+          if (isNew) {
+            if (templateId) {
+              const tpl = getTemplateById(templateId);
+              if (tpl) {
+                const cloned = cloneTemplate(tpl);
+                cloned.id = `theme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+                replaceTheme(cloned);
+              } else {
+                initNewTheme();
+              }
+            } else {
+              initNewTheme();
+            }
+          }
+        }}
+        footer={[
+          <Button key="discard" onClick={() => {
+            clearDraft();
+            setDraftModal(null);
+            if (isNew) {
+              if (templateId) {
+                const tpl = getTemplateById(templateId);
+                if (tpl) {
+                  const cloned = cloneTemplate(tpl);
+                  cloned.id = `theme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+                  replaceTheme(cloned);
+                } else {
+                  initNewTheme();
+                }
+              } else {
+                initNewTheme();
+              }
+            }
+          }}>
+            {t('editor.messages.draftDiscard')}
+          </Button>,
+          <Button key="recover" type="primary" onClick={() => {
+            const draft = draftModal;
+            if (draft) {
+              replaceTheme(draft.theme);
+              useEditorStore.getState().setActivePage(draft.activePageIdx);
+              useEditorStore.getState().setZoom(draft.zoom);
+              if (draft.orientation !== useEditorStore.getState().orientation) {
+                useEditorStore.getState().toggleOrientation();
+              }
+            }
+            clearDraft();
+            setDraftModal(null);
+          }}>
+            {t('editor.messages.draftRecover')}
+          </Button>,
+        ]}
+      >
+        <p>{isNew ? t('editor.messages.draftRecoverNew') : t('editor.messages.draftRecoverExisting')}</p>
+      </Modal>
     </div>
   );
 }

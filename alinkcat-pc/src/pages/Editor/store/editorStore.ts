@@ -1,14 +1,14 @@
 import { create } from 'zustand';
-import type { EditorPage, EditorWidget, EditorTheme } from '../types';
+import type { EditorPage, EditorWidget, EditorTheme, WidgetBase } from '../types';
 import type { ThemeMeta, PageDefinition, WidgetDefinition } from '../../../types/theme';
 
 function genId(p: string): string {
   return `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 }
 
-function makeWidget(type: string, col: number, row: number): EditorWidget {
-  const base: EditorWidget = {
-    id: genId('w'), type: type as EditorWidget['type'], label: '',
+export function makeWidget(type: string, col: number, row: number): EditorWidget {
+  const base: WidgetBase = {
+    id: genId('w'), type, label: '',
     gridCol: col, gridRow: row, gridW: 1, gridH: 1,
     freeX: 10, freeY: 10, freeW: 30, freeH: 15,
     backgroundColor: '#f0f2f5',
@@ -19,30 +19,30 @@ function makeWidget(type: string, col: number, row: number): EditorWidget {
     borderRadius: 6,
   };
   switch (type) {
-    case 'button': return { ...base, icon: '🔘', action: { type: 'keyboard', keys: [] } };
-    case 'gauge': return { ...base, dataSource: 'system.cpu.usage', unit: '%', gaugeStyle: 'ring', minValue: 0, maxValue: 100, ringColorLow: '#52c41a', ringColorMid: '#faad14', ringColorHigh: '#ff4d4f', ringWidth: 3 };
-    case 'snippet-list': return { ...base, snippets: [], backgroundColor: '#fff9e6', mode: 'note' };
-    case 'image': return { ...base, src: '', objectFit: 'cover' };
-    case 'text': return { ...base, content: '双击编辑文字', fontSize: 16, fontWeight: 'normal', color: '#333333', textAlign: 'left', backgroundColor: 'transparent', backgroundOpacity: 0, padding: 4, borderRadius: 0 };
-    case 'shape': return { ...base, shapeType: 'rect', fillType: 'solid', fillColor: '#d9d9d9', gradientStart: '#4F6EF7', gradientEnd: '#52c41a', gradientAngle: 90, borderColor: 'transparent', borderWidth: 0, borderRadius: 0, opacity: 100 };
-    case 'webview': return { ...base, url: '', showScrollbar: true, backgroundColor: '#ffffff', displayMode: 'webpage', rssUrl: '', jsonUrl: '', refreshInterval: 0, titleField: 'title', descField: 'description', timeField: 'pubDate', linkField: 'link', preset: 'none', bilibiliRoomId: '', weatherCity: '', weatherApiKey: '', weatherUnit: 'c' };
-    case 'media-control': return { ...base, label: '音乐控制', displayMode: 'always', showCover: true, showProgress: true };
-    case 'system-monitor': return { ...base, label: '系统监控', showCPU: true, showMemory: true, showDisk: true, showNetwork: true, refreshInterval: 2 };
+    case 'button': return { ...base, icon: '🔘', action: { type: 'keyboard', keys: [] } } as EditorWidget;
+    case 'gauge': return { ...base, dataSource: 'system.cpu.usage', unit: '%', gaugeStyle: 'ring', minValue: 0, maxValue: 100, ringColorLow: '#52c41a', ringColorMid: '#faad14', ringColorHigh: '#ff4d4f', ringWidth: 3 } as EditorWidget;
+    case 'snippet-list': return { ...base, snippets: [], backgroundColor: '#fff9e6', mode: 'note' } as EditorWidget;
+    case 'image': return { ...base, src: '', objectFit: 'cover' } as EditorWidget;
+    case 'text': return { ...base, content: '双击编辑文字', fontSize: 16, fontWeight: 'normal', color: '#333333', textAlign: 'left', backgroundColor: 'transparent', backgroundOpacity: 0, padding: 4, borderRadius: 0 } as EditorWidget;
+    case 'shape': return { ...base, shapeType: 'rect', fillType: 'solid', fillColor: '#d9d9d9', gradientStart: '#4F6EF7', gradientEnd: '#52c41a', gradientAngle: 90, borderColor: 'transparent', borderWidth: 0, borderRadius: 0, opacity: 100 } as EditorWidget;
+    case 'webview': return { ...base, url: '', showScrollbar: true, backgroundColor: '#ffffff', displayMode: 'webpage', rssUrl: '', jsonUrl: '', refreshInterval: 0, titleField: 'title', descField: 'description', timeField: 'pubDate', linkField: 'link', preset: 'none', bilibiliRoomId: '', weatherCity: '', weatherApiKey: '', weatherUnit: 'c' } as EditorWidget;
+    case 'media-control': return { ...base, label: '音乐控制', displayMode: 'always', showCover: true, showProgress: true } as EditorWidget;
+    case 'system-monitor': return { ...base, label: '系统监控', showCPU: true, showMemory: true, showDisk: true, showNetwork: true, refreshInterval: 2 } as EditorWidget;
     case 'quick-action': return { ...base, label: '快捷面板', columns: 2, rows: 2, cells: [
       { type: 'launcher', name: '计算器', path: 'calc' },
       { type: 'launcher', name: '记事本', path: 'notepad' },
       { type: 'snippet', title: '欢迎语', snippets: [{ id: 's1', label: '您好', content: '您好，欢迎咨询！' }] },
       { type: 'snippet', title: '结束语', snippets: [{ id: 's2', label: '感谢', content: '感谢您的咨询！' }] },
-    ] };
-    case 'launcher': return { ...base, label: '应用启动', name: '计算器', path: 'calc', icon: '📱' };
-    case 'clock': return { ...base, label: '时钟', format24h: true, showSeconds: true, showAmpm: true };
-    case 'date': return { ...base, label: '日期', dateFormat: 'YYYY年MM月DD日 星期X', showLunar: true };
-    case 'calendar': return { ...base, label: '日历', viewMode: 'month', highlightToday: true, gridW: 2, gridH: 3 };
-    default: return base;
+    ] } as EditorWidget;
+    case 'launcher': return { ...base, label: '应用启动', name: '计算器', path: 'calc', icon: '📱' } as EditorWidget;
+    case 'clock': return { ...base, label: '时钟', format24h: true, showSeconds: true, showAmpm: true } as EditorWidget;
+    case 'date': return { ...base, label: '日期', dateFormat: 'YYYY年MM月DD日 星期X', showLunar: true } as EditorWidget;
+    case 'calendar': return { ...base, label: '日历', viewMode: 'month', highlightToday: true, gridW: 2, gridH: 3 } as EditorWidget;
+    default: return base as EditorWidget;
   }
 }
 
-function nextFree(widgets: EditorWidget[], cols: number, rows: number): [number, number] {
+export function nextFree(widgets: EditorWidget[], cols: number, rows: number): [number, number] {
   const occ = new Set(widgets.map(w => `${w.gridCol},${w.gridRow}`));
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (!occ.has(`${c},${r}`)) return [c, r];
   return [0, widgets.length % rows];
@@ -70,7 +70,7 @@ export function themeToEditor(t: ThemeMeta): EditorTheme {
         freeW: (w as Record<string, unknown>).freeW as number ?? 30,
         freeH: (w as Record<string, unknown>).freeH as number ?? 15,
         borderRadius: (w as Record<string, unknown>).borderRadius as number | undefined,
-        gaugeStyle: (w as Record<string, unknown>).gaugeStyle as EditorWidget['gaugeStyle'],
+        gaugeStyle: (w as Record<string, unknown>).gaugeStyle as 'ring' | 'number' | 'bar' | undefined,
         ...Object.fromEntries(Object.entries(w).filter(([k]) => !['id','type','label','gridCol','gridRow','gridW','gridH'].includes(k))),
       })),
     })),

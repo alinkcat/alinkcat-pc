@@ -5,10 +5,13 @@ export interface AIInstruction {
     | 'add_page' | 'delete_page' | 'reorder_pages'
     | 'change_layout' | 'set_background'
     | 'set_orientation' | 'set_theme_meta'
-    | 'batch';
+    | 'batch'
+    | 'generate_full_theme';
   pageIndex?: number;
   widget?: Record<string, unknown>;
   params?: Record<string, unknown>;
+  /** 整页生成指令的完整主题 JSON */
+  theme?: Record<string, unknown>;
   executed: boolean;
   confirmed: boolean;
   canceled?: boolean;
