@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { Button, Space, Typography, Modal, Form, Input, Select, Slider, message } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined } from '@ant-design/icons';
@@ -11,6 +11,7 @@ import { usePanelResize } from './hooks/useResize';
 import { generateThemeCover, generateDefaultCover } from '../../utils/coverGenerator';
 import { migrateImagesToAssets } from '../../utils/coverHelper';
 import { resolveThemeImages } from '../../utils/assetHelper';
+import { getTemplateById, cloneTemplate } from '../../templates';
 import type { ThemeMeta } from '../../types/theme';
 import ControlLibrary from './components/ControlLibrary';
 import PreviewArea from './components/PreviewArea';
@@ -47,10 +48,12 @@ function AddPageModal({ open, onOk, onCancel }: {
 export default function Editor() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isNew = !id || id === 'new';
+  const templateId = searchParams.get('template');
 
-  const { theme, orientation, zoom, saving, exporting, loadTheme, initNewTheme, toggleOrientation, setZoom, setSaving, setExporting, addPage, addWidgetAt } = useEditorStore();
+  const { theme, orientation, zoom, saving, exporting, loadTheme, replaceTheme, initNewTheme, toggleOrientation, setZoom, setSaving, setExporting, addPage, addWidgetAt } = useEditorStore();
   const initAITheme = useAIStore((s) => s.initTheme);
   const [addPageOpen, setAddPageOpen] = useState(false);
   const [fileMgrOpen, setFileMgrOpen] = useState(false);
@@ -61,8 +64,21 @@ export default function Editor() {
   const rightPanel = usePanelResize(260, 'editor-right-w', 200, 400);
 
   useEffect(() => {
-    if (isNew) initNewTheme();
-    else if (id) {
+    if (isNew) {
+      if (templateId) {
+        const tpl = getTemplateById(templateId);
+        if (tpl) {
+          const cloned = cloneTemplate(tpl);
+          // 生成新 ID 防止冲突
+          cloned.id = `theme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+          replaceTheme(cloned);
+        } else {
+          initNewTheme();
+        }
+      } else {
+        initNewTheme();
+      }
+    } else if (id) {
       tauriInvoke<ThemeMeta>('load_theme', { id })
         .then(async (meta) => {
           // 将相对图片路径解析为 data URL，确保背景图/控件图正常显示
@@ -73,7 +89,7 @@ export default function Editor() {
         })
         .catch(e => message.error(String(e)));
     }
-  }, [id, isNew, loadTheme, initNewTheme, initAITheme]);
+  }, [id, isNew, templateId, loadTheme, initNewTheme, initAITheme]);
 
   // Ctrl+Z 撤销 AI 执行的操作
   useEffect(() => {

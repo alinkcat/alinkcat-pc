@@ -49,5 +49,16 @@
   "sourceLocal": "本地",
   "sourceDownloaded": "已下载",
   "downloadedAt": "下载于 {{date}}",
-  "pages": "{{count}} 个页面"
+  "pages": "{{count}} 个页面",
+  "templates": {
+    "title": "从模板开始",
+    "subtitle": "选择一个模板快速开始，也可以先空白主题",
+    "category": {
+      "monitor": "系统监控",
+      "clock": "时钟",
+      "weather": "天气",
+      "media": "媒体",
+      "blank": "空白"
+    }
+  }
 }
