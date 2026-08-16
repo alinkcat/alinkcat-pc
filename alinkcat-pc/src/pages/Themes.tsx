@@ -35,6 +35,7 @@ import {
   ImportOutlined,
 } from '@ant-design/icons';
 import { useDownloadStore } from '../store/downloadStore';
+import TemplatePicker from '../components/TemplatePicker';
 import type { ThemeSummary } from '../types/theme';
 
 const { Text } = Typography;
@@ -52,6 +53,7 @@ export default function Themes() {
   const [view, setView] = useState<'card' | 'table'>(() => localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'card');
   const [category, setCategory] = useState<ThemeCategory>('all');
   const [pushTarget, setPushTarget] = useState<ThemeSummary | null>(null);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const { queue, importTheme, importAll, remove, importing: queueImporting } = useDownloadStore();
 
   const fetchData = useCallback(async () => {
@@ -183,7 +185,7 @@ export default function Themes() {
           </Button>
           <Button
             icon={<PlusOutlined />}
-            onClick={() => navigate('/themes/edit/new')}
+            onClick={() => setTemplateOpen(true)}
           >
             {t('themes.newTheme')}
           </Button>
@@ -368,6 +370,12 @@ export default function Themes() {
         themeVersion={pushTarget?.version ?? ''}
         open={!!pushTarget}
         onClose={() => setPushTarget(null)}
+      />
+
+      {/* 从模板新建 */}
+      <TemplatePicker
+        open={templateOpen}
+        onClose={() => setTemplateOpen(false)}
       />
     </div>
   );

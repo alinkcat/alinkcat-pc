@@ -49,5 +49,16 @@
   "sourceLocal": "Local",
   "sourceDownloaded": "Downloaded",
   "downloadedAt": "Downloaded at {{date}}",
-  "pages": "{{count}} pages"
+  "pages": "{{count}} pages",
+  "templates": {
+    "title": "Start from a Template",
+    "subtitle": "Choose a template to get started quickly, or start with a blank theme",
+    "category": {
+      "monitor": "System Monitor",
+      "clock": "Clock",
+      "weather": "Weather",
+      "media": "Media",
+      "blank": "Blank"
+    }
+  }
 }
