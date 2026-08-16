@@ -50,7 +50,12 @@
   "errorBoundary": {
     "title": "Something went wrong",
     "unknownError": "Unknown error, please refresh and try again",
-    "refresh": "Refresh Page"
+    "refresh": "Refresh Page",
+    "copyError": "Copy Error",
+    "exportLogs": "Export Logs",
+    "copied": "Copied",
+    "exported": "Logs exported",
+    "copyFailed": "Copy failed"
   },
   "oauth": {
     "authorizeFailed": "Authorization Failed",

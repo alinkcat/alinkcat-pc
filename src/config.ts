@@ -25,7 +25,7 @@ export const config = {
   wsPort: 9527,
 };
 
-export const APP_VERSION = '0.1.0-beta';
+export const APP_VERSION = '0.1.1';
 
 export const devConfig = {
   get enabled() { return loadDevMode(); },
