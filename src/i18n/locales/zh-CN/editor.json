@@ -1,5 +1,7 @@
 {
   "toolbar": {
+    "undo": "撤销",
+    "redo": "重做",
     "back": "返回",
     "newTheme": "新建主题包",
     "editing": "编辑: {{name}}",

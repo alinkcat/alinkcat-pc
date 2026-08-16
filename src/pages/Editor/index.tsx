@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { Button, Space, Typography, Modal, Row, Col, Card, Slider, message } from 'antd';
-import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined, UndoOutlined, RedoOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../../utils/tauri';
 import ThemeFileManager from '../../components/ThemeFileManager';
@@ -84,7 +84,7 @@ export default function Editor() {
   const isNew = !id || id === 'new';
   const templateId = searchParams.get('template');
 
-  const { theme, orientation, zoom, saving, exporting, loadTheme, replaceTheme, initNewTheme, toggleOrientation, setZoom, setSaving, setExporting, addPage, addPageFromTemplate, addWidgetAt } = useEditorStore();
+  const { theme, orientation, zoom, saving, exporting, loadTheme, replaceTheme, initNewTheme, toggleOrientation, setZoom, setSaving, setExporting, addPage, addPageFromTemplate, addWidgetAt, undo, redo, canUndo, canRedo } = useEditorStore();
   const initAITheme = useAIStore((s) => s.initTheme);
   const [addPageOpen, setAddPageOpen] = useState(false);
   const [fileMgrOpen, setFileMgrOpen] = useState(false);
@@ -140,12 +140,32 @@ export default function Editor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isNew, templateId, loadTheme, initNewTheme, initAITheme]);
 
-  // Ctrl+Z 撤销 AI 执行的操作
+  // Ctrl+Z 撤销 / Ctrl+Y Ctrl+Shift+Z 重做
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        const restored = useAIStore.getState().restoreLastSnapshot();
-        if (restored) e.preventDefault();
+      const editor = useEditorStore.getState();
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        // 撤销：优先编辑器历史
+        if (editor.canUndo) {
+          editor.undo();
+          e.preventDefault();
+        } else {
+          // 回退到 AI 快照
+          const restored = useAIStore.getState().restoreLastSnapshot();
+          if (restored) e.preventDefault();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        // 重做
+        if (editor.canRedo) {
+          editor.redo();
+          e.preventDefault();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
+        // Ctrl+Shift+Z 也是重做
+        if (editor.canRedo) {
+          editor.redo();
+          e.preventDefault();
+        }
       }
     };
     window.addEventListener('keydown', handler);
@@ -249,6 +269,8 @@ export default function Editor() {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/themes')}>{t('editor.toolbar.back')}</Button>
         <Text strong style={{ fontSize: 14, color: '#e0e0e0' }}>{isNew ? t('editor.toolbar.newTheme') : t('editor.toolbar.editing', { name: theme.name || theme.id })}</Text>
         <Space>
+          <Button size="small" icon={<UndoOutlined />} disabled={!canUndo} onClick={undo} title={t('editor.toolbar.undo')} />
+          <Button size="small" icon={<RedoOutlined />} disabled={!canRedo} onClick={redo} title={t('editor.toolbar.redo')} />
           <Button size="small" icon={orientation === 'portrait' ? <MobileOutlined /> : <TabletOutlined />} onClick={toggleOrientation}>
             {orientation === 'portrait' ? t('editor.toolbar.portrait') : t('editor.toolbar.landscape')}
           </Button>
