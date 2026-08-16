@@ -134,7 +134,7 @@
     <string name="no_notes">暂无便签</string>
 
     <!-- Push Receive / Error Messages -->
-    <string name="push_receive_success">主题包接收成功！</string>
+    <string name="push_receive_success">已从 PC 端同步主题包</string>
     <string name="push_rejected">已拒绝接收</string>
     <string name="push_cancelled">主题包接收已取消</string>
     <string name="receive_failed">接收失败</string>
@@ -166,4 +166,15 @@
 
     <!-- Default Values -->
     <string name="default_device_name">我的 Android</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_connect_title">连接 PC 端</string>
+    <string name="onboarding_connect_desc">扫码连接或输入 IP 地址，轻松与电脑建立连接</string>
+    <string name="onboarding_receive_title">接收主题</string>
+    <string name="onboarding_receive_desc">从 PC 端接收主题包并自动渲染，即收即用</string>
+    <string name="onboarding_start_title">开始使用</string>
+    <string name="onboarding_start_desc">准备好了！点击下方按钮开始体验艾联猫</string>
+    <string name="onboarding_get_started">开始体验</string>
+    <string name="onboarding_next">下一步</string>
+    <string name="onboarding_continue">继续</string>
 </resources>

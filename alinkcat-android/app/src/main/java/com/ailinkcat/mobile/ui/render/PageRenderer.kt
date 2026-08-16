@@ -5,7 +5,10 @@ import android.graphics.BitmapShader
 import android.graphics.Shader
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -34,6 +37,12 @@ import java.io.File
  * 2. tile 平铺模式用 BitmapShader
  * 3. GRID：gridRow/gridCol 精确定位 + 自动填充
  *    FREE：百分比坐标 / 设计像素坐标等比缩放
+ * 4. isLandscape 参数用于横竖屏适配，传递给子布局组件
+ *
+ * 安全区域：
+ * - 背景层保持整屏边缘到边延伸，视觉连续
+ * - 控件层应用 WindowInsets.safeDrawing（状态栏 + 导航栏 + 刘海/挖孔），
+ *   保证主题内容不被刘海/挖孔遮挡
  */
 @Composable
 fun PageRenderer(
@@ -42,6 +51,7 @@ fun PageRenderer(
     themeDir: File,
     widgetData: Map<String, Float>,
     mediaState: MediaState,
+    isLandscape: Boolean = true,
     onButtonClick: (String, Action) -> Unit,
     onSnippetClick: (String) -> Unit
 ) {
@@ -107,30 +117,37 @@ fun PageRenderer(
             )
         }
 
-        // ── 控件层 ──────────────────────────────────────────
+        // ── 控件层（预留安全区域，避免被刘海/挖孔遮挡） ──────
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+        ) {
+            when (page.layoutMode) {
+                LayoutMode.GRID -> GridLayout(
+                    columns = (page.columns ?: 4).coerceIn(1, 12),
+                    rows = page.rows,
+                    widgets = page.widgets,
+                    themeId = themeId,
+                    themeDir = themeDir,
+                    widgetData = widgetData,
+                    mediaState = mediaState,
+                    isLandscape = isLandscape,
+                    onButtonClick = onButtonClick,
+                    onSnippetClick = onSnippetClick
+                )
 
-        when (page.layoutMode) {
-            LayoutMode.GRID -> GridLayout(
-                columns = (page.columns ?: 4).coerceIn(1, 12),
-                rows = page.rows,
-                widgets = page.widgets,
-                themeId = themeId,
-                themeDir = themeDir,
-                widgetData = widgetData,
-                mediaState = mediaState,
-                onButtonClick = onButtonClick,
-                onSnippetClick = onSnippetClick
-            )
-
-            LayoutMode.FREE -> FreeLayout(
-                widgets = page.widgets,
-                themeId = themeId,
-                themeDir = themeDir,
-                widgetData = widgetData,
-                mediaState = mediaState,
-                onButtonClick = onButtonClick,
-                onSnippetClick = onSnippetClick
-            )
+                LayoutMode.FREE -> FreeLayout(
+                    widgets = page.widgets,
+                    themeId = themeId,
+                    themeDir = themeDir,
+                    widgetData = widgetData,
+                    mediaState = mediaState,
+                    isLandscape = isLandscape,
+                    onButtonClick = onButtonClick,
+                    onSnippetClick = onSnippetClick
+                )
+            }
         }
     }
 }

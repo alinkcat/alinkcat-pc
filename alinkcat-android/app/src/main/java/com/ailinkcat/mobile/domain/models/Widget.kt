@@ -226,7 +226,8 @@ data class ImageWidget(
     override val layout: WidgetLayout,
     val imagePath: String?,
     val scaleMode: String?, // cover / contain / stretch
-    val borderRadius: Int?
+    val borderRadius: Int?,
+    val clickAction: Action? = null
 ) : Widget() {
     companion object {
         fun fromJson(json: JSONObject, layout: WidgetLayout): ImageWidget? = try {
@@ -236,7 +237,13 @@ data class ImageWidget(
                 imagePath = json.optString("imagePath").ifBlank { null },
                 scaleMode = json.optString("scaleMode").ifBlank { null }
                     ?: json.optString("objectFit").ifBlank { null },
-                borderRadius = json.optInt("borderRadius", -1).takeIf { it >= 0 }
+                borderRadius = json.optInt("borderRadius", -1).takeIf { it >= 0 },
+                clickAction = json.optJSONObject("clickAction")?.let {
+                    Action(
+                        type = it.optString("type", "click"),
+                        content = it.optString("content").ifBlank { null }
+                    )
+                }
             )
         } catch (_: Exception) {
             null
@@ -252,7 +259,8 @@ data class TextWidget(
     val fontSize: Int?,
     val textColor: String?,
     val fontWeight: String?,
-    val textAlign: String? // start / center / end
+    val textAlign: String?, // start / center / end
+    val clickAction: Action? = null
 ) : Widget() {
     companion object {
         fun fromJson(json: JSONObject, layout: WidgetLayout): TextWidget? = try {
@@ -263,7 +271,13 @@ data class TextWidget(
                 fontSize = json.optInt("fontSize", -1).takeIf { it > 0 },
                 textColor = json.optString("textColor").ifBlank { null },
                 fontWeight = json.optString("fontWeight").ifBlank { null },
-                textAlign = json.optString("textAlign").ifBlank { null }
+                textAlign = json.optString("textAlign").ifBlank { null },
+                clickAction = json.optJSONObject("clickAction")?.let {
+                    Action(
+                        type = it.optString("type", "click"),
+                        content = it.optString("content").ifBlank { null }
+                    )
+                }
             )
         } catch (_: Exception) {
             null
@@ -367,7 +381,8 @@ data class SystemMonitorWidget(
     val showCpu: Boolean,
     val showMemory: Boolean,
     val showDisk: Boolean,
-    val showNetwork: Boolean
+    val showNetwork: Boolean,
+    val clickAction: Action? = null
 ) : Widget() {
     companion object {
         fun fromJson(json: JSONObject, layout: WidgetLayout): SystemMonitorWidget? = try {
@@ -379,7 +394,13 @@ data class SystemMonitorWidget(
                 showCpu = props?.optBoolean("showCpu", true) ?: true,
                 showMemory = props?.optBoolean("showMemory", true) ?: true,
                 showDisk = props?.optBoolean("showDisk", true) ?: true,
-                showNetwork = props?.optBoolean("showNetwork", true) ?: true
+                showNetwork = props?.optBoolean("showNetwork", true) ?: true,
+                clickAction = json.optJSONObject("clickAction")?.let {
+                    Action(
+                        type = it.optString("type", "click"),
+                        content = it.optString("content").ifBlank { null }
+                    )
+                }
             )
         } catch (_: Exception) {
             null

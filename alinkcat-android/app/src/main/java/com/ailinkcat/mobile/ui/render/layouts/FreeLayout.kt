@@ -18,10 +18,15 @@ import java.io.File
 /**
  * 自由布局：
  * 1. PC 端字段 freeX/freeY/freeW/freeH：百分比 (0-100)，直接按父容器百分比定位。
- * 2. 兼容字段 x/y/width/height：设计像素坐标，按设计基准分辨率等比缩放：
- *    scaleX = actualWidth / DESIGN_WIDTH，scaleY = actualHeight / DESIGN_HEIGHT
- *    x = widget.x * scaleX，y = widget.y * scaleY，
- *    width = widget.width * scaleX，height = widget.height * scaleY。
+ * 2. 兼容字段 x/y/width/height：设计像素坐标，按设计基准分辨率等比缩放。
+ *
+ * 横竖屏适配：
+ * - 百分比坐标已天然适配屏幕比例（freeX = parentWidth * x / 100）。
+ * - 设计像素坐标使用【统一缩放系数】= min(scaleX, scaleY)：
+ *   保证整个设计画布内容完整可见、控件保持宽高比，不会因 scaleX != scaleY
+ *   在横竖屏切换时被拉伸变形。
+ * - 设计画布在屏幕上居中对齐：当画布尺寸小于屏幕时（竖屏显示横屏画布），
+ *   自动在空白侧留白居中，实现"整体容纳、居中展示"，组件相对位置不跑偏。
  */
 @Composable
 fun FreeLayout(
@@ -30,6 +35,7 @@ fun FreeLayout(
     themeDir: File,
     widgetData: Map<String, Float>,
     mediaState: MediaState,
+    isLandscape: Boolean = true,
     onButtonClick: (String, Action) -> Unit,
     onSnippetClick: (String) -> Unit
 ) {
@@ -39,9 +45,23 @@ fun FreeLayout(
         val parentWidth = maxWidth
         val parentHeight = maxHeight
 
-        // 设计基准缩放系数
+        // 设计基准缩放：分别按宽、高计算，最终取较小者，保证等比不变形
         val scaleX = parentWidth.value / DesignCanvas.DESIGN_WIDTH
         val scaleY = parentHeight.value / DesignCanvas.DESIGN_HEIGHT
+        val uniformScale = minOf(scaleX, scaleY)
+
+        // 设计画布换算到屏幕后的实际尺寸
+        val canvasWidthPx = DesignCanvas.DESIGN_WIDTH * uniformScale
+        val canvasHeightPx = DesignCanvas.DESIGN_HEIGHT * uniformScale
+
+        // 画布在屏幕上的居中偏移（竖屏/宽屏时自动居中）
+        val xPadding = if (parentWidth.value > canvasWidthPx) {
+            (parentWidth.value - canvasWidthPx) / 2f
+        } else 0f
+        val yPadding = if (parentHeight.value > canvasHeightPx) {
+            (parentHeight.value - canvasHeightPx) / 2f
+        } else 0f
+        val baseOffset = xPadding.dp to yPadding.dp
 
         widgets.forEach { widget ->
             val layout = widget.layout
@@ -54,17 +74,17 @@ fun FreeLayout(
             if (layout.freeX != null || layout.freeY != null ||
                 layout.freeW != null || layout.freeH != null
             ) {
-                // PC 百分比坐标 (0-100)
+                // PC 百分比坐标 (0-100)：天然适配屏幕比例，无需缩放
                 xOffset = parentWidth * ((layout.freeX ?: 0f) / 100f)
                 yOffset = parentHeight * ((layout.freeY ?: 0f) / 100f)
                 wSize = parentWidth * ((layout.freeW ?: 20f) / 100f)
                 hSize = parentHeight * ((layout.freeH ?: 20f) / 100f)
             } else {
-                // 设计像素坐标：按实际/设计基准等比缩放
-                xOffset = ((layout.x ?: 0f) * scaleX).dp
-                yOffset = ((layout.y ?: 0f) * scaleY).dp
-                wSize = ((layout.width ?: 0f) * scaleX).dp
-                hSize = ((layout.height ?: 0f) * scaleY).dp
+                // 设计像素坐标：统一缩放 + 画布居中，横竖屏均不变形、不跑偏
+                xOffset = baseOffset.first + ((layout.x ?: 0f) * uniformScale).dp
+                yOffset = baseOffset.second + ((layout.y ?: 0f) * uniformScale).dp
+                wSize = ((layout.width ?: 0f) * uniformScale).dp
+                hSize = ((layout.height ?: 0f) * uniformScale).dp
             }
 
             Box(

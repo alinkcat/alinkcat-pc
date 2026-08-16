@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ailinkcat.mobile.R
+import com.ailinkcat.mobile.domain.models.Action
 import com.ailinkcat.mobile.domain.models.SystemMonitorWidget
 import com.ailinkcat.mobile.ui.theme.ErrorRed
 import com.ailinkcat.mobile.ui.theme.SuccessGreen
@@ -42,11 +44,14 @@ import com.ailinkcat.mobile.utils.FileUtils
 @Composable
 fun SystemMonitorWidgetRenderer(
     widget: SystemMonitorWidget,
-    widgetData: Map<String, Float>
+    widgetData: Map<String, Float>,
+    onClick: (Action) -> Unit = {}
 ) {
     // 多键名回退查找：尝试多个可能的键名
     fun v(keys: List<String>): Float? = keys.firstNotNullOfOrNull { widgetData[it] }
 
+    val clickAction = widget.clickAction
+    val hasClick = clickAction != null && clickAction.type != "none"
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -54,6 +59,7 @@ fun SystemMonitorWidgetRenderer(
             .clip(RoundedCornerShape(14.dp))
             .background(Color(0xCC1A1A2E))
             .padding(10.dp)
+            .then(if (hasClick) Modifier.clickable { onClick(clickAction!!) } else Modifier)
     ) {
         Column(
             modifier = Modifier

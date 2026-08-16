@@ -48,7 +48,8 @@ class ThemeRenderViewModel(
         val widgetData: Map<String, Float> = emptyMap(),
         val mediaState: MediaState = MediaState(),
         val connectionStatus: ConnectionStatus = ConnectionStatus.Idle,
-        val showExitConfirm: Boolean = false
+        val showExitConfirm: Boolean = false,
+        val isLandscape: Boolean = true
     )
 
     private val _uiState = MutableStateFlow(RenderUiState())
@@ -271,13 +272,53 @@ class ThemeRenderViewModel(
     }
 
     /**
-     * 控件点击：通过 WebSocket 发送 action.execute 或 media.control / launcher.open。
+     * 控件点击：根据动作类型分发处理。
+     * - switch_page: 切换页面
+     * - toggle_widget: 切换控件可见性
+     * - open_link: 用浏览器打开链接
+     * - system_command: 通过 WebSocket 发送 action.execute
+     * - launcher_open: 启动应用
+     * - media_*: 媒体控制
+     * - 其他: 发送 action.execute RPC 到 PC
      */
     fun executeAction(widgetId: String, action: Action) {
-        if (action.type == "launcher_open") {
-            webSocket.send(JsonRpc.buildRequest("launcher.open",
-                JSONObject().put("id", widgetId), nextId()))
-            return
+        when (action.type) {
+            "switch_page" -> {
+                val pageIdx = action.content?.toIntOrNull()
+                if (pageIdx != null && pageIdx >= 0 && pageIdx < (_uiState.value.theme?.pages?.size ?: 0)) {
+                    _uiState.update { it.copy(currentPageIndex = pageIdx) }
+                }
+                return
+            }
+            "toggle_widget" -> {
+                // 通过 WebSocket 通知 PC 端切换控件可见性
+                val params = JSONObject()
+                    .put("widgetId", action.content ?: widgetId)
+                    .put("action", "toggle_visibility")
+                webSocket.send(JsonRpc.buildRequest("action.execute", params, nextId()))
+                return
+            }
+            "open_link", "url" -> {
+                val url = action.content
+                if (!url.isNullOrBlank()) {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    getApplication<android.app.Application>().startActivity(intent)
+                }
+                return
+            }
+            "system_command", "command" -> {
+                val params = JSONObject()
+                    .put("widgetId", widgetId)
+                    .put("action", action.asJsonValue())
+                webSocket.send(JsonRpc.buildRequest("action.execute", params, nextId()))
+                return
+            }
+            "launcher_open" -> {
+                webSocket.send(JsonRpc.buildRequest("launcher.open",
+                    JSONObject().put("id", widgetId), nextId()))
+                return
+            }
         }
         if (action.type.startsWith("media_")) {
             val mediaAction = when (action.type) {
@@ -294,10 +335,30 @@ class ThemeRenderViewModel(
             webSocket.send(JsonRpc.buildRequest("media.control", params, nextId()))
             return
         }
+        // 默认：发送 action.execute RPC
         val params = JSONObject()
             .put("widgetId", widgetId)
             .put("action", action.asJsonValue())
         webSocket.send(JsonRpc.buildRequest("action.execute", params, nextId()))
+    }
+    
+    /**
+     * 设置当前页面索引（用于 switch_page 联动）。
+     */
+    fun setPage(index: Int) {
+        onPageChanged(index)
+    }
+    
+    /**
+     * 切换指定控件的可见性（用于 toggle_widget 联动）。
+     */
+    fun toggleWidgetVisibility(widgetId: String) {
+        // 通过 WebSocket 通知 PC 端
+        webSocket.send(JsonRpc.buildRequest("action.execute",
+            JSONObject()
+                .put("widgetId", widgetId)
+                .put("action", "toggle_visibility"),
+            nextId()))
     }
 
     /**
@@ -346,6 +407,14 @@ class ThemeRenderViewModel(
         reconnectJob?.cancel()
         webSocket.release()
         super.onCleared()
+    }
+
+    /**
+     * 横竖屏切换时由 Activity 调用，触发状态更新。
+     * 实际的布局重新计算由 Compose BoxWithConstraints 自动完成。
+     */
+    fun onConfigurationChanged(isLandscape: Boolean) {
+        _uiState.update { it.copy(isLandscape = isLandscape) }
     }
 
     companion object {

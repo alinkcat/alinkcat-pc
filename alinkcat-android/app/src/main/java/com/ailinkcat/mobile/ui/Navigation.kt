@@ -1,5 +1,6 @@
 package com.ailinkcat.mobile.ui
 
+import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +26,7 @@ import com.ailinkcat.mobile.ui.dialog.ReceiveConfirmDialog
 import com.ailinkcat.mobile.ui.dialog.ReceiveProgressDialog
 import com.ailinkcat.mobile.ui.login.LoginScreen
 import com.ailinkcat.mobile.ui.main.MainScreen
+import com.ailinkcat.mobile.ui.onboarding.OnboardingScreen
 import com.ailinkcat.mobile.ui.profile.ProfileScreen
 import com.ailinkcat.mobile.ui.render.ThemeRenderActivity
 import com.ailinkcat.mobile.ui.scanner.ScannerScreen
@@ -37,10 +39,13 @@ import kotlinx.coroutines.flow.first
 
 object Routes {
     const val SPLASH = "splash"
+    const val ONBOARDING = "onboarding"
     const val LOGIN = "login"
     const val MAIN = "main"
     const val SCANNER = "scanner"
 }
+
+private const val ONBOARDING_KEY = "onboarding_done"
 
 /**
  * 应用导航图：启动页 -> (登录页 | 主界面) -> 扫码页。
@@ -52,11 +57,14 @@ fun AlinkcatApp(connectionViewModel: ConnectionViewModel) {
     val navController = rememberNavController()
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context.applicationContext) }
+    val sharedPrefs = remember { context.applicationContext.getSharedPreferences("ilinkcat_prefs", Context.MODE_PRIVATE) }
 
     // 启动时读取本地登录状态（已登录则跳过登录页）
     var isLoggedIn by remember { mutableStateOf(false) }
+    var onboardingDone by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) {
         isLoggedIn = tokenManager.isLoggedIn.first()
+        onboardingDone = sharedPrefs.getBoolean(ONBOARDING_KEY, false)
     }
 
     val pushViewModel: PushReceiveViewModel = viewModel(
@@ -95,9 +103,22 @@ fun AlinkcatApp(connectionViewModel: ConnectionViewModel) {
             composable(Routes.SPLASH) {
                 SplashScreen(
                     onFinished = {
-                        // 已登录 -> 主界面；未登录 -> 登录页
-                        navController.navigate(if (isLoggedIn) Routes.MAIN else Routes.LOGIN) {
+                        // 未完成引导 -> 引导页；已登录 -> 主界面；未登录 -> 登录页
+                        val dest = if (!onboardingDone) Routes.ONBOARDING
+                                   else if (isLoggedIn) Routes.MAIN
+                                   else Routes.LOGIN
+                        navController.navigate(dest) {
                             popUpTo(Routes.SPLASH) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            composable(Routes.ONBOARDING) {
+                OnboardingScreen(
+                    onFinished = {
+                        sharedPrefs.edit().putBoolean(ONBOARDING_KEY, true).apply()
+                        navController.navigate(if (isLoggedIn) Routes.MAIN else Routes.LOGIN) {
+                            popUpTo(Routes.ONBOARDING) { inclusive = true }
                         }
                     }
                 )

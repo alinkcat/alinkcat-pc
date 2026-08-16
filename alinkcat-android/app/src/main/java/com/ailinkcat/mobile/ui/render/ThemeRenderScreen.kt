@@ -5,16 +5,23 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -53,7 +59,8 @@ import com.ailinkcat.mobile.ui.theme.WarningOrange
 import java.io.File
 
 /**
- * 主题包渲染主页面：加载 / 错误 / 渲染三态 + 全屏横屏交互。
+ * 主题包渲染主页面：加载 / 错误 / 渲染三态 + 全屏沉浸式交互。
+ * 支持横竖屏自适应和安全区域（刘海屏/挖孔屏）适配。
  */
 @Composable
 fun ThemeRenderScreen(
@@ -138,23 +145,9 @@ private fun RenderContent(
         viewModel.onPageChanged(pagerState.currentPage)
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { index ->
-            theme.pages.getOrNull(index)?.let { page ->
-                PageRenderer(
-                    page = page,
-                    themeId = theme.id,
-                    themeDir = themeDir,
-                    widgetData = uiState.widgetData,
-                    mediaState = uiState.mediaState,
-                    onButtonClick = { widgetId, action -> viewModel.executeAction(widgetId, action) },
-                    onSnippetClick = { content -> viewModel.executeSnippet(content) }
-                )
-            }
-        }
+    // 使用 BoxWithConstraints 检测屏幕方向
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val isLandscape = maxWidth > maxHeight
 
         // 沉浸式隐藏：3 秒无操作自动隐藏顶部控件，点击唤醒，断开常显
         val isConnected = uiState.connectionStatus == ConnectionStatus.Connected
@@ -169,79 +162,111 @@ private fun RenderContent(
             }
         }
 
-        // 透明唤醒条——仅顶部 40dp 区域监听点击，不干扰 HorizontalPager 滑动
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .padding(top = 0.dp)
-                .height(40.dp)
-                .pointerInput(Unit) {
-                    detectTapGestures { wakeControls() }
+        Box(modifier = Modifier.fillMaxSize()) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { index ->
+                theme.pages.getOrNull(index)?.let { page ->
+                    PageRenderer(
+                        page = page,
+                        themeId = theme.id,
+                        themeDir = themeDir,
+                        widgetData = uiState.widgetData,
+                        mediaState = uiState.mediaState,
+                        isLandscape = isLandscape,
+                        onButtonClick = { widgetId, action -> viewModel.executeAction(widgetId, action) },
+                        onSnippetClick = { content -> viewModel.executeSnippet(content) }
+                    )
                 }
-        )
+            }
 
-        // 顶部悬浮控件（渐隐渐显）
-        AnimatedVisibility(
-            visible = showControls || !isConnected,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopStart)
-        ) {
-            // 左上角退出按钮
+            // 透明唤醒条——仅顶部 40dp 区域监听点击，不干扰 HorizontalPager 滑动
             Box(
                 modifier = Modifier
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color.Black.copy(alpha = 0.35f))
-                    .clickable { viewModel.requestExit(); wakeControls() }
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text("✕", color = Color.White, fontSize = 16.sp)
-            }
-        }
-
-        AnimatedVisibility(
-            visible = showControls || !isConnected,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopEnd)
-        ) {
-            // 右上角连接状态
-            Row(
-                modifier = Modifier
-                    .padding(12.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color.Black.copy(alpha = 0.35f))
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val (dotColor, labelRes) = when (uiState.connectionStatus) {
-                    ConnectionStatus.Connected -> SuccessGreen to R.string.connected
-                    ConnectionStatus.Connecting -> WarningOrange to R.string.connecting
-                    ConnectionStatus.Error -> ErrorRed to R.string.connection_failed
-                    else -> IdleGray to R.string.disconnected
-                }
-                Box(
-                    Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(dotColor)
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(labelRes), color = Color.White, fontSize = 12.sp)
-            }
-        }
-
-        // 底部页面指示点
-        if (theme.pages.size > 1) {
-            DotsIndicator(
-                pageCount = theme.pages.size,
-                currentPage = pagerState.currentPage,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 12.dp)
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(40.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures { wakeControls() }
+                    }
             )
+
+            // 顶部悬浮控件（渐隐渐显），通过 safeDrawing insets 避开刘海区域
+            AnimatedVisibility(
+                visible = showControls || !isConnected,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                    )
+            ) {
+                // 左上角退出按钮
+                Box(
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .clickable { viewModel.requestExit(); wakeControls() }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text("✕", color = Color.White, fontSize = 16.sp)
+                }
+            }
+
+            AnimatedVisibility(
+                visible = showControls || !isConnected,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                    )
+            ) {
+                // 右上角连接状态
+                Row(
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val (dotColor, labelRes) = when (uiState.connectionStatus) {
+                        ConnectionStatus.Connected -> SuccessGreen to R.string.connected
+                        ConnectionStatus.Connecting -> WarningOrange to R.string.connecting
+                        ConnectionStatus.Error -> ErrorRed to R.string.connection_failed
+                        else -> IdleGray to R.string.disconnected
+                    }
+                    Box(
+                        Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(dotColor)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(labelRes), color = Color.White, fontSize = 12.sp)
+                }
+            }
+
+            // 底部页面指示点，通过 safeDrawing insets 避开导航栏
+            if (theme.pages.size > 1) {
+                DotsIndicator(
+                    pageCount = theme.pages.size,
+                    currentPage = pagerState.currentPage,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                            )
+                        )
+                        .padding(bottom = 12.dp)
+                )
+            }
         }
     }
 

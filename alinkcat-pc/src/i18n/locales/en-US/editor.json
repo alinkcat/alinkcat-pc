@@ -105,7 +105,10 @@
       "openUrl": "Open URL",
       "keys": "Keys (comma separated)",
       "path": "App Path",
-      "urlLabel": "URL"
+      "urlLabel": "URL",
+      "executeScript": "Execute Script",
+      "switchPage": "Switch Page",
+      "systemCommand": "System Command"
     },
     "gauge": {
       "section": "Data Gauge",
@@ -285,6 +288,39 @@
       "week": "Week View",
       "highlightToday": "Highlight Today",
       "hint": "Click any date to view lunar calendar and notes."
+    },
+    "actionConfig": {
+      "section": "Click Action",
+      "enable": "Enable Click Action",
+      "actionType": "Action Type",
+      "none": "No Action",
+      "openLink": "Open Link",
+      "switchPage": "Switch Page",
+      "systemCommand": "System Command",
+      "executeScript": "Execute Script",
+      "openApp": "Open App",
+      "keyboard": "Keyboard Keys",
+      "url": "URL",
+      "urlPlaceholder": "https://...",
+      "targetPage": "Target Page",
+      "keys": "Keys (comma separated)",
+      "keysPlaceholder": "ctrl,c",
+      "path": "App Path",
+      "pathPlaceholder": "notepad",
+      "script": "Script Content",
+      "scriptPlaceholder": "Script path or command",
+      "command": "Command",
+      "commandPlaceholder": "shutdown /s",
+      "args": "Arguments",
+      "argsPlaceholder": "Comma-separated args",
+      "linkage": "Widget Linkage",
+      "triggerEvent": "Trigger Event",
+      "targetWidget": "Target Widget",
+      "switch_page": "Switch Page",
+      "toggle_widget": "Show/Hide Widget",
+      "update_data": "Update Data Source",
+      "trigger_action": "Trigger Action",
+      "selectWidget": "Select widget..."
     }
   },
   "statusbar": {
@@ -369,5 +405,13 @@
     "presetClock": "Minimal Clock",
     "presetCyberpunk": "Cyberpunk Style",
     "presetCustom": "Custom..."
+  },
+  "versionHistory": {
+    "title": "Version History",
+    "current": "Current Version",
+    "rollback": "Rollback to this version",
+    "confirmRollback": "Rollback will discard unsaved changes. Continue?",
+    "noHistory": "No version history",
+    "saveVersion": "Save Version"
   }
 }

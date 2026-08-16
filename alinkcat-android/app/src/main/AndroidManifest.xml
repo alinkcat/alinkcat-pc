@@ -40,7 +40,8 @@
             android:name=".ui.render.ThemeRenderActivity"
             android:exported="false"
             android:label="主题包"
-            android:screenOrientation="landscape"
+            android:screenOrientation="fullSensor"
+            android:configChanges="orientation|screenSize|smallestScreenSize"
             android:theme="@style/Theme.Alinkcat.Fullscreen" />
     </application>
 

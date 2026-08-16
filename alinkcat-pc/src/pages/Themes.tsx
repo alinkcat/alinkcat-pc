@@ -30,6 +30,7 @@ import {
   ExportOutlined,
   MobileOutlined,
   CloudUploadOutlined,
+  CloudSyncOutlined,
   AppstoreOutlined,
   UnorderedListOutlined,
   ImportOutlined,
@@ -59,6 +60,7 @@ export default function Themes() {
   const [sharePoster, setSharePoster] = useState<string | null>(null);
   const [shareTheme, setShareTheme] = useState<ThemeSummary | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const { queue, importTheme, importAll, remove, importing: queueImporting } = useDownloadStore();
 
   const fetchData = useCallback(async () => {
@@ -193,6 +195,43 @@ export default function Themes() {
     }
   };
 
+  const handleSyncAll = async (theme: ThemeSummary) => {
+    setSyncing(true);
+    try {
+      const devices = await tauriInvoke<import('../types/theme').ClientInfo[]>('get_connections');
+      if (devices.length === 0) {
+        message.warning(t('themes.noDevices'));
+        return;
+      }
+      let successCount = 0;
+      let errorCount = 0;
+      for (const device of devices) {
+        try {
+          // 向每台已连接设备逐个发起主题包推送（复用现有 push_theme_to_device 协议）
+          await tauriInvoke('push_theme_to_device', {
+            themeId: theme.id,
+            clientId: device.client_id,
+            startChunk: 0,
+          });
+          successCount++;
+        } catch (e) {
+          errorCount++;
+          console.error(`Failed to sync to device ${device.device_name}:`, e);
+        }
+      }
+      if (successCount > 0) {
+        message.success(t('themes.syncSuccess', { count: successCount }));
+      }
+      if (errorCount > 0) {
+        message.warning(t('themes.syncFailed', { count: errorCount }));
+      }
+    } catch (e) {
+      message.error(String(e));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div className="page-container">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
@@ -310,6 +349,7 @@ export default function Themes() {
           onExport={handleExportTheme}
           onDelete={handleDelete}
           onPush={setPushTarget}
+          onSyncAll={handleSyncAll}
         />
       ) : (
         <Row gutter={[16, 16]}>
@@ -371,6 +411,9 @@ export default function Themes() {
                         </Button>
                         <Button size="small" icon={<ShareAltOutlined />} onClick={() => handleShare(theme)}>
                           {t('themes.share')}
+                        </Button>
+                        <Button size="small" icon={<CloudSyncOutlined />} loading={syncing} onClick={() => handleSyncAll(theme)}>
+                          {t('themes.syncAll')}
                         </Button>
                         <Button size="small" icon={<SwapOutlined />} disabled={isActive} onClick={() => handleActivate(theme.id)}>
                           {isActive ? t('themes.activated') : t('themes.activate')}

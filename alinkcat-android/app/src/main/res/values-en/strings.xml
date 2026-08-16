@@ -134,7 +134,7 @@
     <string name="no_notes">No notes</string>
 
     <!-- Push Receive / Error Messages -->
-    <string name="push_receive_success">Theme received successfully!</string>
+    <string name="push_receive_success">Theme synced from PC</string>
     <string name="push_rejected">Rejected</string>
     <string name="push_cancelled">Theme transfer cancelled</string>
     <string name="receive_failed">Receive failed</string>
@@ -166,4 +166,15 @@
 
     <!-- Default Values -->
     <string name="default_device_name">My Android</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_connect_title">Connect to PC</string>
+    <string name="onboarding_connect_desc">Scan QR code or enter IP address to connect with your PC</string>
+    <string name="onboarding_receive_title">Receive Themes</string>
+    <string name="onboarding_receive_desc">Receive theme packages from PC and render them automatically</string>
+    <string name="onboarding_start_title">Get Started</string>
+    <string name="onboarding_start_desc">You\'re all set! Tap the button below to start using iLinkCat</string>
+    <string name="onboarding_get_started">Get Started</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_continue">Continue</string>
 </resources>

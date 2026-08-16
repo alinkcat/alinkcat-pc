@@ -90,10 +90,14 @@ fun WidgetRenderer(
 
         is ImageWidget -> ImageWidgetRenderer(
             widget = widget,
-            baseDir = File(themeDir, themeId)
+            baseDir = File(themeDir, themeId),
+            onClick = { action -> onButtonClick(widget.id, action) }
         )
 
-        is TextWidget -> TextWidgetRenderer(widget)
+        is TextWidget -> TextWidgetRenderer(
+            widget = widget,
+            onClick = { action -> onButtonClick(widget.id, action) }
+        )
 
         is ShapeWidget -> ShapeWidgetRenderer(widget)
 
@@ -110,7 +114,8 @@ fun WidgetRenderer(
 
         is SystemMonitorWidget -> SystemMonitorWidgetRenderer(
             widget = widget,
-            widgetData = widgetData
+            widgetData = widgetData,
+            onClick = { action -> onButtonClick(widget.id, action) }
         )
 
         is LauncherIconWidget -> LauncherIconWidgetRenderer(
