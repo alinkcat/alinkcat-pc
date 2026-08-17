@@ -58,6 +58,8 @@ class ThemeRepository(private val context: Context) {
             .put("version", meta.version)
             .put("hash", meta.hash)
             .put("receivedAt", meta.receivedAt)
+            .put("pageCount", meta.pageCount)
+            .put("coverUrl", meta.coverUrl ?: "")
         File(dir, "meta.json").writeText(json.toString())
     }
 
@@ -75,7 +77,9 @@ class ThemeRepository(private val context: Context) {
                         name = json.optString("name", dir.name),
                         version = json.optString("version", "1.0.0"),
                         hash = json.optString("hash", ""),
-                        receivedAt = json.optLong("receivedAt", 0L)
+                        receivedAt = json.optLong("receivedAt", 0L),
+                        pageCount = json.optInt("pageCount", 1),
+                        coverUrl = json.optString("coverUrl").ifBlank { null }
                     )
                 } catch (_: Exception) {
                     null

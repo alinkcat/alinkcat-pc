@@ -81,26 +81,26 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
     var localLoaded by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
 
+    // 将 ThemeMeta 转为 ThemePackage（使用真实页数和覆盖信息）
+    fun List<ThemeMeta>.toThemePackages(): List<ThemePackage> = mapIndexed { index, meta ->
+        val hasCover = meta.coverUrl != null || File(context.filesDir, "themes/${meta.themeId}/cover.png").exists()
+        ThemePackage(
+            themeId = meta.themeId,
+            name = meta.name,
+            version = meta.version,
+            author = "",
+            pageCount = meta.pageCount,
+            coverEmoji = if (hasCover) "" else "📦",
+            coverColor = 0xFF4F6EF7,
+            isActive = index == 0
+        )
+    }
+
     // 页面加载时直接扫描本地已安装的主题（不依赖连接状态）
     LaunchedEffect(Unit) {
         val repo = ThemeRepository(context)
         val metas = withContext(Dispatchers.IO) { repo.loadThemes() }
-        localThemes = if (metas.isNotEmpty()) {
-            metas.mapIndexed { index, meta ->
-                ThemePackage(
-                    themeId = meta.themeId,
-                    name = meta.name,
-                    version = meta.version,
-                    author = "",
-                    pageCount = 1,
-                    coverEmoji = "📦",
-                    coverColor = 0xFF4F6EF7,
-                    isActive = index == 0
-                )
-            }
-        } else {
-            emptyList()
-        }
+        localThemes = metas.toThemePackages()
         localLoaded = true
     }
 
@@ -114,44 +114,10 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
             } else {
                 val repo = ThemeRepository(context)
                 val metas = withContext(Dispatchers.IO) { repo.loadThemes() }
-                localThemes = metas.mapIndexed { index, meta ->
-                    ThemePackage(
-                        themeId = meta.themeId,
-                        name = meta.name,
-                        version = meta.version,
-                        author = "",
-                        pageCount = 1,
-                        coverEmoji = "📦",
-                        coverColor = 0xFF4F6EF7,
-                        isActive = index == 0
-                    )
-                }
+                localThemes = metas.toThemePackages()
             }
             isRefreshing = false
         }
-    }
-
-    // 页面加载时直接扫描本地已安装的主题（不依赖连接状态）
-    LaunchedEffect(Unit) {
-        val repo = ThemeRepository(context)
-        val metas = withContext(Dispatchers.IO) { repo.loadThemes() }
-        localThemes = if (metas.isNotEmpty()) {
-            metas.mapIndexed { index, meta ->
-                ThemePackage(
-                    themeId = meta.themeId,
-                    name = meta.name,
-                    version = meta.version,
-                    author = "",
-                    pageCount = 1,
-                    coverEmoji = "📦",
-                    coverColor = 0xFF4F6EF7,
-                    isActive = index == 0
-                )
-            }
-        } else {
-            emptyList()
-        }
-        localLoaded = true
     }
 
     // 连接成功后刷新已安装主题包

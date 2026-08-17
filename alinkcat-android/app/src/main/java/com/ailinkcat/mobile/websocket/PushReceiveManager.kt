@@ -491,14 +491,27 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
             return st.copy(status = ReceiveStatus.FAILED, errorMessage = appContext.getString(R.string.unzip_failed))
         }
 
-        // 写入元数据
+        // 写入元数据，读取 theme.json 获取真实页数和封面
+        val pageCount = try {
+            val themeFile = repository.themeFile(st.themeId)
+            if (themeFile.exists()) {
+                val themeJson = JSONObject(themeFile.readText())
+                themeJson.optJSONArray("pages")?.length() ?: 1
+            } else 1
+        } catch (_: Exception) { 1 }
+        val coverUrl = try {
+            val coverFile = repository.getCoverFile(st.themeId)
+            if (coverFile.exists()) coverFile.toURI().toString() else null
+        } catch (_: Exception) { null }
         repository.saveMeta(
             ThemeMeta(
                 themeId = st.themeId,
                 name = st.themeName,
                 version = st.version,
                 hash = expectedHash,
-                receivedAt = System.currentTimeMillis()
+                receivedAt = System.currentTimeMillis(),
+                pageCount = pageCount,
+                coverUrl = coverUrl
             )
         )
         tempFile.delete()

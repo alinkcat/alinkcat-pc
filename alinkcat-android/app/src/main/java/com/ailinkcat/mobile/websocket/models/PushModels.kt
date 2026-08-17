@@ -135,5 +135,7 @@ data class ThemeMeta(
     val name: String,
     val version: String,
     val hash: String,
-    val receivedAt: Long
+    val receivedAt: Long,
+    val pageCount: Int = 1,
+    val coverUrl: String? = null
 )
