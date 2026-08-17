@@ -106,27 +106,16 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         rawListener = { text -> handleMacroMessage(text) }
     )
 
-    init {
-        // 推送确认/拒绝/忙碌响应通过 WebSocket 发送
-        pushReceiveManager.setResponseSender { json -> webSocket.sendResponse(json) }
-        // 远程切换主题
-        webSocket.themeSwitchListener = { themeId ->
-            viewModelScope.launch {
-                if (pushReceiveManager.getInstalledThemes().any { it.themeId == themeId }) {
-                    _themeSwitchEvent.tryEmit(themeId)
-                } else {
-                    refreshThemePackages()
-                }
-            }
-        }
-        // 启动时自动连接（最多重试 3 次，间隔 2 秒）
+    /** 启动时自动连接重试 */
     private var autoRetryCount = 0
+    private var isAutoConnecting = false
 
     private fun autoConnect() {
+        isAutoConnecting = true
+        autoRetryCount = 0
         viewModelScope.launch {
             val cfg = dataStore.config.first()
             if (cfg.ip.isNotBlank() && cfg.port.isNotBlank() && cfg.pairCode.isNotBlank()) {
-                autoRetryCount = 0
                 _state.value = ConnectionState(status = ConnectionStatus.Connecting)
                 webSocket.connect("ws://${cfg.ip}:${cfg.port}", cfg.pairCode, cfg.deviceName, appVersion)
             }
@@ -134,6 +123,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     private fun onAutoConnectFailed() {
+        if (!isAutoConnecting) return
         autoRetryCount++
         if (autoRetryCount < 3) {
             _state.value = ConnectionState(status = ConnectionStatus.Connecting)
@@ -142,6 +132,8 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 val cfg = dataStore.config.first()
                 webSocket.connect("ws://${cfg.ip}:${cfg.port}", cfg.pairCode, cfg.deviceName, appVersion)
             }
+        } else {
+            isAutoConnecting = false
         }
     }
 
@@ -191,6 +183,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         _state.value = ConnectionState(status = ConnectionStatus.Connecting)
+        isAutoConnecting = false
         viewModelScope.launch {
             dataStore.saveConnection(ip, port, pairCode)
             dataStore.saveLastConnected(ip, port)
