@@ -52,15 +52,12 @@ import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
 @Composable
 fun ProfileScreen(
     viewModel: ConnectionViewModel,
-    onOpenThemes: () -> Unit
+    onOpenThemes: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val config by viewModel.savedConfig.collectAsStateWithLifecycle()
     val themes by viewModel.themePackages.collectAsStateWithLifecycle()
-
-    var showClearDialog by remember { mutableStateOf(false) }
-    val uriHandler = LocalUriHandler.current
-    val privacyPolicyUrl = stringResource(R.string.privacy_policy_url)
 
     Column(
         modifier = Modifier
@@ -183,43 +180,15 @@ fun ProfileScreen(
                     Text(stringResource(R.string.theme_management))
                 }
                 OutlinedButton(
-                    onClick = { showClearDialog = true },
+                    onClick = onOpenSettings,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(stringResource(R.string.clear_pairing_info), color = ErrorRed)
-                }
-                OutlinedButton(
-                    onClick = {
-                        uriHandler.openUri(privacyPolicyUrl)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.privacy_policy))
+                    Text(stringResource(R.string.settings_title))
                 }
             }
         }
     }
 
-    if (showClearDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearDialog = false },
-            title = { Text(stringResource(R.string.clear_pairing_info_title)) },
-            text = { Text(stringResource(R.string.clear_pairing_info_confirm)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.clearPairingInfo()
-                    showClearDialog = false
-                }) {
-                    Text(stringResource(R.string.clear))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
 }
 
 @Composable

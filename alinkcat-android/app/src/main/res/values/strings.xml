@@ -182,4 +182,7 @@
     <string name="onboarding_get_started">开始体验</string>
     <string name="onboarding_next">下一步</string>
     <string name="onboarding_continue">继续</string>
+    <string name="settings_title">设置</string>
+    <string name="device_name_label">设备名称</string>
+    <string name="saved">已保存</string>
 </resources>

@@ -22,6 +22,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.ailinkcat.mobile.data.TokenManager
 import com.ailinkcat.mobile.ui.config.ConfigScreen
+import com.ailinkcat.mobile.ui.config.SettingsScreen
 import com.ailinkcat.mobile.ui.dialog.ReceiveConfirmDialog
 import com.ailinkcat.mobile.ui.dialog.ReceiveProgressDialog
 import com.ailinkcat.mobile.ui.login.LoginScreen
@@ -43,6 +44,7 @@ object Routes {
     const val LOGIN = "login"
     const val MAIN = "main"
     const val SCANNER = "scanner"
+    const val SETTINGS = "settings"
 }
 
 private const val ONBOARDING_KEY = "onboarding_done"
@@ -135,7 +137,8 @@ fun AlinkcatApp(connectionViewModel: ConnectionViewModel) {
             composable(Routes.MAIN) {
                 MainScreen(
                     viewModel = connectionViewModel,
-                    onOpenScanner = { navController.navigate(Routes.SCANNER) }
+                    onOpenScanner = { navController.navigate(Routes.SCANNER) },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) }
                 )
             }
             composable(Routes.SCANNER) {
@@ -145,6 +148,12 @@ fun AlinkcatApp(connectionViewModel: ConnectionViewModel) {
                         navController.popBackStack()
                     },
                     onCancel = { navController.popBackStack() }
+                )
+            }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
+                    viewModel = connectionViewModel,
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

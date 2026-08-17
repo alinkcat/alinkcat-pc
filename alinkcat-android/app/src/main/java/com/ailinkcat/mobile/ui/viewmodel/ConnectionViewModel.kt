@@ -23,8 +23,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 
 /**
  * 连接状态管理：WebSocket 连接 + JSON-RPC 握手（配对码验证）+ 配置持久化 + 主题包数据。
@@ -111,8 +113,18 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 if (pushReceiveManager.getInstalledThemes().any { it.themeId == themeId }) {
                     _themeSwitchEvent.tryEmit(themeId)
                 } else {
-                    // 主题不存在，自动触发刷新
                     refreshThemePackages()
+                }
+            }
+        }
+        // 启动时自动连接（最多重试 3 次，间隔 2 秒）
+        viewModelScope.launch {
+            val cfg = dataStore.config.first()
+            if (cfg.ip.isNotBlank() && cfg.port.isNotBlank() && cfg.pairCode.isNotBlank()) {
+                for (attempt in 1..3) {
+                    webSocket.connect("ws://${cfg.ip}:${cfg.port}", cfg.pairCode, cfg.deviceName, appVersion, timeoutMs = 5000)
+                    delay(2000)
+                    if (_state.value.status == ConnectionStatus.Connected) break
                 }
             }
         }
@@ -165,6 +177,12 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     fun clearPairingInfo() {
         viewModelScope.launch {
             dataStore.clearPairingCode()
+        }
+    }
+
+    fun renameDevice(name: String) {
+        viewModelScope.launch {
+            dataStore.saveDeviceName(name)
         }
     }
 

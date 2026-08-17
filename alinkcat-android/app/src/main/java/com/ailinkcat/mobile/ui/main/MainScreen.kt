@@ -55,7 +55,8 @@ enum class MainTab(val labelRes: Int, val emoji: String) {
 @Composable
 fun MainScreen(
     viewModel: ConnectionViewModel,
-    onOpenScanner: () -> Unit
+    onOpenScanner: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(0) }
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -101,7 +102,8 @@ fun MainScreen(
                 )
                 3 -> ProfileScreen(
                     viewModel = viewModel,
-                    onOpenThemes = { selectedTab = 0 }
+                    onOpenThemes = { selectedTab = 0 },
+                    onOpenSettings = onOpenSettings
                 )
             }
         }
