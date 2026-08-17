@@ -84,13 +84,21 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
 
     // 将 ThemeMeta 转为 ThemePackage（使用真实页数和覆盖信息）
     fun List<ThemeMeta>.toThemePackages(): List<ThemePackage> = mapIndexed { index, meta ->
+        // 从 theme.json 读取真实页数（meta.json 可能来自旧版本没有 pageCount）
+        val realPageCount = try {
+            val themeFile = File(context.filesDir, "themes/${meta.themeId}/theme.json")
+            if (themeFile.exists()) {
+                val json = org.json.JSONObject(themeFile.readText())
+                json.optJSONArray("pages")?.length() ?: meta.pageCount
+            } else meta.pageCount
+        } catch (_: Exception) { meta.pageCount }
         val hasCover = meta.coverUrl != null || File(context.filesDir, "themes/${meta.themeId}/cover.png").exists()
         ThemePackage(
             themeId = meta.themeId,
             name = meta.name,
             version = meta.version,
             author = "",
-            pageCount = meta.pageCount,
+            pageCount = realPageCount,
             coverEmoji = if (hasCover) "" else "📦",
             coverColor = 0xFF4F6EF7,
             isActive = index == 0
