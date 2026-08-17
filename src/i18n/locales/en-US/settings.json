@@ -57,5 +57,8 @@
   "dev_pwd_hint": "Contact the developer for an authorized password.",
   "dev_pwd_verify": "Verify",
   "dev_mode_on": "Developer mode enabled",
-  "dev_mode_hint": "Click the title 5 times to unlock"
+  "dev_mode_hint": "Click the title 5 times to unlock",
+  "importLanguage": "Import Language Pack",
+  "languageImported": "Language pack imported: {{label}}",
+  "languageImportFailed": "Failed to import language pack. Check JSON format."
 }

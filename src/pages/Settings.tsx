@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Form,
   InputNumber,
@@ -15,11 +15,10 @@ import {
   Modal,
   App,
 } from 'antd';
-import { SaveOutlined, RobotOutlined, ReloadOutlined, BugOutlined } from '@ant-design/icons';
+import { SaveOutlined, RobotOutlined, ReloadOutlined, BugOutlined, UploadOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useAIStore } from '../store/aiStore';
 import { useI18nStore } from '../i18n/useI18nStore';
-import { LANGUAGES } from '../i18n/languages';
 import { exportEncryptedLogs } from '../utils/errorExport';
 import { getLogs } from '../utils/logger';
 import { devConfig, config as appConfig } from '../config';
@@ -47,11 +46,45 @@ export default function Settings() {
   const [aiForm] = Form.useForm();
   const [saved, setSaved] = useState(loadSettings());
   const { config, updateConfig } = useAIStore();
-  const { lang, changeLang } = useI18nStore();
+  const { lang, changeLang, importLanguage, languages } = useI18nStore();
+  const languageInputRef = useRef<HTMLInputElement>(null);
   const [fetchingAi, setFetchingAi] = useState(false);
   const [devMode, setDevMode] = useState(devConfig.enabled);
   const [devApiUrl, setDevApiUrl] = useState(appConfig.apiBaseUrl);
   const [clickCount, setClickCount] = useState(0);
+
+  const handleImportLanguage = () => {
+    languageInputRef.current?.click();
+  };
+
+  const handleLanguageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const json = JSON.parse(reader.result as string);
+        // 兼容两种格式：{code,label,resources} 或 {code,label,common:{}}
+        const code = json.code || json.locale || json.language;
+        const label = json.label || json.name || code;
+        let resources: Record<string, object> = {};
+        if (json.resources && typeof json.resources === 'object') {
+          resources = json.resources;
+        } else {
+          // 扁平格式：提取所有非 meta 字段作为 common
+          const { code: _c, label: _l, locale: _lo, language: _la, name: _n, ...rest } = json;
+          resources = { common: rest };
+        }
+        if (!code) throw new Error('Missing language code');
+        await importLanguage({ code, label, resources });
+        message.success(t('settings.languageImported', { label }));
+      } catch (err) {
+        message.error(t('settings.languageImportFailed'));
+      }
+    };
+    reader.readAsText(file);
+  };
   const [pwdOpen, setPwdOpen] = useState(false);
   const [pwdInput, setPwdInput] = useState('');
   const [pwdError, setPwdError] = useState('');
@@ -195,13 +228,25 @@ export default function Settings() {
             label={t('settings.language')}
             extra={t('settings.languageDesc')}
           >
-            <Select
-              value={lang}
-              onChange={(value) => changeLang(value)}
-              style={{ width: 200 }}
-              options={LANGUAGES.map((l) => ({ label: l.label, value: l.code }))}
-            />
+            <Space>
+              <Select
+                value={lang}
+                onChange={(value) => changeLang(value)}
+                style={{ width: 200 }}
+                options={languages.map((l) => ({ label: l.label, value: l.code }))}
+              />
+              <Button icon={<UploadOutlined />} onClick={handleImportLanguage}>
+                {t('settings.importLanguage')}
+              </Button>
+            </Space>
           </Form.Item>
+          <input
+            ref={languageInputRef}
+            type="file"
+            accept=".json"
+            style={{ display: 'none' }}
+            onChange={handleLanguageFileChange}
+          />
         </Card>
 
         {/* 端口配置 */}
