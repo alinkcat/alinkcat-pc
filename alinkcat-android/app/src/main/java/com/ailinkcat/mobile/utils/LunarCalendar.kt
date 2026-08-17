@@ -123,6 +123,6 @@ object LunarCalendar {
         val monthName = if (isLeap) "闰${LUNAR_MONTH_NAMES.getOrElse(lunarMonth - 1) { "" }}" else LUNAR_MONTH_NAMES.getOrElse(lunarMonth - 1) { "" }
         val dayName = LUNAR_DAY_NAMES.getOrElse(lunarDay - 1) { "$lunarDay" }
 
-        return "$monthName月$dayName"
+        return "${monthName}月${dayName}"
     }
 }
