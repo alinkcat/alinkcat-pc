@@ -445,7 +445,6 @@ fn extract_and_replace_in_map(
     icons_dir: &Path,
 ) -> Result<(), String> {
     use base64::Engine;
-    use std::hash::{Hash, Hasher};
 
     let val = match extra.get(key) {
         Some(v) if v.is_string() => v.as_str().unwrap().to_string(),
@@ -455,10 +454,13 @@ fn extract_and_replace_in_map(
         return Ok(());
     }
 
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    val.hash(&mut hasher);
-    let hash = format!("{:x}", hasher.finish());
+    let body = val.split(',').nth(1).ok_or("Invalid data URL")?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(body.trim())
+        .map_err(|e| format!("Base64 decode error: {}", e))?;
 
+    // 使用 SHA-256 哈希命名，与 image_service 一致，保证稳定且去重
+    let hash = crate::services::hash_service::sha256_bytes(&bytes);
     let ext = guess_ext_from_data_url(&val);
     let filename = format!("{}{}", hash, ext);
     let subdir = if ext == ".svg" { icons_dir } else { assets_dir };
@@ -466,10 +468,6 @@ fn extract_and_replace_in_map(
 
     if !seen.contains_key(&hash) {
         seen.insert(hash.clone(), filename.clone());
-        let body = val.split(',').nth(1).ok_or("Invalid data URL")?;
-        let bytes = base64::engine::general_purpose::STANDARD
-            .decode(body.trim())
-            .map_err(|e| format!("Base64 decode error: {}", e))?;
         fs::create_dir_all(subdir)
             .map_err(|e| format!("Failed to create dir: {}", e))?;
         let target = subdir.join(&filename);
@@ -479,7 +477,7 @@ fn extract_and_replace_in_map(
         }
     }
 
-    // Replace data URL with relative path (use a clone to avoid borrow issues)
+    // Replace data URL with relative path
     extra.insert(key.to_string(), serde_json::Value::String(rel_path));
     Ok(())
 }
