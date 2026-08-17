@@ -35,16 +35,16 @@ fn sanitize_rel(rel: &str) -> bool {
 }
 
 /// 将 base64 data URL 图片保存到主题包 assets/ 目录，返回相对路径。
-pub fn save_image_data(data_url: &str, theme_id: &str, widget_id: &str) -> Result<String, String> {
-    save_to_dir(data_url, theme_id, widget_id, "assets")
+pub fn save_image_data(data_url: &str, theme_id: &str, _widget_id: &str) -> Result<String, String> {
+    save_to_dir(data_url, theme_id, "assets")
 }
 
 /// 将 base64 data URL 图标保存到主题包 icons/ 目录，返回相对路径。
-pub fn save_icon_data(data_url: &str, theme_id: &str, widget_id: &str) -> Result<String, String> {
-    save_to_dir(data_url, theme_id, widget_id, "icons")
+pub fn save_icon_data(data_url: &str, theme_id: &str, _widget_id: &str) -> Result<String, String> {
+    save_to_dir(data_url, theme_id, "icons")
 }
 
-fn save_to_dir(data_url: &str, theme_id: &str, widget_id: &str, subdir: &str) -> Result<String, String> {
+fn save_to_dir(data_url: &str, theme_id: &str, subdir: &str) -> Result<String, String> {
     if !data_url.starts_with("data:") {
         return Err("不是有效的图片数据".to_string());
     }
@@ -54,21 +54,21 @@ fn save_to_dir(data_url: &str, theme_id: &str, widget_id: &str, subdir: &str) ->
         .decode(body.trim())
         .map_err(|e| format!("图片解码失败: {}", e))?;
 
+    // 使用内容 SHA-256 哈希命名，相同图片始终同名，避免重复
+    let hash = crate::services::hash_service::sha256_bytes(&bytes);
     let ext = ext_from_mime(meta);
     let dir = manager::user_theme_root().join(theme_id).join(subdir);
     std::fs::create_dir_all(&dir)
         .map_err(|e| format!("创建 {} 目录失败: {}", subdir, e))?;
 
-    let ts = chrono::Utc::now().timestamp_millis();
-    let safe_widget: String = widget_id
-        .chars()
-        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
-        .take(20)
-        .collect();
-    let filename = format!("{}_{}.{}", safe_widget, ts, ext);
+    let filename = format!("{}.{}", hash, ext);
     let rel = format!("{}/{}", subdir, filename);
-    std::fs::write(dir.join(&filename), &bytes)
-        .map_err(|e| format!("写入文件失败: {}", e))?;
+    let target = dir.join(&filename);
+    // 文件已存在则跳过写入（不重复保存）
+    if !target.exists() {
+        std::fs::write(&target, &bytes)
+            .map_err(|e| format!("写入文件失败: {}", e))?;
+    }
 
     Ok(rel)
 }
