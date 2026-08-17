@@ -1,6 +1,7 @@
 {
   "themeManagement": "主题包管理",
   "themeManagementDesc": "管理、创建和分发主题包资源",
+  "searchPlaceholder": "搜索主题包名称...",
   "themePack": "主题包",
   "alcFilter": "主题包 (.alc)",
   "uploadTheme": "上传主题",
