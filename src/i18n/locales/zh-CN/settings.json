@@ -57,5 +57,8 @@
   "dev_pwd_hint": "请联系开发者获取授权密码。",
   "dev_pwd_verify": "验证",
   "dev_mode_on": "开发者模式已开启",
-  "dev_mode_hint": "连续点击标题 5 次解锁"
+  "dev_mode_hint": "连续点击标题 5 次解锁",
+  "importLanguage": "导入语言包",
+  "languageImported": "已导入语言包：{{label}}",
+  "languageImportFailed": "语言包导入失败，请检查 JSON 格式"
 }

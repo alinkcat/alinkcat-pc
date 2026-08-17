@@ -1,6 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import { LANGUAGES, DEFAULT_LANG } from './languages';
+import { LANGUAGES, FALLBACK_LANG, restoreCustomLanguages, saveCustomLanguages } from './languages';
 
 const STORAGE_KEY = 'ilinkcat_language';
 
@@ -11,24 +11,27 @@ export function loadStoredLang(): string {
   } catch {
     /* ignore */
   }
-  return DEFAULT_LANG;
+  return FALLBACK_LANG;
 }
 
 export function saveStoredLang(code: string) {
   localStorage.setItem(STORAGE_KEY, code);
 }
 
-// 同步加载兜底中文资源（全部合入 common 命名空间）
-import zhResources from './locales/zh-CN/index';
+// 启动时恢复外部导入的语言包
+restoreCustomLanguages();
+
+// 同步加载兜底英语资源（fallbackLng = en-US）
+import enResources from './locales/en-US/index';
 
 i18n.use(initReactI18next).init({
   resources: {
-    'zh-CN': {
-      common: zhResources,
+    'en-US': {
+      common: enResources,
     },
   },
   lng: loadStoredLang(),
-  fallbackLng: 'zh-CN',
+  fallbackLng: FALLBACK_LANG,
   defaultNS: 'common',
   ns: ['common'],
   interpolation: {
@@ -43,10 +46,13 @@ export async function setAppLanguage(code: string) {
   if (!def) return;
 
   saveStoredLang(code);
+  saveCustomLanguages();
 
   // 动态 import() 返回的是模块命名空间对象 { default: {...} }，需要解包
-  const mod = await def.loadResources();
-  const resources = ('default' in (mod as object) ? (mod as { default: Record<string, object> }).default : (mod as Record<string, object>));
+  const maybeMod = await def.loadResources();
+  const resources = 'default' in (maybeMod as object)
+    ? (maybeMod as { default: Record<string, object> }).default
+    : (maybeMod as Record<string, object>);
 
   // 替换整个 common 命名空间
   i18n.addResourceBundle(code, 'common', resources, true, true);
