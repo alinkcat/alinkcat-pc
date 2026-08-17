@@ -1,6 +1,7 @@
 {
   "themeManagement": "Theme Manager",
   "themeManagementDesc": "Manage, create and distribute theme packs",
+  "searchPlaceholder": "Search theme name...",
   "themePack": "Theme Pack",
   "alcFilter": "Theme Pack (.alc)",
   "uploadTheme": "Upload Theme",

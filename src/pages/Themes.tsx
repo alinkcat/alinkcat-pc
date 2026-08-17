@@ -21,6 +21,7 @@ import {
   Segmented,
   Tabs,
   message,
+  Input,
 } from 'antd';
 import {
   PlusOutlined,
@@ -29,7 +30,6 @@ import {
   EditOutlined,
   ExportOutlined,
   MobileOutlined,
-  CloudUploadOutlined,
   CloudSyncOutlined,
   AppstoreOutlined,
   UnorderedListOutlined,
@@ -55,6 +55,7 @@ export default function Themes() {
   const [importing, setImporting] = useState(false);
   const [view, setView] = useState<'card' | 'table'>(() => localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'card');
   const [category, setCategory] = useState<ThemeCategory>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [pushTarget, setPushTarget] = useState<ThemeSummary | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [sharePoster, setSharePoster] = useState<string | null>(null);
@@ -88,6 +89,13 @@ export default function Themes() {
     const src = getThemeSource(t);
     return category === 'downloaded' ? src === 'downloaded' : src === 'local';
   });
+
+  const searched = searchQuery
+    ? filtered.filter(t =>
+        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : filtered;
 
   const handleViewChange = (v: string | number) => {
     const next = v as 'card' | 'table';
@@ -241,12 +249,6 @@ export default function Themes() {
         </div>
         <Space wrap>
           <Button
-            icon={<CloudUploadOutlined />}
-            onClick={() => navigate('/upload-center')}
-          >
-            {t('themes.uploadTheme')}
-          </Button>
-          <Button
             icon={<PlusOutlined />}
             onClick={() => setTemplateOpen(true)}
           >
@@ -282,6 +284,14 @@ export default function Themes() {
             { value: 'card', icon: <AppstoreOutlined /> },
             { value: 'table', icon: <UnorderedListOutlined /> },
           ]}
+        />
+        <Input.Search
+          placeholder={t('themes.searchPlaceholder')}
+          allowClear
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onSearch={(v) => setSearchQuery(v)}
+          style={{ width: 250, marginBottom: 12 }}
         />
       </div>
 
@@ -331,7 +341,7 @@ export default function Themes() {
         <div style={{ textAlign: 'center', padding: '80px 0' }}>
           <Spin size="large" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : searched.length === 0 ? (
         <Empty
           description={category === 'all' ? t('themes.noThemes') : t('themes.noThemesInCategory')}
           style={{ padding: '80px 0' }}
@@ -342,7 +352,7 @@ export default function Themes() {
         </Empty>
       ) : view === 'table' ? (
         <ThemeTable
-          themes={filtered}
+          themes={searched}
           activeId={activeId}
           onEdit={(id) => navigate(`/themes/edit/${id}`)}
           onActivate={handleActivate}
@@ -353,7 +363,7 @@ export default function Themes() {
         />
       ) : (
         <Row gutter={[16, 16]}>
-          {filtered.map((theme) => {
+          {searched.map((theme) => {
             const isActive = theme.id === activeId;
             const src = getThemeSource(theme);
 

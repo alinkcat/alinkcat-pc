@@ -243,7 +243,6 @@ export default function App() {
                   <Route index element={<Navigate to="/themes" replace />} />
                   <Route path="themes" element={<Themes />} />
                   <Route path="themes/edit/:id" element={<Editor />} />
-                  <Route path="upload-center" element={<Navigate to="/themes" replace />} />
                   <Route path="devices" element={<Devices />} />
                   <Route path="snippets" element={<Snippets />} />
                   <Route path="market" element={<Market />} />
@@ -251,12 +250,6 @@ export default function App() {
                   <Route path="profile" element={<Profile />} />
                   <Route path="settings" element={<Settings />} />
                   <Route path="auth" element={<Auth />} />
-                  <Route path="points" element={<Navigate to="/themes" replace />} />
-                  <Route path="member" element={<Navigate to="/themes" replace />} />
-                  <Route path="tickets" element={<Navigate to="/themes" replace />} />
-                  <Route path="invite" element={<Navigate to="/themes" replace />} />
-                  <Route path="notifications" element={<Navigate to="/themes" replace />} />
-                  <Route path="my-cloud" element={<Navigate to="/themes" replace />} />
                   <Route path="admin" element={<AdminDashboard />} />
                   <Route path="admin/themes" element={<AdminThemeReview />} />
                   <Route path="admin/tickets" element={<AdminTickets />} />
