@@ -98,6 +98,8 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                     errorType = errorType,
                     errorMessage = message
                 )
+                // 启动自动连接失败时，自动重试
+                onAutoConnectFailed()
             }
         },
         pushHandler = pushReceiveManager,
@@ -118,16 +120,46 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             }
         }
         // 启动时自动连接（最多重试 3 次，间隔 2 秒）
+    private var autoRetryCount = 0
+
+    private fun autoConnect() {
         viewModelScope.launch {
             val cfg = dataStore.config.first()
             if (cfg.ip.isNotBlank() && cfg.port.isNotBlank() && cfg.pairCode.isNotBlank()) {
-                for (attempt in 1..3) {
-                    webSocket.connect("ws://${cfg.ip}:${cfg.port}", cfg.pairCode, cfg.deviceName, appVersion, timeoutMs = 5000)
-                    delay(2000)
-                    if (_state.value.status == ConnectionStatus.Connected) break
+                autoRetryCount = 0
+                _state.value = ConnectionState(status = ConnectionStatus.Connecting)
+                webSocket.connect("ws://${cfg.ip}:${cfg.port}", cfg.pairCode, cfg.deviceName, appVersion)
+            }
+        }
+    }
+
+    private fun onAutoConnectFailed() {
+        autoRetryCount++
+        if (autoRetryCount < 3) {
+            _state.value = ConnectionState(status = ConnectionStatus.Connecting)
+            viewModelScope.launch {
+                delay(2000)
+                val cfg = dataStore.config.first()
+                webSocket.connect("ws://${cfg.ip}:${cfg.port}", cfg.pairCode, cfg.deviceName, appVersion)
+            }
+        }
+    }
+
+    init {
+        // 推送确认/拒绝/忙碌响应通过 WebSocket 发送
+        pushReceiveManager.setResponseSender { json -> webSocket.sendResponse(json) }
+        // 远程切换主题
+        webSocket.themeSwitchListener = { themeId ->
+            viewModelScope.launch {
+                if (pushReceiveManager.getInstalledThemes().any { it.themeId == themeId }) {
+                    _themeSwitchEvent.tryEmit(themeId)
+                } else {
+                    refreshThemePackages()
                 }
             }
         }
+        // 启动时自动连接
+        autoConnect()
     }
 
     /**
