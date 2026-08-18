@@ -43,7 +43,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_fs::init())
         .manage(WsServerState {
             server: Arc::new(Mutex::new(ws_server)),
         })
@@ -170,6 +169,7 @@ pub fn run() {
             // Calendar / Lunar
             commands::calendar_commands::get_lunar_info,
             commands::calendar_commands::get_calendar_widget_data,
+            commands::save_text_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
