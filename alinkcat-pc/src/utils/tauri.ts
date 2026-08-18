@@ -1,7 +1,7 @@
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import type { InvokeArgs } from '@tauri-apps/api/core';
 
-function isTauri(): boolean {
+export function isTauri(): boolean {
   try {
     return '__TAURI_INTERNALS__' in window;
   } catch {
