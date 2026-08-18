@@ -34,7 +34,7 @@ function buildDiagnosticData(logs: LogEntry[]): Record<string, unknown> {
 /**
  * 导出加密的诊断日志文件。
  * 使用 AES-256-GCM 加密，密钥从 APP_VERSION 派生。
- * 用户通过"导出日志"按钮调用，弹出保存对话框。
+ * 用户通过"导出日志"按钮调用，弹出系统保存对话框选择路径。
  */
 export async function exportEncryptedLogs(): Promise<void> {
   const logs = getLogs();
@@ -63,15 +63,34 @@ export async function exportEncryptedLogs(): Promise<void> {
   combined.set(new Uint8Array(ciphertext), iv.length);
 
   const base64 = btoa(String.fromCharCode(...combined));
-  const blob = new Blob([JSON.stringify({ v: 1, alg: 'AES-256-GCM', key: 'app-version', data: base64 }, null, 2)], {
-    type: 'application/json',
-  });
+  const blobStr = JSON.stringify({ v: 1, alg: 'AES-256-GCM', key: 'app-version', data: base64 }, null, 2);
+  const defaultName = `ilinkcat-diag-${new Date().toISOString().slice(0, 10)}.json`;
 
-  // 浏览器下载
+  // 在 Tauri 环境优先使用原生保存对话框选择路径
+  const { isTauri } = await import('../utils/tauri');
+  if (isTauri()) {
+    try {
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const path = await save({
+        defaultPath: defaultName,
+        filters: [{ name: 'Diagnostic Log', extensions: ['json'] }],
+      });
+      if (!path) return; // 用户取消
+      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+      // 某些环境下需要用 BaseDirectory 处理
+      await writeTextFile(path, blobStr);
+      return;
+    } catch {
+      // 降级到浏览器下载
+    }
+  }
+
+  // 浏览器下载（兜底）
+  const blob = new Blob([blobStr], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `ilinkcat-diag-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = defaultName;
   a.click();
   URL.revokeObjectURL(url);
 }
