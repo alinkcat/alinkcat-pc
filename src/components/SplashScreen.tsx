@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react';
-import lottie from '../assets/lottie-web.js';
 import splashData from '../assets/splash-lottie.json';
 
 /**
- * 启动页：显示 Lottie 品牌动画。
+ * 启动页：显示 Lottie 品牌动画（lottie-web 通过 index.html 的 script 标签加载）。
  * 动画播完后调用 onFinished。
  */
 export default function SplashScreen({ onFinished, minDelay = 2200 }: {
@@ -11,11 +10,11 @@ export default function SplashScreen({ onFinished, minDelay = 2200 }: {
   minDelay?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const animRef = useRef<ReturnType<typeof lottie.loadAnimation> | null>(null);
+  const animRef = useRef<ReturnType<typeof window.lottie.loadAnimation> | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const anim = lottie.loadAnimation({
+    const anim = window.lottie.loadAnimation({
       container: containerRef.current,
       renderer: 'svg',
       loop: false,
