@@ -11,6 +11,7 @@ import AppLayout from './components/layout/AppLayout';
 import ErrorBoundary from './components/ErrorBoundary';
 import AuthExpiredModal from './components/AuthExpiredModal';
 import VersionPolling from './components/VersionPolling';
+import SplashScreen from './components/SplashScreen';
 import Themes from './pages/Themes';
 import Editor from './pages/Editor';
 import Devices from './pages/Devices';
@@ -52,6 +53,7 @@ export default function App() {
   const antdLocale = useI18nStore((s) => s.antdLocale);
   const [gate, setGate] = useState<Gate | null>(null);
   const [allowed, setAllowed] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
   const checked = useRef(false);
   const retried = useRef(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -208,6 +210,7 @@ export default function App() {
       }}
     >
       <AntApp>
+        {!splashDone && <SplashScreen onFinished={() => setSplashDone(true)} />}
         {gate && (
           <Modal open closable={!isBlocking} mask={{ closable: !isBlocking }} keyboard={false} footer={null} width={400} centered onCancel={closeGate}>
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
