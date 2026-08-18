@@ -59,7 +59,6 @@ export function themeToEditor(t: ThemeMeta): EditorTheme {
     orientation: t.orientation,
     pages: t.pages.map(p => ({
       id: p.id, label: p.label,
-      id: p.id, label: p.label,
       layoutMode: (p.layout.type === 'free' ? 'free' : 'grid') as 'grid' | 'free',
       columns: p.layout.columns ?? 4, rows: p.layout.rows ?? 6,
       backgroundColor: (p.layout as unknown as Record<string, unknown>).backgroundColor as string | undefined,
