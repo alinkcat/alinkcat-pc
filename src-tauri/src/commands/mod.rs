@@ -298,6 +298,19 @@ pub async fn download_theme_file(url: String, filename: String) -> Result<String
     Ok(file_path.to_string_lossy().to_string())
 }
 
+/// 保存文本内容到指定路径（用于日志导出等）。
+#[tauri::command]
+pub fn save_text_file(path: String, content: String) -> Result<(), String> {
+    let p = std::path::PathBuf::from(&path);
+    if let Some(parent) = p.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create dir: {}", e))?;
+    }
+    std::fs::write(&p, content)
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn import_theme_from_file(path: String) -> Result<ThemeMeta, String> {
     let result = manager::import_theme(&PathBuf::from(&path));

@@ -67,7 +67,7 @@ export async function exportEncryptedLogs(): Promise<void> {
   const defaultName = `ilinkcat-diag-${new Date().toISOString().slice(0, 10)}.json`;
 
   // 在 Tauri 环境优先使用原生保存对话框选择路径
-  const { isTauri } = await import('../utils/tauri');
+  const { isTauri, tauriInvoke } = await import('../utils/tauri');
   if (isTauri()) {
     try {
       const { save } = await import('@tauri-apps/plugin-dialog');
@@ -76,9 +76,8 @@ export async function exportEncryptedLogs(): Promise<void> {
         filters: [{ name: 'Diagnostic Log', extensions: ['json'] }],
       });
       if (!path) return; // 用户取消
-      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-      // 某些环境下需要用 BaseDirectory 处理
-      await writeTextFile(path, blobStr);
+      // 通过 Rust 后端写文件，不依赖前端 fs 插件
+      await tauriInvoke('save_text_file', { path, content: blobStr });
       return;
     } catch {
       // 降级到浏览器下载
