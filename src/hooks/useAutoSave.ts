@@ -21,6 +21,7 @@ export interface DraftPayload {
 export function useAutoSave() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readyRef = useRef(false);
+  const lastSignatureRef = useRef<string>('');
 
   // 标记编辑器已就绪（首次渲染完成 + 初始化逻辑已执行）
   useEffect(() => {
@@ -38,6 +39,11 @@ export function useAutoSave() {
       }
 
       timerRef.current = setTimeout(() => {
+        // 增量检查：如果主题内容没变则跳过，避免不必要的序列化
+        const signature = JSON.stringify(state.theme);
+        if (signature === lastSignatureRef.current) return;
+        lastSignatureRef.current = signature;
+
         const payload: DraftPayload = {
           theme: state.theme,
           activePageIdx: state.activePageIdx,
