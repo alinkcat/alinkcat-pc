@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { EditorWidget } from '../../types';
 import ButtonWidget from './ButtonWidget';
 import GaugeWidget from './GaugeWidget';
@@ -45,7 +46,7 @@ function renderContent(widget: EditorWidget) {
   }
 }
 
-export default function WidgetRenderer({ widget }: { widget: EditorWidget }) {
+function WidgetRenderer({ widget }: { widget: EditorWidget }) {
   const bg = widget.backgroundColor || '#f0f2f5';
   const opacity = (widget.backgroundOpacity ?? 100) / 100;
   const [r, g, b] = hexToRgb(bg);
@@ -63,3 +64,6 @@ export default function WidgetRenderer({ widget }: { widget: EditorWidget }) {
     </>
   );
 }
+
+// memo 避免父组件重渲染时所有 widget 重复渲染
+export default memo(WidgetRenderer);
