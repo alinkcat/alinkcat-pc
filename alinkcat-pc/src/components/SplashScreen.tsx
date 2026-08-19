@@ -1,19 +1,24 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import splashData from '../assets/splash-lottie.json';
 
 /**
  * 启动页：显示 Lottie 品牌动画（lottie-web 通过 index.html 的 script 标签加载）。
- * 动画播完后调用 onFinished。
+ * 动画自然播放完（不设 minDelay）后调用 onFinished。
+ * 用 ref 保护 StrictMode 双重渲染，防止动画卡顿重播。
  */
-export default function SplashScreen({ onFinished, minDelay = 2200 }: {
+export default function SplashScreen({ onFinished }: {
   onFinished: () => void;
-  minDelay?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const animRef = useRef<ReturnType<typeof window.lottie.loadAnimation> | null>(null);
+  const startedRef = useRef(false);
+  const finishedRef = useRef(false);
 
   useEffect(() => {
+    // StrictMode 保护：只执行一次
+    if (startedRef.current) return;
+    startedRef.current = true;
     if (!containerRef.current) return;
+
     const anim = window.lottie.loadAnimation({
       container: containerRef.current,
       renderer: 'svg',
@@ -21,26 +26,25 @@ export default function SplashScreen({ onFinished, minDelay = 2200 }: {
       autoplay: true,
       animationData: splashData,
     });
-    animRef.current = anim;
-
-    const started = Date.now();
 
     const finish = () => {
-      const elapsed = Date.now() - started;
-      const wait = Math.max(0, minDelay - elapsed);
-      setTimeout(onFinished, wait);
+      if (finishedRef.current) return;
+      finishedRef.current = true;
+      onFinished();
     };
 
-    // 动画播完触发；同时设置兜底超时（如动画异常）
     anim.addEventListener('complete', finish);
-    const fallback = setTimeout(finish, 8000);
+    // 兜底：动画异常时 10 秒后放行
+    const fallback = setTimeout(finish, 10000);
 
     return () => {
       anim.removeEventListener('complete', finish);
       clearTimeout(fallback);
       anim.destroy();
     };
-  }, [onFinished, minDelay]);
+    // onFinished 用 ref 避免依赖变化
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
