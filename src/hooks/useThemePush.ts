@@ -7,7 +7,7 @@ import { INITIAL_PUSH_STATE, PUSH_CONFIG } from '../types/push';
 
 type StartOpts = {
   themeId: string;
-  deviceId: string;
+  deviceId: string; // 单设备内部使用
   startChunk?: number;
 };
 
@@ -132,10 +132,18 @@ export function useThemePush() {
     }
   }, []);
 
-  const startPush = useCallback((themeId: string, deviceId: string) => {
+  const startPush = useCallback(async (themeId: string, deviceIds: string[]) => {
     clearAutoRetry();
-    setState((s) => ({ ...INITIAL_PUSH_STATE, autoRetryCount: 0, themeId, deviceId }));
-    doInvokePush({ themeId, deviceId, startChunk: 0 });
+    // 如果没有设备则直接返回
+    if (!deviceIds || deviceIds.length === 0) return;
+    // 逐个设备顺序推送，UI 会随每次 startPush 更新 deviceId 状态
+    for (let i = 0; i < deviceIds.length; i++) {
+      const devId = deviceIds[i];
+      // 为当前设备重置状态（保留 themeId）
+      setState((s) => ({ ...INITIAL_PUSH_STATE, autoRetryCount: 0, themeId, deviceId: devId }));
+      // eslint-disable-next-line no-await-in-loop
+      await doInvokePush({ themeId, deviceId: devId, startChunk: 0 });
+    }
   }, [doInvokePush, clearAutoRetry]);
 
   /** 断点续传：从上次中断的 chunk 继续 */

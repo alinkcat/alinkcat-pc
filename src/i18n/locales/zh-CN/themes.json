@@ -51,6 +51,7 @@
   "sourceDownloaded": "已下载",
   "downloadedAt": "下载于 {{date}}",
   "pages": "{{count}} 个页面",
+  "refresh": "刷新",
   "templates": {
     "title": "从模板开始",
     "subtitle": "选择一个模板快速开始，也可以先空白主题",

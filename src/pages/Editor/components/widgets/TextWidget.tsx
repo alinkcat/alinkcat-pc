@@ -1,8 +1,10 @@
 import type { EditorWidget } from '../../types';
+import { useTranslation } from 'react-i18next';
 
 export default function TextWidget({ widget }: { widget: EditorWidget }) {
+  const { t } = useTranslation();
   const v = widget as Record<string, unknown>;
-  const content = (v.content as string) || '双击编辑文字';
+  const content = (v.content as string) || t('common.widgets.doubleClickEdit');
   const fSize = (v.fontSize as number) || 16;
   const fWeight = (v.fontWeight as string) || 'normal';
   const fFamily = (v.fontFamily as string) || 'sans-serif';

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Card, Table, Tag, Button, Typography, Modal, Input, message } from 'antd';
+import { Card, Table, Tag, Button, Typography, Modal, Input } from 'antd';
+import { message } from '../utils/message';
 import { adminApi } from '../api/adminApi';
 import { useAuthStore } from '../store/authStore';
 import type { TicketItem } from '../api/types';

@@ -64,5 +64,61 @@
     "backToLogin": "返回登录",
     "processing": "正在完成授权...",
     "loginSuccess": "登录成功，即将跳转..."
+  },
+  "weather": {
+    "title": "天气",
+    "enterCity": "请输入城市与 API Key 以开始",
+    "apiKeyHint": "URL / 请求参数支持 ${city}、${apiKey} 占位符，可自由配置任意接口",
+    "noData": "暂无天气数据"
+  },
+  "widgets": {
+    "button": "按钮",
+    "app": "应用",
+    "snippet": "片段",
+    "count": "{{count}} 条",
+    "stickyNote": "便签",
+    "quick": "快捷",
+    "noItems": "暂无条目",
+    "uploadImage": "上传图片",
+    "notPlaying": "未在播放",
+    "doubleClickEdit": "双击编辑文字",
+    "noContent": "暂无内容",
+    "live": "直播中",
+    "offline": "未开播",
+    "noTitle": "(无标题)",
+    "anchor": "主播：{{name}}",
+    "viewers": "👁 {{count}} 人观看",
+    "lunar": "农历{{month}}{{day}}",
+    "clickForLunar": "点击日期查看农历/备忘",
+    "gauge": "表盘",
+    "monitor": {
+      "title": "系统监控",
+      "cpu": "CPU",
+      "memory": "内存",
+      "disk": "磁盘",
+      "network": "网络",
+      "runtime": "运行",
+      "upload": "↑ {{val}} KB/s",
+      "download": "↓ {{val}} KB/s"
+    },
+    "webview": {
+      "enterUrl": "请输入网址",
+      "enterUrlHint": "在右侧属性面板输入要加载的网页地址",
+      "enterRssUrl": "请输入 RSS 订阅地址",
+      "enterJsonUrl": "请输入 JSON API 地址",
+      "enterBilibiliId": "请输入 B站直播间 ID",
+      "panelHint": "在右侧属性面板中设置",
+      "view": "网页视图",
+      "item": "条目 {{index}}"
+    },
+    "preview": {
+      "dragHint": "从左侧拖拽控件到此处"
+    },
+    "addPage": "添加页面",
+    "calendar": {
+      "monthTitle": "{{year}} 年 {{month}} 月"
+    },
+    "weekdays": ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"],
+    "weekdaysAbbr": ["日", "一", "二", "三", "四", "五", "六"]
   }
 }

@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../utils/tauri';
 import { QRCodeCanvas } from 'qrcode.react';
 import {
-  Table, Button, Tag, Space, Card, Typography, Spin, message, Empty, Row, Col, Select,
+  Table, Button, Tag, Space, Card, Typography, Spin, Empty, Row, Col, Select,
 } from 'antd';
+import { message } from '../utils/message';
 import {
   PlayCircleOutlined, StopOutlined, ReloadOutlined, DesktopOutlined, CopyOutlined,
   CheckOutlined, ToolOutlined, CloudServerOutlined, LinkOutlined,

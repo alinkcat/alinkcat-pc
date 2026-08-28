@@ -3,6 +3,7 @@ import { Spin, Empty } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
 import { tauriInvoke } from '../../../../utils/tauri';
 import type { EditorWidget } from '../../types';
+import { useTranslation } from 'react-i18next';
 
 interface RssItem {
   title: string;
@@ -12,7 +13,7 @@ interface RssItem {
   author?: string;
 }
 
-function RssItemCard({ item }: { item: RssItem }) {
+function RssItemCard({ item, t }: { item: RssItem; t: (key: string, opts?: Record<string, unknown>) => string }) {
   const handleClick = async () => {
     if (!item.link) return;
     try {
@@ -24,7 +25,7 @@ function RssItemCard({ item }: { item: RssItem }) {
   };
   return (
     <div className="cw-rss-item" onClick={handleClick}>
-      <div className="cw-rss-title">{item.title || '(无标题)'}</div>
+      <div className="cw-rss-title">{item.title || t('common.widgets.noTitle')}</div>
       {item.pubDate && <div className="cw-rss-date">{item.pubDate}</div>}
       {item.description && <div className="cw-rss-desc">{item.description}</div>}
     </div>
@@ -32,6 +33,7 @@ function RssItemCard({ item }: { item: RssItem }) {
 }
 
 export default function WebViewRSS({ widget }: { widget: EditorWidget }) {
+  const { t } = useTranslation();
   const v = widget as Record<string, unknown>;
   const url = (v.rssUrl as string) || '';
   const refresh = (v.refreshInterval as number) || 0;
@@ -65,8 +67,8 @@ export default function WebViewRSS({ widget }: { widget: EditorWidget }) {
     return (
       <div className="cw-webview-empty">
         <GlobalOutlined style={{ fontSize: 28, color: '#ccc' }} />
-        <span>请输入 RSS 订阅地址</span>
-        <span className="cw-webview-hint">在右侧属性面板中设置</span>
+        <span>{t('common.widgets.webview.enterRssUrl')}</span>
+        <span className="cw-webview-hint">{t('common.widgets.webview.panelHint')}</span>
       </div>
     );
   }
@@ -80,12 +82,12 @@ export default function WebViewRSS({ widget }: { widget: EditorWidget }) {
   }
 
   if (items.length === 0) {
-    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无内容" style={{ padding: 20 }} />;
+    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('common.widgets.noContent')} style={{ padding: 20 }} />;
   }
 
   return (
     <div className="cw-rss-list">
-      {items.map((item, i) => <RssItemCard key={i} item={item} />)}
+      {items.map((item, i) => <RssItemCard key={i} item={item} t={t} />)}
     </div>
   );
 }

@@ -157,6 +157,7 @@ pub fn run() {
             commands::webview_commands::fetch_json,
             commands::webview_commands::fetch_bilibili_room,
             commands::webview_commands::fetch_weather,
+            commands::generic_http::generic_http,
             // Launcher
             commands::launcher_commands::get_launchers,
             commands::launcher_commands::add_launcher,

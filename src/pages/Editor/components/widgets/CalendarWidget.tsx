@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import type { EditorWidget } from '../../types';
-import { fetchLunar, toDateStr, WEEKDAY_ABBR } from './lunarUtils';
+import { fetchLunar, toDateStr } from './lunarUtils';
+import { useTranslation } from 'react-i18next';
 
 export default function CalendarWidget({ widget }: { widget: EditorWidget }) {
+  const { t } = useTranslation();
+  const weekdaysAbbr = (t('common.widgets.weekdaysAbbr', { returnObjects: true }) as string[]) || [];
   const v = widget as Record<string, unknown>;
   const viewMode = (v.viewMode as string) || 'month';
   const highlightToday = (v.highlightToday as boolean) ?? true;
@@ -57,12 +60,12 @@ export default function CalendarWidget({ widget }: { widget: EditorWidget }) {
     }
     let cancelled = false;
     fetchLunar(selected).then((info) => {
-      if (!cancelled) setLunar(info ? `农历${info.lunarMonth}${info.lunarDay}` : '');
+      if (!cancelled) setLunar(info ? t('common.widgets.lunar', { month: info.lunarMonth, day: info.lunarDay }) : '');
     });
     return () => {
       cancelled = true;
     };
-  }, [selected]);
+  }, [selected, t]);
 
   const cellStyle = (d: Date): React.CSSProperties => {
     const todayCell = highlightToday && isToday(d);
@@ -97,8 +100,8 @@ export default function CalendarWidget({ widget }: { widget: EditorWidget }) {
         <span style={{ cursor: 'pointer' }} onClick={prev}><LeftOutlined style={{ fontSize: 10 }} /></span>
         <span>
           {viewMode === 'month'
-            ? `${cursor.getFullYear()}年${cursor.getMonth() + 1}月`
-            : `${today.getFullYear()}年${today.getMonth() + 1}月`}
+            ? t('common.widgets.calendar.monthTitle', { year: cursor.getFullYear(), month: cursor.getMonth() + 1 })
+            : t('common.widgets.calendar.monthTitle', { year: today.getFullYear(), month: today.getMonth() + 1 })}
         </span>
         <span style={{ cursor: 'pointer' }} onClick={next}><RightOutlined style={{ fontSize: 10 }} /></span>
       </div>
@@ -112,7 +115,7 @@ export default function CalendarWidget({ widget }: { widget: EditorWidget }) {
           color: 'rgba(0,0,0,0.55)',
         }}
       >
-        {WEEKDAY_ABBR.map((w) => (
+        {weekdaysAbbr.map((w: string) => (
           <div key={w} style={{ textAlign: 'center' }}>{w}</div>
         ))}
       </div>
@@ -129,7 +132,7 @@ export default function CalendarWidget({ widget }: { widget: EditorWidget }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1, gap: 2 }}>
           {weekDays.map((d) => (
             <div key={d.getTime()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <span style={{ fontSize: 10, color: 'rgba(0,0,0,0.55)' }}>{WEEKDAY_ABBR[d.getDay()]}</span>
+              <span style={{ fontSize: 10, color: 'rgba(0,0,0,0.55)' }}>{weekdaysAbbr[d.getDay()]}</span>
               <div style={cellStyle(d)} onClick={() => pick(d)}>{d.getDate()}</div>
             </div>
           ))}
@@ -149,7 +152,7 @@ export default function CalendarWidget({ widget }: { widget: EditorWidget }) {
       >
         {selected
           ? `${toDateStr(selected)}${lunar ? ` · ${lunar}` : ''}`
-          : '点击日期查看农历/备忘'}
+          : t('common.widgets.clickForLunar')}
       </div>
     </div>
   );

@@ -39,6 +39,7 @@ i18n.use(initReactI18next).init({
   },
   returnNull: false,
   returnEmptyString: false,
+  returnObjects: true,
 });
 
 export async function setAppLanguage(code: string) {

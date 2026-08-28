@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Select, Space, Typography, Button, Progress, Tag, Empty } from 'antd';
+import { Modal, Select, Space, Typography, Button, Progress, Tag, Empty, Checkbox } from 'antd';
 import { MobileOutlined, SendOutlined, ReloadOutlined, PlayCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../utils/tauri';
@@ -40,13 +40,15 @@ function statusLabel(t: ReturnType<typeof useTranslation>['t'], status: string):
 export default function PushDialog({ themeId, themeName, themeVersion, open, onClose }: Props) {
   const { t } = useTranslation();
   const [devices, setDevices] = useState<ClientInfo[]>([]);
-  const [deviceId, setDeviceId] = useState<string>('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
   const { state, startPush, resumePush, retryPush, cancelPush, cancelAutoRetry, reset } = useThemePush();
   const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (!open) return;
-    setDeviceId('');
+    setSelectedIds([]);
+    setSelectAll(false);
     reset();
     startTimeRef.current = 0;
     tauriInvoke<ClientInfo[]>('get_connections').then(setDevices).catch(() => setDevices([]));
@@ -79,7 +81,7 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
   const active = state.status === 'pushing' || state.status === 'packing' || state.status === 'awaiting_confirm';
   const failed = state.status === 'failed';
   const retrying = state.status === 'retrying';
-  const canStart = !!deviceId && !active && !retrying;
+  const canStart = selectedIds.length > 0 && !active && !retrying;
   const canResume = failed && state.resumeChunk > 0;
   const interruptedPct = state.totalChunks > 0
     ? Math.round((state.currentChunk / state.totalChunks) * 100)
@@ -111,7 +113,7 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
             <>
               <Button type="primary" icon={<SendOutlined />} disabled={!canStart} onClick={() => {
                 startTimeRef.current = 0;
-                startPush(themeId, deviceId);
+                startPush(themeId, selectedIds);
               }}>
                 {t('push.dialog.start')}
               </Button>
@@ -129,12 +131,28 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
         ) : (
           <div>
             <Text style={{ display: 'block', marginBottom: 6 }}>{t('push.dialog.device')}</Text>
+            <Checkbox
+              checked={selectAll}
+              onChange={e => {
+                const checked = e.target.checked;
+                setSelectAll(checked);
+                setSelectedIds(checked ? devices.map(d => d.client_id) : []);
+              }}
+              style={{ marginBottom: 8 }}
+            >
+              {t('push.dialog.selectAll') ?? 'Select All'}
+            </Checkbox>
             <Select
-              value={deviceId || undefined}
-              onChange={setDeviceId}
-              placeholder={t('push.dialog.noDevice')}
+              mode="multiple"
+              placeholder={t('push.dialog.noDevice') ?? 'Select device(s)'}
+              value={selectedIds}
+              onChange={setSelectedIds}
               style={{ width: '100%' }}
               disabled={active || retrying}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label as string).toLowerCase().includes(input.toLowerCase())
+              }
               options={devices.map((d) => ({
                 value: d.client_id,
                 label: (

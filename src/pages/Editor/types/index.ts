@@ -25,6 +25,7 @@ export interface WidgetBase {
   freeY: number;
   freeW: number;
   freeH: number;
+  zIndex?: number;
   borderRadius?: number;
   backgroundColor?: string;
   backgroundOpacity?: number;
@@ -73,6 +74,8 @@ interface ClockWidget extends WidgetBase {
   format24h?: boolean;
   showSeconds?: boolean;
   showAmpm?: boolean;
+  /** 时间下方显示星期几 */
+  showWeekday?: boolean;
   /** 显示模式: digital(数字时钟) / analog(模拟时钟) */
   clockDisplay?: 'digital' | 'analog';
   /** 模拟钟: 是否显示刻度 */
@@ -136,10 +139,46 @@ interface WebViewWidget extends WidgetBase {
   linkField?: string;
   preset?: string;
   bilibiliRoomId?: string;
+  /** 旧版天气字段（已废弃，兼容旧主题） */
   weatherCity?: string;
   weatherApiKey?: string;
   weatherUnit?: 'c' | 'f';
+  /** 通用天气配置：请求细节 */
+  requestUrl?: string;
+  requestMethod?: 'GET' | 'POST';
+  requestHeaders?: Record<string, string>;
+  requestBody?: string;
+  city?: string;
+  apiKey?: string;
+  extraParams?: Record<string, string>;
+  unit?: 'c' | 'f';
+  refreshHours?: number;
+  /** 响应字段映射：目标字段 → JSON 路径（如 main.temp / weather[0].icon） */
+  responseMapping?: Record<string, string>;
   showScrollbar?: boolean;
+}
+/** 天气组件：由控件库「天气」直接创建，字段与 webview 的 weather 预设保持一致，两端通用 */
+interface WeatherWidget extends WidgetBase {
+  type: 'weather';
+  url?: string;
+  displayMode?: string;
+  preset?: string;
+  /** 旧版天气字段（已废弃，兼容旧主题） */
+  weatherCity?: string;
+  weatherApiKey?: string;
+  weatherUnit?: 'c' | 'f';
+  /** 通用天气配置：请求细节 */
+  requestUrl?: string;
+  requestMethod?: 'GET' | 'POST';
+  requestHeaders?: Record<string, string>;
+  requestBody?: string;
+  city?: string;
+  apiKey?: string;
+  extraParams?: Record<string, string>;
+  unit?: 'c' | 'f';
+  refreshHours?: number;
+  /** 响应字段映射：目标字段 → JSON 路径（如 main.temp / weather[0].icon） */
+  responseMapping?: Record<string, string>;
 }
 interface MediaWidget extends WidgetBase {
   type: 'media-control';
@@ -198,13 +237,15 @@ export type EditorWidget =
   | ImageWidget
   | ShapeWidget
   | WebViewWidget
+  | WeatherWidget
   | MediaWidget
   | SystemMonitorWidget
   | QuickActionWidget
   | LauncherWidget
   | StickyNoteWidget
   | IconWidget
-  | CardWidget;
+  | CardWidget
+  | WeatherWidget;
 
 export interface PerfSnapshot {
   timestamp: number;

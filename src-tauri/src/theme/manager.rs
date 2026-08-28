@@ -87,7 +87,7 @@ fn validate_theme(meta: &ThemeMeta) -> Result<(), String> {
         for widget in &page.widgets {
             match widget.widget_type.as_str() {
                 "button" | "gauge" | "battery" | "card" | "snippet-list" | "image" | "icon" | "text" | "shape"
-                | "webview" | "media-control" | "system-monitor" | "quick-action" | "launcher"
+                | "webview" | "weather" | "media-control" | "system-monitor" | "quick-action" | "launcher"
                 | "clock" | "date" | "calendar" => {}
                 other => {
                     return Err(format!(
@@ -308,10 +308,15 @@ pub fn import_theme(zip_path: &Path) -> Result<ThemeMeta, String> {
 
     validate_theme(&meta)?;
 
+    // If the theme was previously marked as deleted (built‑in), remove that mark.
+    let mut cfg = config::load_config();
+    if cfg.deleted_builtin_themes.contains(&meta.id) {
+        cfg.deleted_builtin_themes.retain(|x| x != &meta.id);
+        config::save_config(&cfg).map_err(|e| format!("Failed to update config: {}", e))?;
+    }
     let theme_dir = dir.join(&meta.id);
     if theme_dir.exists() {
-        fs::remove_dir_all(&theme_dir)
-            .map_err(|e| format!("Failed to remove existing theme: {}", e))?;
+        return Err(format!("Theme '{}' already exists", meta.id));
     }
 
     for i in 0..archive.len() {
@@ -354,25 +359,26 @@ pub fn delete_theme(id: &str) -> Result<(), String> {
     let user_dir = user_themes_dir();
     let theme_dir = user_dir.join(id);
 
-    if !theme_dir.is_dir() {
-        if let Some(bundled) = bundled_themes_dir() {
-            if bundled.join(id).is_dir() {
-                return Err(format!(
-                    "Theme '{}' is a built-in theme and cannot be deleted",
-                    id
-                ));
-            }
+    // Load config to track deletions and active theme.
+    let mut cfg = config::load_config();
+
+    if theme_dir.is_dir() {
+        // Delete user‑side copy.
+        fs::remove_dir_all(&theme_dir)
+            .map_err(|e| format!("Failed to delete theme '{}': {}", id, e))?;
+    } else {
+        // No user copy – treat as built‑in theme deletion.
+        // Record ID in config so it will be hidden from scans.
+        if !cfg.deleted_builtin_themes.contains(&id.to_string()) {
+            cfg.deleted_builtin_themes.push(id.to_string());
+            config::save_config(&cfg).map_err(|e| format!("Failed to update config: {}", e))?;
         }
-        return Err(format!("Theme '{}' not found", id));
     }
 
-    fs::remove_dir_all(&theme_dir)
-        .map_err(|e| format!("Failed to delete theme '{}': {}", id, e))?;
-
-    let mut cfg = config::load_config();
+    // If the deleted theme was active, clear the active flag.
     if cfg.active_theme_id.as_deref() == Some(id) {
         cfg.active_theme_id = None;
-        config::save_config(&cfg)?;
+        config::save_config(&cfg).map_err(|e| format!("Failed to update config: {}", e))?;
     }
 
     Ok(())

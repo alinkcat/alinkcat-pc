@@ -64,5 +64,64 @@
     "backToLogin": "Back to Login",
     "processing": "Completing authorization...",
     "loginSuccess": "Login successful, redirecting..."
+  },
+  "themes": {
+    "refresh": "Refresh"
+  },
+  "weather": {
+    "title": "Weather",
+    "enterCity": "Enter a city and API Key to get started",
+    "apiKeyHint": "URL / params support ${city} and ${apiKey} placeholders; you can configure any API",
+    "noData": "No weather data"
+  },
+  "widgets": {
+    "button": "Button",
+    "app": "App",
+    "snippet": "Snippet",
+    "count": "{{count}} items",
+    "stickyNote": "Note",
+    "quick": "Quick",
+    "noItems": "No items",
+    "uploadImage": "Upload Image",
+    "notPlaying": "Nothing playing",
+    "doubleClickEdit": "Double-click to edit",
+    "noContent": "No content",
+    "live": "LIVE",
+    "offline": "Offline",
+    "noTitle": "(untitled)",
+    "anchor": "Host: {{name}}",
+    "viewers": "👁 {{count}} watching",
+    "lunar": "Lunar {{month}} {{day}}",
+    "clickForLunar": "Click a date for lunar / memo",
+    "gauge": "Gauge",
+    "monitor": {
+      "title": "System Monitor",
+      "cpu": "CPU",
+      "memory": "Memory",
+      "disk": "Disk",
+      "network": "Network",
+      "runtime": "Uptime",
+      "upload": "↑ {{val}} KB/s",
+      "download": "↓ {{val}} KB/s"
+    },
+    "webview": {
+      "enterUrl": "Enter a URL",
+      "enterUrlHint": "Enter the web address in the property panel on the right",
+      "enterRssUrl": "Enter an RSS feed URL",
+      "enterJsonUrl": "Enter a JSON API URL",
+      "enterBilibiliId": "Enter a Bilibili room ID",
+      "panelHint": "Configure in the property panel on the right",
+      "view": "Web View",
+      "item": "Item {{index}}"
+    },
+    "preview": {
+      "dragHint": "Drag widgets from the left to here"
+    },
+    "addPage": "Add Page",
+    "calendar": {
+      "monthTitle": "{{month}}/{{year}}"
+    },
+    "weekdays": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    "weekdaysAbbr": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   }
 }
