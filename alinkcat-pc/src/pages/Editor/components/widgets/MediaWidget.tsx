@@ -1,6 +1,8 @@
 import type { EditorWidget } from '../../types';
+import { useTranslation } from 'react-i18next';
 
 export default function MediaWidget({ widget }: { widget: EditorWidget }) {
+  const { t } = useTranslation();
   const v = widget as Record<string, unknown>;
   const showProgress = (v.showProgress as boolean) ?? true;
 
@@ -13,7 +15,7 @@ export default function MediaWidget({ widget }: { widget: EditorWidget }) {
       </div>
       <div className="cw-media-main">
         <div className="cw-media-marquee">
-          <span className="cw-media-text">{widget.label || '未在播放'}</span>
+          <span className="cw-media-text">{widget.label || t('common.widgets.notPlaying')}</span>
           <span className="cw-media-sep"> - </span>
           <span className="cw-media-text">ailinkcat</span>
         </div>

@@ -3,6 +3,21 @@ import { Spin, Empty } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
 import { tauriInvoke } from '../../../../utils/tauri';
 import type { EditorWidget } from '../../types';
+import { useTranslation } from 'react-i18next';
+import { extractWeather, type WeatherExtracted } from '../../../../utils/weatherJson';
+
+// 模块级缓存：翻页/重挂载时避免重复请求，仅当超过刷新周期才重新拉取
+const jsonCache = new Map<string, { data: unknown; at: number }>();
+
+function getCachedJson(url: string, ttlMs: number): unknown | undefined {
+  const hit = jsonCache.get(url);
+  if (!hit) return undefined;
+  return Date.now() - hit.at < ttlMs ? hit.data : undefined;
+}
+
+function setCachedJson(url: string, data: unknown) {
+  jsonCache.set(url, { data, at: Date.now() });
+}
 
 function getField(item: Record<string, unknown>, field: string): unknown {
   if (!field) return undefined;
@@ -19,9 +34,9 @@ function getField(item: Record<string, unknown>, field: string): unknown {
 
 function renderValue(data: unknown, cfg: {
   titleField: string; descField: string; timeField: string; linkField: string;
-}): React.ReactNode {
+}, t: (key: string, opts?: Record<string, unknown>) => string): React.ReactNode {
   if (Array.isArray(data)) {
-    if (data.length === 0) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无数据" style={{ padding: 20 }} />;
+    if (data.length === 0) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('common.widgets.noData')} style={{ padding: 20 }} />;
 
     const first = data[0];
     if (first && typeof first === 'object') {
@@ -30,7 +45,7 @@ function renderValue(data: unknown, cfg: {
         <div className="cw-json-list">
           {data.map((raw, i) => {
             const item = raw as Record<string, unknown>;
-            const title = String(getField(item, cfg.titleField) ?? `条目 ${i + 1}`);
+            const title = String(getField(item, cfg.titleField) ?? t('common.widgets.webview.item', { index: i + 1 }));
             const desc = getField(item, cfg.descField) ? String(getField(item, cfg.descField)) : '';
             const time = getField(item, cfg.timeField) ? String(getField(item, cfg.timeField)) : '';
             const link = getField(item, cfg.linkField) ? String(getField(item, cfg.linkField)) : '';
@@ -80,6 +95,7 @@ function renderValue(data: unknown, cfg: {
 }
 
 export default function WebViewJSON({ widget }: { widget: EditorWidget }) {
+  const { t } = useTranslation();
   const v = widget as Record<string, unknown>;
   const url = (v.jsonUrl as string) || '';
   const titleField = (v.titleField as string) || 'title';
@@ -91,12 +107,13 @@ export default function WebViewJSON({ widget }: { widget: EditorWidget }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchData = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!url) return;
     setLoading(true);
     setError('');
     try {
       const json = await tauriInvoke<unknown>('fetch_json', { url });
+      setCachedJson(url, json);
       setData(json);
     } catch (e) {
       setError(String(e));
@@ -106,19 +123,26 @@ export default function WebViewJSON({ widget }: { widget: EditorWidget }) {
   }, [url]);
 
   useEffect(() => {
-    fetchData();
+    // 命中缓存且未超过刷新周期 → 直接展示，避免翻页/重挂载重复请求
+    const ttl = (refresh > 0 ? refresh : 3600) * 1000;
+    const cached = getCachedJson(url, ttl);
+    if (cached !== undefined) {
+      setData(cached);
+    } else {
+      load();
+    }
     if (refresh > 0) {
-      const id = setInterval(fetchData, refresh * 1000);
+      const id = setInterval(load, refresh * 1000);
       return () => clearInterval(id);
     }
-  }, [fetchData, refresh]);
+  }, [url, refresh, load]);
 
   if (!url) {
     return (
       <div className="cw-webview-empty">
         <GlobalOutlined style={{ fontSize: 28, color: '#ccc' }} />
-        <span>请输入 JSON API 地址</span>
-        <span className="cw-webview-hint">在右侧属性面板中设置</span>
+        <span>{t('common.widgets.webview.enterJsonUrl')}</span>
+        <span className="cw-webview-hint">{t('common.widgets.webview.panelHint')}</span>
       </div>
     );
   }
@@ -131,9 +155,48 @@ export default function WebViewJSON({ widget }: { widget: EditorWidget }) {
     return <div className="cw-webview-error">{error}</div>;
   }
 
+  const weather = extractWeather(data);
   return (
     <div className="cw-json-wrap">
-      {renderValue(data, { titleField, descField, timeField, linkField })}
+      {weather ? <WeatherDashboard weather={weather} /> : renderValue(data, { titleField, descField, timeField, linkField }, t)}
+    </div>
+  );
+}
+
+/** wttr.in / OpenWeatherMap 结构 → 可视化天气仪表盘 */
+function WeatherDashboard({ weather }: { weather: WeatherExtracted }) {
+  const { t } = useTranslation();
+  const r = (n: number | null) => (n != null ? Math.round(n) : null);
+  return (
+    <div className="cw-weather">
+      <div className="cw-weather-main">
+        <div className="cw-weather-city">
+          {weather.city || t('common.widgets.weather.title')} <span style={{ fontSize: 26 }}>{weather.icon}</span>
+        </div>
+        <div className="cw-weather-temp">
+          {r(weather.temp) ?? '--'}<span className="cw-weather-unit">°C</span>
+        </div>
+        <div className="cw-weather-desc">{weather.desc}</div>
+      </div>
+      <div className="cw-weather-details">
+        <div className="cw-weather-detail"><span>💧</span> {weather.humidity != null ? `${weather.humidity}%` : '--'}</div>
+        <div className="cw-weather-detail"><span>🌬️</span> {weather.windSpeed != null ? `${r(weather.windSpeed)} km/h${weather.windDir ? ` ${weather.windDir}` : ''}` : '--'}</div>
+        <div className="cw-weather-detail"><span>🌡️</span> {r(weather.feels) != null ? `${r(weather.feels)}°` : '--'}</div>
+      </div>
+      {weather.forecast.length > 0 && (
+        <div className="cw-weather-forecast">
+          {weather.forecast.map((d, i) => (
+            <div key={i} className="cw-weather-day">
+              <div className="cw-weather-day-date">{d.date ? d.date.slice(5) : ''}</div>
+              <span style={{ fontSize: 20 }}>{d.icon}</span>
+              <div className="cw-weather-day-temps">
+                <span className="high">{r(d.max) ?? '--'}°</span>
+                <span className="low">{r(d.min) ?? '--'}°</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

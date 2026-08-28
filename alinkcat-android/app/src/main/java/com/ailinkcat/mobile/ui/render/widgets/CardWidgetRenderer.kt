@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -189,7 +191,8 @@ private fun CardContentSection(
 ) {
     Column(
         modifier = modifier
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column {
@@ -213,8 +216,7 @@ private fun CardContentSection(
                     text = cardDesc,
                     color = fg.copy(alpha = 0.75f),
                     fontSize = descFontSize,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Visible,
                     lineHeight = (descFontSize.value * 1.4f).sp,
                     modifier = Modifier.fillMaxWidth()
                 )

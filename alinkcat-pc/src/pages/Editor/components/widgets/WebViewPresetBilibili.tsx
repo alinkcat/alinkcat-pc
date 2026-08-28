@@ -1,98 +1,93 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Spin } from 'antd';
+import { GlobalOutlined } from '@ant-design/icons';
 import { tauriInvoke } from '../../../../utils/tauri';
 import type { EditorWidget } from '../../types';
+import { useTranslation } from 'react-i18next';
 
-interface BilibiliLiveInfo {
-  roomId: string;
+interface BiliRoom {
   title: string;
-  cover: string;
   liveStatus: number;
-  online: number;
-  anchorName: string;
-  roomUrl: string;
+  online?: number;
+  userCover?: string;
+  anchor?: string;
+}
+
+function normalizeRoomId(raw: string): string {
+  const id = raw.trim();
+  if (!id) return '';
+  if (/^\d+$/.test(id)) return id;
+  const m = id.match(/\/\/(?:www\.)?bilibili\.com\/\d+\/(\d+)/);
+  return m ? m[1] : id;
 }
 
 export default function WebViewPresetBilibili({ widget }: { widget: EditorWidget }) {
+  const { t } = useTranslation();
   const v = widget as Record<string, unknown>;
-  const roomId = (v.bilibiliRoomId as string) || '';
-  const refreshSec = (v.refreshInterval as number) || 30;
-  const [info, setInfo] = useState<BilibiliLiveInfo | null>(null);
+  const roomId = (v.roomId as string) || '';
+  const refresh = (v.refreshInterval as number) || 0;
+  const [room, setRoom] = useState<BiliRoom | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const fetchData = useCallback(async () => {
-    if (!roomId) return;
+    const id = normalizeRoomId(roomId);
+    if (!id) return;
     setLoading(true);
     setError('');
     try {
-      const data = await tauriInvoke<BilibiliLiveInfo>('fetch_bilibili_room', { roomId });
-      setInfo(data);
+      const res = await tauriInvoke<{ data: { room_info?: BiliRoom } }>('fetch_bilibili_room', { roomId: id });
+      const info = res?.data?.room_info;
+      if (info) {
+        setRoom(info);
+      } else {
+        setError(t('common.widgets.noData'));
+      }
     } catch (e) {
       setError(String(e));
     } finally {
       setLoading(false);
     }
-  }, [roomId]);
+  }, [roomId, t]);
 
   useEffect(() => {
     fetchData();
-    if (refreshSec > 0) {
-      const id = setInterval(fetchData, refreshSec * 1000);
+    if (refresh > 0) {
+      const id = setInterval(fetchData, refresh * 1000);
       return () => clearInterval(id);
     }
-  }, [fetchData, refreshSec]);
+  }, [fetchData, refresh]);
 
   if (!roomId) {
     return (
       <div className="cw-webview-empty">
-        <span style={{ fontSize: 28 }}>📺</span>
-        <span>请输入 B站直播间 ID</span>
-        <span className="cw-webview-hint">在右侧属性面板中设置</span>
+        <GlobalOutlined style={{ fontSize: 28, color: '#ccc' }} />
+        <span>{t('common.widgets.webview.enterBilibiliId')}</span>
+        <span className="cw-webview-hint">{t('common.widgets.webview.panelHint')}</span>
       </div>
     );
   }
 
-  if (loading && !info) {
-    return <div className="cw-webview-loading"><Spin size="small" /></div>;
-  }
+  if (loading && !room) return <div className="cw-webview-loading"><Spin size="small" /></div>;
+  if (error) return <div className="cw-webview-error">{error}</div>;
+  if (!room) return <div className="cw-webview-empty">{t('common.widgets.noData')}</div>;
 
-  if (error) {
-    return <div className="cw-webview-error">{error}</div>;
-  }
-
-  if (!info) {
-    return <div className="cw-webview-empty">暂无数据</div>;
-  }
-
-  const isLive = info.liveStatus === 1;
-
-  const handleOpen = async () => {
-    if (!info.roomUrl) return;
-    try {
-      const { openUrl } = await import('@tauri-apps/plugin-opener');
-      await openUrl(info.roomUrl);
-    } catch {
-      window.open(info.roomUrl, '_blank', 'noopener');
-    }
-  };
+  const live = room.liveStatus === 1;
 
   return (
-    <div className="cw-bili" onClick={handleOpen}>
-      <div
-        className="cw-bili-cover"
-        style={{ backgroundImage: info.cover ? `url(${info.cover})` : undefined }}
-      >
-        <div className="cw-bili-cover-blur" />
-        <div className="cw-bili-badge">
-          <span className={`cw-bili-dot${isLive ? ' live' : ''}`} />
-          <span>{isLive ? '直播中' : '未开播'}</span>
+    <div className="cw-bili">
+      <div className="cw-bili-cover" style={room.userCover ? { backgroundImage: `url(${room.userCover})` } : undefined} />
+      <div className="cw-bili-main">
+        <div className="cw-bili-title">{room.title || t('common.widgets.noTitle')}</div>
+        <div className="cw-bili-meta">
+          <span className={`cw-bili-status ${live ? 'live' : ''}`}>
+            {live ? t('common.widgets.live') : t('common.widgets.offline')}
+          </span>
+          {room.anchor && <span className="cw-bili-anchor">{t('common.widgets.anchor', { name: room.anchor })}</span>}
+          {live && room.online !== undefined && (
+            <span className="cw-bili-viewers">{t('common.widgets.viewers', { count: room.online })}</span>
+          )}
         </div>
-      </div>
-      <div className="cw-bili-body">
-        <div className="cw-bili-title">{info.title || '(无标题)'}</div>
-        {info.anchorName && <div className="cw-bili-anchor">主播：{info.anchorName}</div>}
-        {isLive && <div className="cw-bili-online">👁 {info.online.toLocaleString()} 人观看</div>}
       </div>
     </div>
   );

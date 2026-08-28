@@ -12,12 +12,14 @@ pub mod snippet_commands;
 pub mod theme_push_commands;
 pub mod upload_commands;
 pub mod webview_commands;
+pub mod generic_http;
 
 use crate::action::executor;
 use crate::action::types::*;
 use crate::monitor::scheduler::MonitorScheduler;
 use crate::monitor::types::PerfSnapshot;
 use crate::theme::manager;
+use crate::theme::config;
 use crate::theme::types::*;
 use crate::websocket::server::WebSocketServer;
 use crate::websocket::types::{ClientInfo, ConnectionLog, ServerStatus};
@@ -129,7 +131,13 @@ pub fn get_local_ip() -> Vec<String> {    let mut ips = Vec::new();
 
 #[tauri::command]
 pub fn scan_themes() -> Result<Vec<ThemeSummary>, String> {
-    manager::scan_themes()
+    // Retrieve all themes then filter out any built‑in themes that have been marked as deleted.
+    let mut themes = manager::scan_themes()?;
+    let cfg = config::load_config();
+    if !cfg.deleted_builtin_themes.is_empty() {
+        themes.retain(|t| !cfg.deleted_builtin_themes.contains(&t.id));
+    }
+    Ok(themes)
 }
 
 #[tauri::command]

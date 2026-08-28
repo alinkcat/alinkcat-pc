@@ -53,7 +53,12 @@ import com.ailinkcat.mobile.ui.render.widgets.TextWidgetRenderer
 import com.ailinkcat.mobile.ui.render.widgets.WebViewWidgetRenderer
 import com.ailinkcat.mobile.domain.models.QuickActionWidget
 import com.ailinkcat.mobile.ui.render.widgets.QuickActionWidgetRenderer
+import com.ailinkcat.mobile.domain.models.WeatherWidget
+import com.ailinkcat.mobile.ui.render.widgets.WeatherWidgetRenderer
 import java.io.File
+import android.widget.LinearLayout
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 
 /**
  * 控件路由：按控件类型分发到对应渲染器；未知/失败控件显示占位视图。
@@ -150,6 +155,8 @@ fun WidgetRenderer(
             onButtonClick = onButtonClick,
             onSnippetClick = onSnippetClick
         )
+
+        is WeatherWidget -> WeatherWidgetRenderer(widget = widget)
 
         else -> PlaceholderWidget(widget.id)
     }

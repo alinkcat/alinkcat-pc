@@ -12,6 +12,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import AuthExpiredModal from './components/AuthExpiredModal';
 import VersionPolling from './components/VersionPolling';
 import SplashScreen from './components/SplashScreen';
+import MessageBinder from './utils/MessageBinder';
 import Themes from './pages/Themes';
 import Editor from './pages/Editor';
 import Devices from './pages/Devices';
@@ -210,6 +211,7 @@ export default function App() {
       }}
     >
       <AntApp>
+        <MessageBinder />
         {!splashDone && <SplashScreen onFinished={() => setSplashDone(true)} />}
         {gate && (
           <Modal open closable={!isBlocking} mask={{ closable: !isBlocking }} keyboard={false} footer={null} width={400} centered onCancel={closeGate}>

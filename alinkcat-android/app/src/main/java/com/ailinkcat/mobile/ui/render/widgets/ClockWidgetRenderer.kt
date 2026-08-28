@@ -53,6 +53,7 @@ fun ClockWidgetRenderer(widget: ClockWidget) {
 @Composable
 private fun DigitalClockContent(widget: ClockWidget) {
     var timeText by remember { mutableStateOf("") }
+    var weekText by remember { mutableStateOf("") }
     val intervalMs = if (widget.showSeconds) 1000L else 60_000L
     LaunchedEffect(Unit) {
         while (true) {
@@ -65,6 +66,10 @@ private fun DigitalClockContent(widget: ClockWidget) {
                 }
             )
             timeText = now.format(formatter)
+            if (widget.showWeekday) {
+                weekText = java.time.LocalDate.now().dayOfWeek
+                    .getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault())
+            }
             kotlinx.coroutines.delay(intervalMs)
         }
     }
@@ -87,6 +92,15 @@ private fun DigitalClockContent(widget: ClockWidget) {
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 2.sp
             )
+            if (widget.showWeekday) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = weekText,
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
             if (widget.label.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
                 Text(

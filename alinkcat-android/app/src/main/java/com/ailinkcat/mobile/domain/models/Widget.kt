@@ -3,7 +3,7 @@ package com.ailinkcat.mobile.domain.models
 import org.json.JSONArray
 import org.json.JSONObject
 
-enum class WidgetType { BUTTON, GAUGE, BATTERY, STICKY_NOTE, IMAGE, TEXT, SHAPE, WEBVIEW, MEDIA_CONTROL, SYSTEM_MONITOR, LAUNCHER_ICON, CLOCK, DATE, CALENDAR, CARD, QUICK_ACTION }
+enum class WidgetType { BUTTON, GAUGE, BATTERY, STICKY_NOTE, IMAGE, TEXT, SHAPE, WEBVIEW, MEDIA_CONTROL, SYSTEM_MONITOR, LAUNCHER_ICON, CLOCK, DATE, CALENDAR, CARD, QUICK_ACTION, WEATHER }
 
 /**
  * 控件定位。
@@ -96,6 +96,7 @@ sealed class Widget {
                 "calendar" -> CalendarWidget.fromJson(json, layout)
                 "card" -> CardWidget.fromJson(json, layout)
                 "quick-action" -> QuickActionWidget.fromJson(json, layout)
+                "weather" -> WeatherWidget.fromJson(json, layout)
                 else -> null
             }
         }
@@ -272,7 +273,8 @@ data class ImageWidget(
             ImageWidget(
                 id = json.getString("id"),
                 layout = layout,
-                imagePath = json.optString("imagePath").ifBlank { null },
+                // 兼容 PC 端字段名 src
+                imagePath = json.optString("imagePath").ifBlank { json.optString("src").ifBlank { null } },
                 scaleMode = json.optString("scaleMode").ifBlank { null }
                     ?: json.optString("objectFit").ifBlank { null },
                 borderRadius = json.optInt("borderRadius", -1).takeIf { it >= 0 },
@@ -305,9 +307,11 @@ data class TextWidget(
             TextWidget(
                 id = json.getString("id"),
                 layout = layout,
-                text = json.optString("text", ""),
+                // 兼容 PC 端字段名 content
+                text = json.optString("text").ifBlank { json.optString("content", "") },
                 fontSize = json.optInt("fontSize", -1).takeIf { it > 0 },
-                textColor = json.optString("textColor").ifBlank { null },
+                // 兼容 PC 端字段名 color
+                textColor = json.optString("textColor").ifBlank { json.optString("color").ifBlank { null } },
                 fontWeight = json.optString("fontWeight").ifBlank { null },
                 textAlign = json.optString("textAlign").ifBlank { null },
                 clickAction = json.optJSONObject("clickAction")?.let {
@@ -354,14 +358,29 @@ data class WebViewWidget(
     override val id: String,
     override val type: WidgetType = WidgetType.WEBVIEW,
     override val layout: WidgetLayout,
-    val url: String?
+    val url: String?,
+    // JSON 数据展示模式（与 PC 端 WebViewJSON 字段一致）
+    val displayMode: String = "webpage", // webpage / rss / json
+    val jsonUrl: String = "",
+    val titleField: String = "title",
+    val descField: String = "description",
+    val timeField: String = "pubDate",
+    val linkField: String = "link",
+    val refreshInterval: Int = 0 // 秒
 ) : Widget() {
     companion object {
         fun fromJson(json: JSONObject, layout: WidgetLayout): WebViewWidget? = try {
             WebViewWidget(
                 id = json.getString("id"),
                 layout = layout,
-                url = json.optString("url").ifBlank { null }
+                url = json.optString("url").ifBlank { null },
+                displayMode = json.optString("displayMode", "webpage"),
+                jsonUrl = json.optString("jsonUrl", ""),
+                titleField = json.optString("titleField", "title"),
+                descField = json.optString("descField", "description"),
+                timeField = json.optString("timeField", "pubDate"),
+                linkField = json.optString("linkField", "link"),
+                refreshInterval = json.optInt("refreshInterval", 0)
             )
         } catch (_: Exception) {
             null
@@ -478,6 +497,7 @@ data class ClockWidget(
     val showSeconds: Boolean,
     val showAmpm: Boolean = false,
     val clockDisplay: String = "digital", // digital / analog
+    val showWeekday: Boolean = false,     // 在时间下方显示星期几
     val tickMarks: Boolean = true,
     val showNumbers: Boolean = true,
     val handStyle: String = "classic",   // classic / modern / thin
@@ -491,15 +511,17 @@ data class ClockWidget(
                 id = json.getString("id"),
                 layout = layout,
                 label = json.optString("label", "Clock"),
-                format24h = props?.optBoolean("format24h", true) ?: true,
-                showSeconds = props?.optBoolean("showSeconds", true) ?: true,
-                showAmpm = props?.optBoolean("showAmpm", false) ?: false,
-                clockDisplay = props?.optString("clockDisplay", "digital") ?: "digital",
-                tickMarks = props?.optBoolean("tickMarks", true) ?: true,
-                showNumbers = props?.optBoolean("showNumbers", true) ?: true,
-                handStyle = props?.optString("handStyle", "classic") ?: "classic",
-                faceColor = props?.optString("faceColor", "#ffffff") ?: "#ffffff",
-                handColor = props?.optString("handColor", "#333333") ?: "#333333"
+                // 字段可能在 properties 或顶层（PC 端导出通常在顶层）
+                format24h = props?.optBoolean("format24h") ?: json.optBoolean("format24h", true),
+                showSeconds = props?.optBoolean("showSeconds") ?: json.optBoolean("showSeconds", true),
+                showAmpm = props?.optBoolean("showAmpm") ?: json.optBoolean("showAmpm", false),
+                clockDisplay = props?.optString("clockDisplay") ?: json.optString("clockDisplay", "digital"),
+                showWeekday = props?.optBoolean("showWeekday") ?: json.optBoolean("showWeekday", false),
+                tickMarks = props?.optBoolean("tickMarks") ?: json.optBoolean("tickMarks", true),
+                showNumbers = props?.optBoolean("showNumbers") ?: json.optBoolean("showNumbers", true),
+                handStyle = props?.optString("handStyle") ?: json.optString("handStyle", "classic"),
+                faceColor = props?.optString("faceColor") ?: json.optString("faceColor", "#ffffff"),
+                handColor = props?.optString("handColor") ?: json.optString("handColor", "#333333")
             )
         } catch (_: Exception) { null }
     }

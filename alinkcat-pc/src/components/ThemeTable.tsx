@@ -79,7 +79,7 @@ export default function ThemeTable({ themes, activeId, onEdit, onActivate, onExp
             {record.id === activeId ? t('themes.activated') : t('themes.activate')}
           </Button>
           <Button type="link" size="small" icon={<ExportOutlined />} onClick={() => onExport(record)}>{t('themes.export')}</Button>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => onDelete(record.id, record.name)}>{t('themes.delete')}</Button>
+          {<Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => onDelete(record.id, record.name)}>{t('themes.delete')}</Button>}
         </Space>
       ),
     },

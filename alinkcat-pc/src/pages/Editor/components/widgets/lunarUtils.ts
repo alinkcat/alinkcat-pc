@@ -13,12 +13,12 @@ export const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '�
 
 export const WEEKDAY_ABBR = ['日', '一', '二', '三', '四', '五', '六'];
 
-/** 按模板格式化日期，支持 YYYY / MM / DD / 星期X / 星期 等令牌。 */
-export function fmtDate(d: Date, fmt: string): string {
+/** 按模板格式化日期，支持 YYYY / MM / DD / 星期X / 星期 等令牌；weekdays 可传入翻译后的星期名数组。 */
+export function fmtDate(d: Date, fmt: string, weekdays: string[] = WEEKDAYS): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  const wd = WEEKDAYS[d.getDay()];
+  const wd = weekdays[d.getDay()] ?? weekdays[0];
   return fmt
     .replace('YYYY', String(y))
     .replace('MM', m)
