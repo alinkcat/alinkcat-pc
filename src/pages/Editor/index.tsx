@@ -1,18 +1,19 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
-import { Button, Space, Modal, Row, Col, Card, Slider, message, List, Empty, Tag, Tour, Input, Dropdown } from 'antd';
+import { Button, Space, Modal, Row, Col, Card, Slider, App, List, Empty, Tag, Tour, Input, Dropdown } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined, UndoOutlined, RedoOutlined, HistoryOutlined, QuestionCircleOutlined, DownOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { tauriInvoke } from '../../utils/tauri';
 import ThemeFileManager from '../../components/ThemeFileManager';
-import { useEditorStore, editorToThemeMeta } from './store/editorStore';
+import { useEditorStore, editorToThemeMeta, nextFree } from './store/editorStore';
 import { usePanelResize } from './hooks/useResize';
 import { generateThemeCover, generateDefaultCover } from '../../utils/coverGenerator';
 import { migrateImagesToAssets } from '../../utils/coverHelper';
 import { resolveThemeImages } from '../../utils/assetHelper';
 import { getTemplateById, cloneTemplate } from '../../templates';
 import type { ThemeMeta, ThemeVersion } from '../../types/theme';
+import type { EditorWidget } from './types';
 import ControlLibrary from './components/ControlLibrary';
 import PreviewArea from './components/PreviewArea';
 import PropertyPanel from './components/PropertyPanel';
@@ -76,6 +77,7 @@ function PageTemplateModal({ open, onSelect, onCancel }: {
 
 export default function Editor() {
   const { t } = useTranslation();
+  const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -115,6 +117,7 @@ export default function Editor() {
   const [draftModal, setDraftModal] = useState<DraftPayload | null>(null);
   const [editorGuideOpen, setEditorGuideOpen] = useState(false);
   const mousePosRef = useRef({ x: 0, y: 0 });
+  const copiedWidgetRef = useRef<EditorWidget | null>(null);
   const guideRefLeftPanel = useRef<HTMLDivElement>(null);
   const guideRefCanvas = useRef<HTMLDivElement>(null);
   const guideRefRightPanel = useRef<HTMLDivElement>(null);
@@ -187,32 +190,143 @@ export default function Editor() {
     setEditorGuideOpen(true);
   };
 
-  // Ctrl+Z 撤销 / Ctrl+Y Ctrl+Shift+Z 重做
+  // 全局键盘快捷键
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const editor = useEditorStore.getState();
+      // 检查是否在输入框中，避免误触发
+      const tag = (e.target as HTMLElement).tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement).isContentEditable;
+
+      // ── 全局快捷键（不受输入框限制） ──
+      // Ctrl+Z 撤销
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
-        // 撤销：优先编辑器历史
         if (editor.canUndo) {
           editor.undo();
           e.preventDefault();
-        } else {
-          // 回退到 AI 快照
-          const restored = useAIStore.getState().restoreLastSnapshot();
-          if (restored) e.preventDefault();
         }
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-        // 重做
+        return;
+      }
+      // Ctrl+Y 或 Ctrl+Shift+Z 重做
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
         if (editor.canRedo) {
           editor.redo();
           e.preventDefault();
         }
-      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
-        // Ctrl+Shift+Z 也是重做
-        if (editor.canRedo) {
-          editor.redo();
+        return;
+      }
+
+      // 以下快捷键仅在非输入框内生效
+      if (isInput) return;
+
+      // Delete / Backspace 删除选中控件
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (editor.selectedWidgetId) {
+          editor.removeWidget(editor.selectedWidgetId);
           e.preventDefault();
         }
+        return;
+      }
+
+      // Escape 取消选中
+      if (e.key === 'Escape') {
+        if (editor.selectedWidgetId) {
+          editor.selectWidget(null);
+          e.preventDefault();
+        }
+        return;
+      }
+
+      // Ctrl+C 复制选中控件
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        if (editor.selectedWidgetId) {
+          const pg = editor.theme.pages[editor.activePageIdx];
+          const widget = pg?.widgets.find(w => w.id === editor.selectedWidgetId);
+          if (widget) {
+            copiedWidgetRef.current = { ...widget, id: '' };
+            e.preventDefault();
+          }
+        }
+        return;
+      }
+
+      // Ctrl+V 粘贴控件
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        if (copiedWidgetRef.current) {
+          const pg = editor.theme.pages[editor.activePageIdx];
+          if (pg) {
+            const newWidget = { ...copiedWidgetRef.current, id: `w-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}` };
+            // 在自由模式下放置在鼠标位置附近，网格模式下放在下一个空位
+            if (pg.layoutMode === 'free') {
+              const offset = 2;
+              newWidget.freeX = Math.min(90, (newWidget.freeX ?? 10) + offset);
+              newWidget.freeY = Math.min(90, (newWidget.freeY ?? 10) + offset);
+            } else {
+              const [c, r] = nextFree(pg.widgets, pg.columns, pg.rows);
+              newWidget.gridCol = c;
+              newWidget.gridRow = r;
+            }
+            editor.addWidget(newWidget.type);
+            // 同步新控件的属性（除了 id 和 type）
+            const newId = editor.selectedWidgetId;
+            if (newId) {
+              const values: Record<string, unknown> = {};
+              for (const [k, v] of Object.entries(newWidget)) {
+                if (k === 'id' || k === 'type') continue;
+                values[k] = v;
+              }
+              editor.updateWidget(newId, values);
+            }
+            e.preventDefault();
+          }
+        }
+        return;
+      }
+
+      // Ctrl+D 复制（duplicate）选中控件
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        if (editor.selectedWidgetId) {
+          const pg = editor.theme.pages[editor.activePageIdx];
+          const widget = pg?.widgets.find(w => w.id === editor.selectedWidgetId);
+          if (widget) {
+            editor.addWidget(widget.type);
+            const newId = editor.selectedWidgetId;
+            if (newId) {
+              const values: Record<string, unknown> = {};
+              const offset = 3;
+              for (const [k, v] of Object.entries(widget)) {
+                if (k === 'id' || k === 'type') continue;
+                if (k === 'freeX') { values[k] = Math.min(90, (v as number) + offset); continue; }
+                if (k === 'freeY') { values[k] = Math.min(90, (v as number) + offset); continue; }
+                values[k] = v;
+              }
+              editor.updateWidget(newId, values);
+            }
+            e.preventDefault();
+          }
+        }
+        return;
+      }
+
+      // 方向键微调（仅自由模式）
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        if (editor.selectedWidgetId) {
+          const pg = editor.theme.pages[editor.activePageIdx];
+          if (pg?.layoutMode !== 'free') return;
+          const widget = pg.widgets.find(w => w.id === editor.selectedWidgetId);
+          if (!widget) return;
+          const step = e.shiftKey ? 10 : 1;
+          let dx = 0, dy = 0;
+          switch (e.key) {
+            case 'ArrowUp': dy = -step; break;
+            case 'ArrowDown': dy = step; break;
+            case 'ArrowLeft': dx = -step; break;
+            case 'ArrowRight': dx = step; break;
+          }
+          editor.moveWidgetFree(editor.selectedWidgetId, Math.max(0, Math.min(100, (widget.freeX ?? 0) + dx)), Math.max(0, Math.min(100, (widget.freeY ?? 0) + dy)));
+          e.preventDefault();
+        }
+        return;
       }
     };
     window.addEventListener('keydown', handler);
@@ -366,9 +480,12 @@ export default function Editor() {
           <Button icon={<ExportOutlined />} loading={exporting} onClick={handleExport} disabled={!theme.id}>{t('editor.toolbar.export')}</Button>
           <Button icon={<FolderOutlined />} onClick={() => setFileMgrOpen(true)} disabled={!theme.id}>{t('editor.toolbar.file')}</Button>
           <Button icon={<HistoryOutlined />} onClick={() => { loadVersionHistory(theme.id); setVersionHistoryOpen(true); }} disabled={!theme.id} title={t('editor.versionHistory.title')} />
-          <Dropdown.Button type="primary" icon={<DownOutlined />} menu={{ items: saveMenuItems, onClick: handleSaveDropdown }} loading={saving} onClick={handleSave}>
-          {t('editor.toolbar.save')}
-        </Dropdown.Button>
+          <Space.Compact>
+            <Button type="primary" loading={saving} onClick={handleSave}>{t('editor.toolbar.save')}</Button>
+            <Dropdown menu={{ items: saveMenuItems, onClick: handleSaveDropdown }}>
+              <Button type="primary" icon={<DownOutlined />} />
+            </Dropdown>
+          </Space.Compact>
           <Button size="small" icon={<QuestionCircleOutlined />} onClick={handleOpenEditorGuide} title={t('onboarding.tutorial')} />
         </Space>
       </div>

@@ -51,6 +51,7 @@
   "sourceDownloaded": "Downloaded",
   "downloadedAt": "Downloaded at {{date}}",
   "pages": "{{count}} pages",
+  "refresh": "Refresh",
   "templates": {
     "title": "Start from a Template",
     "subtitle": "Choose a template to get started quickly, or start with a blank theme",

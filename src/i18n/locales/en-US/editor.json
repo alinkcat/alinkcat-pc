@@ -38,7 +38,8 @@
     "media-control": "Media Control",
     "webview": "WebView",
     "image": "Image",
-    "card": "Info Card"
+    "card": "Info Card",
+    "weather": "Weather"
   },
   "pageManager": {
     "title": "📐 Page Manager",
@@ -228,7 +229,31 @@
       "tempUnit": "Temperature Unit",
       "celsius": "°C Celsius",
       "fahrenheit": "°F Fahrenheit",
-      "weatherHint": "Uses OpenWeatherMap. Get a free API Key at openweathermap.org",
+      "weatherHint": "Supports any weather API: URL, method, headers, body, extra params and response mapping are all visually configurable",
+      "requestSection": "Request Settings",
+      "requestUrl": "Request URL",
+      "requestUrlPlaceholder": "Supports ${city} / ${apiKey} placeholders",
+      "requestMethod": "Request Method",
+      "requestHeaders": "Request Headers",
+      "headerKeyPlaceholder": "Header name",
+      "headerValuePlaceholder": "Header value",
+      "addHeader": "Add header",
+      "requestBody": "Request Body",
+      "requestBodyPlaceholder": "POST body, supports placeholders, e.g. {\"q\":\"${city}\"}",
+      "paramSection": "Parameters",
+      "extraParams": "Extra Params",
+      "paramKeyPlaceholder": "Param name",
+      "paramValuePlaceholder": "Param value",
+      "addParam": "Add param",
+      "refreshHours": "Refresh Every (hours)",
+      "refreshHoursHint": "In hours; 0 disables auto refresh",
+      "mappingSection": "Response Field Mapping",
+      "mappingKeyPlaceholder": "Target field",
+      "mappingValuePlaceholder": "JSON path, e.g. main.temp",
+      "addMapping": "Add mapping",
+      "fillOwM": "Fill OpenWeatherMap mapping",
+      "mappingHint": "Target field → JSON path; dot-separated, supports array index like weather[0].description",
+      "placeholderHint": "Use ${city}, ${apiKey} and extra param names as placeholders in URL / Headers / Body",
       "displayMode": "Display Mode",
       "webpage": "Web Page",
       "rss": "RSS Feed",
@@ -367,6 +392,13 @@
       "update_data": "Update Data Source",
       "trigger_action": "Trigger Action",
       "selectWidget": "Select widget..."
+    },
+    "zOrder": {
+      "section": "Z-Order",
+      "bringToFront": "Bring to Front",
+      "sendToBack": "Send to Back",
+      "moveUp": "Move Up",
+      "moveDown": "Move Down"
     }
   },
   "statusbar": {

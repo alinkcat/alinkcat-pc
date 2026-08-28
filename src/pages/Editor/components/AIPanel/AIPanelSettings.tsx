@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
-import { Modal, Form, Input, Switch, InputNumber, Button, Space, Typography, message, Alert } from 'antd';
+import { Modal, Form, Input, Switch, InputNumber, Button, Space, Typography, Alert } from 'antd';
+import { message } from '../../../../utils/message';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAIStore } from '../../../../store/aiStore';
 

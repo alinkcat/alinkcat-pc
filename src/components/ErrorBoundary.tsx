@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/react';
-import { Button, Result, Space, message } from 'antd';
+import { Button, Result, Space } from 'antd';
+import { message } from '../utils/message';
 import i18n from '../i18n/setup';
 import { exportEncryptedLogs } from '../utils/errorExport';
 

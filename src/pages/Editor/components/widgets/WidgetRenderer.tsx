@@ -34,6 +34,7 @@ function renderContent(widget: EditorWidget) {
     case 'text': return <TextWidget widget={widget} />;
     case 'shape': return <ShapeWidget widget={widget} />;
     case 'webview': return <WebViewWidget widget={widget} />;
+    case 'weather': return <WebViewWidget widget={widget} />;
     case 'media-control': return <MediaWidget widget={widget} />;
     case 'system-monitor': return <SystemMonitorWidget widget={widget} />;
     case 'quick-action': return <QuickActionWidget widget={widget} />;

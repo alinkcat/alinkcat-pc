@@ -1,10 +1,16 @@
 import { useMemo } from 'react';
 import type { EditorWidget } from '../../types';
 import { useDataSubscription } from '../../hooks/useDataSubscription';
+import { useTranslation } from 'react-i18next';
 
-const SOURCE_LABELS: Record<string, string> = {
-  'system.cpu.usage': 'CPU', 'system.memory.usage': '内存', 'system.disk.usage': '磁盘',
-  'system.network.upload': '上传', 'system.network.download': '下载', 'system.uptime': '运行',
+/** 数据源 → i18n 键（common 命名空间下 widgets.monitor.*） */
+const SOURCE_LABEL_KEYS: Record<string, string> = {
+  'system.cpu.usage': 'monitor.cpu',
+  'system.memory.usage': 'monitor.memory',
+  'system.disk.usage': 'monitor.disk',
+  'system.network.upload': 'monitor.upload',
+  'system.network.download': 'monitor.download',
+  'system.uptime': 'monitor.runtime',
 };
 
 function formatValue(ds: string, val: number | null): string {
@@ -21,6 +27,7 @@ function formatUnit(ds: string): string {
 }
 
 export default function GaugeWidget({ widget }: { widget: EditorWidget }) {
+  const { t } = useTranslation();
   const v = widget as Record<string, unknown>;
   const dataSource = (v.dataSource as string) || 'system.cpu.usage';
   const gaugeStyle = (v.gaugeStyle as string) || 'ring';
@@ -42,7 +49,8 @@ export default function GaugeWidget({ widget }: { widget: EditorWidget }) {
 
   const ringColor = pct < 33 ? ringColorLow : pct < 66 ? ringColorMid : ringColorHigh;
   const display = formatValue(dataSource, rawValue);
-  const label = SOURCE_LABELS[dataSource] || widget.label || '表盘';
+  const labelKey = SOURCE_LABEL_KEYS[dataSource];
+  const label = labelKey ? t(`common.widgets.${labelKey}`) : (widget.label || t('common.widgets.gauge'));
 
   if (gaugeStyle === 'number') {
     return (

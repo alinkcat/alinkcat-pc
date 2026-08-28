@@ -12,10 +12,10 @@ import {
   Flex,
   Space,
   Typography,
-  message,
   Popconfirm,
   Tooltip,
 } from 'antd';
+import { message } from '../utils/message';
 import {
   PlusOutlined,
   EditOutlined,

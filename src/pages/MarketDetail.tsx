@@ -2,18 +2,19 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Button, Spin, Tag, Rate, Typography, Card, Descriptions, Space, Empty, Row, Col, Input, List, Avatar, Divider,
+  Button, Spin, Tag, Rate, Typography, Card, Descriptions, Space, Empty, Row, Col, List, // Input, Avatar, Divider（评论模块暂时禁用）
 } from 'antd';
 import { ArrowLeftOutlined, DownloadOutlined } from '@ant-design/icons';
 import { themeApi } from '../api/themeApi';
-import { commentApi } from '../api/commentApi';
+// 评论模块暂时禁用：import { commentApi } from '../api/commentApi';
 import { versionApi } from '../api/versionApi';
 import { useMessage } from '../hooks/useMessage';
 import { downloadToQueue } from '../utils/downloadTheme';
 import { resolveImageUrl } from '../utils/resolveImageUrl';
 import FavoriteButton from '../components/FavoriteButton';
 import UserRating from '../components/UserRating';
-import type { ThemeItem, ThemeComment, ThemeVersion } from '../api/types';
+import type { ThemeItem, ThemeVersion } from '../api/types';
+// 评论模块暂时禁用：import type { ThemeComment } from '../api/types';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -38,21 +39,21 @@ export default function MarketDetail() {
   const [item, setItem] = useState<ThemeItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const [comments, setComments] = useState<ThemeComment[]>([]);
+  // 评论模块暂时禁用：const [comments, setComments] = useState<ThemeComment[]>([]);
   const [versions, setVersions] = useState<ThemeVersion[]>([]);
-  const [commentText, setCommentText] = useState('');
-  const [commentOpen, setCommentOpen] = useState(false);
+  // 评论模块暂时禁用：const [commentText, setCommentText] = useState('');
+  // 评论模块暂时禁用：const [commentOpen, setCommentOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     Promise.all([
       themeApi.detail(Number(id)),
-      commentApi.list(id),
+      // 评论模块暂时禁用：commentApi.list(id),
       versionApi.list(id),
-    ]).then(([themeResp, commentResp, versionResp]) => {
+    ]).then(([themeResp, versionResp]) => {
       if (themeResp.code === 200 && themeResp.data) setItem(themeResp.data);
-      if (commentResp.code === 200) setComments(commentResp.data?.records ?? []);
+      // 评论模块暂时禁用：if (commentResp.code === 200) setComments(commentResp.data?.records ?? []);
       if (versionResp.code === 200) setVersions(Array.isArray(versionResp.data) ? versionResp.data : []);
     }).finally(() => setLoading(false));
   }, [id]);
@@ -67,6 +68,7 @@ export default function MarketDetail() {
     finally { setDownloading(false); }
   };
 
+/* 评论模块暂时禁用：
   const handlePostComment = async () => {
     if (!item || !commentText.trim()) return;
     try {
@@ -80,6 +82,7 @@ export default function MarketDetail() {
       }
     } catch (e) { msg.error(String(e)); }
   };
+*/
 
   if (loading) {
     return <div className="page-container" style={{ textAlign: 'center', padding: '80px 0' }}><Spin size="large" /></div>;
@@ -170,7 +173,7 @@ export default function MarketDetail() {
         </Card>
       )}
 
-      {/* Comments */}
+      {/* 评论模块暂时禁用 — 下方整块被注释
       <Card title={t('market.comments')} style={{ marginTop: 16 }}>
         <Space style={{ marginBottom: 16 }}>
           <Button type={commentOpen ? 'primary' : 'default'} onClick={() => setCommentOpen(!commentOpen)}>
@@ -211,6 +214,8 @@ export default function MarketDetail() {
           />
         )}
       </Card>
+      */}
+
     </div>
   );
 }

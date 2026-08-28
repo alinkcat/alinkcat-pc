@@ -10,7 +10,7 @@ export function makeWidget(type: string, col: number, row: number): EditorWidget
   const base: WidgetBase = {
     id: genId('w'), type, label: '',
     gridCol: col, gridRow: row, gridW: 1, gridH: 1,
-    freeX: 10, freeY: 10, freeW: 30, freeH: 15,
+    freeX: 10, freeY: 10, freeW: 30, freeH: 15, zIndex: 0,
     backgroundColor: '#f0f2f5',
     backgroundOpacity: 100,
     textColor: '#333333',
@@ -25,7 +25,7 @@ export function makeWidget(type: string, col: number, row: number): EditorWidget
     case 'image': return { ...base, src: '', objectFit: 'cover' } as EditorWidget;
     case 'text': return { ...base, content: '双击编辑文字', fontSize: 16, fontWeight: 'normal', color: '#333333', textAlign: 'left', backgroundColor: 'transparent', backgroundOpacity: 0, padding: 4, borderRadius: 0 } as EditorWidget;
     case 'shape': return { ...base, shapeType: 'rect', fillType: 'solid', fillColor: '#d9d9d9', gradientStart: '#4F6EF7', gradientEnd: '#52c41a', gradientAngle: 90, borderColor: 'transparent', borderWidth: 0, borderRadius: 0, opacity: 100 } as EditorWidget;
-    case 'webview': return { ...base, url: '', showScrollbar: true, backgroundColor: '#ffffff', displayMode: 'webpage', rssUrl: '', jsonUrl: '', refreshInterval: 0, titleField: 'title', descField: 'description', timeField: 'pubDate', linkField: 'link', preset: 'none', bilibiliRoomId: '', weatherCity: '', weatherApiKey: '', weatherUnit: 'c' } as EditorWidget;
+    case 'webview': return { ...base, url: '', showScrollbar: true, backgroundColor: '#ffffff', displayMode: 'webpage', rssUrl: '', jsonUrl: '', refreshInterval: 0, titleField: 'title', descField: 'description', timeField: 'pubDate', linkField: 'link', preset: 'none', bilibiliRoomId: '', city: '', apiKey: '', unit: 'c', refreshHours: 1, requestMethod: 'GET', requestUrl: '', requestHeaders: {}, extraParams: {}, responseMapping: {} } as EditorWidget;
     case 'media-control': return { ...base, label: '音乐控制', displayMode: 'always', showCover: true, showProgress: true } as EditorWidget;
     case 'system-monitor': return { ...base, label: '系统监控', showCPU: true, showMemory: true, showDisk: true, showNetwork: true, refreshInterval: 2 } as EditorWidget;
     case 'quick-action': return { ...base, label: '快捷面板', columns: 2, rows: 2, cells: [
@@ -35,11 +35,12 @@ export function makeWidget(type: string, col: number, row: number): EditorWidget
       { type: 'snippet', title: '结束语', snippets: [{ id: 's2', label: '感谢', content: '感谢您的咨询！' }] },
     ] } as EditorWidget;
     case 'launcher': return { ...base, label: '应用启动', name: '计算器', path: 'calc', icon: '📱' } as EditorWidget;
-    case 'clock': return { ...base, label: '时钟', format24h: true, showSeconds: true, showAmpm: true } as EditorWidget;
+    case 'clock': return { ...base, label: '时钟', format24h: true, showSeconds: true, showAmpm: true, showWeekday: false, clockDisplay: 'digital' } as EditorWidget;
     case 'date': return { ...base, label: '日期', dateFormat: 'YYYY年MM月DD日 星期X', showLunar: true } as EditorWidget;
     case 'calendar': return { ...base, label: '日历', viewMode: 'month', highlightToday: true, gridW: 2, gridH: 3 } as EditorWidget;
     case 'card': return { ...base, label: '', cardTitle: '', cardDesc: '卡片描述', cardImage: '', cardImagePosition: 'top', cardTags: [], cardFooter: '' } as EditorWidget;
     case 'battery': return { ...base, label: '电池', batteryStyle: 'bar', showLevel: true, showCharging: true, showTemp: false, barColor: '#52c41a', lowColor: '#ff4d4f', lowThreshold: 20, dataSource: 'system.battery.level' } as EditorWidget;
+    case 'weather': return { ...base, type: 'weather', label: '天气', url: '', showScrollbar: true, backgroundColor: '#ffffff', displayMode: 'webpage', rssUrl: '', jsonUrl: '', refreshInterval: 0, titleField: 'title', descField: 'description', timeField: 'pubDate', linkField: 'link', preset: 'weather', bilibiliRoomId: '', city: '', apiKey: '', unit: 'c', refreshHours: 1, requestMethod: 'GET', requestUrl: 'https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric', requestHeaders: {}, extraParams: {}, responseMapping: { city: 'name', temp: 'main.temp', condition: 'weather[0].main', description: 'weather[0].description', icon: 'weather[0].icon', humidity: 'main.humidity', wind_speed: 'wind.speed', feels_like: 'main.feels_like', forecast: 'list' } } as EditorWidget;
     default: return base as EditorWidget;
   }
 }
@@ -157,6 +158,13 @@ export interface EditorState {
   moveWidgetFree: (id: string, x: number, y: number) => void;
   resizeWidgetFree: (id: string, w: number, h: number) => void;
   updateWidget: (id: string, values: Record<string, unknown>) => void;
+  // 层级控制
+  bringToFront: (id: string) => void;
+  sendToBack: (id: string) => void;
+  moveUp: (id: string) => void;
+  moveDown: (id: string) => void;
+  // 供 AI 调用：压入撤销快照
+  pushUndoSnapshot: (snapshot: EditorTheme) => void;
 }
 
 const EMPTY: EditorTheme = {
@@ -381,5 +389,77 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     undoStack: [...s.undoStack, s.theme].slice(-50),
     redoStack: [], canUndo: true, canRedo: false,
     theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(w => w.id === id ? { ...w, ...values } : w) } : p) },
+  })),
+
+  // ─── 层级控制 ───────────────────────────────────────────
+
+  bringToFront: (id) => set(s => {
+    const pg = wp(s); if (!pg) return s;
+    const widgets = pg.widgets;
+    const maxZ = Math.max(0, ...widgets.map(w => (w.zIndex ?? 0)));
+    return {
+      undoStack: [...s.undoStack, s.theme].slice(-50),
+      redoStack: [], canUndo: true, canRedo: false,
+      theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(w => w.id === id ? { ...w, zIndex: maxZ + 1 } : w) } : p) },
+    };
+  }),
+  sendToBack: (id) => set(s => {
+    const pg = wp(s); if (!pg) return s;
+    const widgets = pg.widgets;
+    const minZ = Math.min(0, ...widgets.map(w => (w.zIndex ?? 0)));
+    return {
+      undoStack: [...s.undoStack, s.theme].slice(-50),
+      redoStack: [], canUndo: true, canRedo: false,
+      theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(w => w.id === id ? { ...w, zIndex: minZ - 1 } : w) } : p) },
+    };
+  }),
+  moveUp: (id) => set(s => {
+    const pg = wp(s); if (!pg) return s;
+    const widgets = pg.widgets;
+    const sorted = [...widgets].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+    const idx = sorted.findIndex(w => w.id === id);
+    if (idx < 0 || idx >= sorted.length - 1) return s;
+    const current = sorted[idx];
+    const above = sorted[idx + 1];
+    const currentZ = current.zIndex ?? 0;
+    const aboveZ = above.zIndex ?? 0;
+    return {
+      undoStack: [...s.undoStack, s.theme].slice(-50),
+      redoStack: [], canUndo: true, canRedo: false,
+      theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(w => {
+        if (w.id === id) return { ...w, zIndex: aboveZ };
+        if (w.id === above.id) return { ...w, zIndex: currentZ };
+        return w;
+      }) } : p) },
+    };
+  }),
+  moveDown: (id) => set(s => {
+    const pg = wp(s); if (!pg) return s;
+    const widgets = pg.widgets;
+    const sorted = [...widgets].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+    const idx = sorted.findIndex(w => w.id === id);
+    if (idx <= 0) return s;
+    const current = sorted[idx];
+    const below = sorted[idx - 1];
+    const currentZ = current.zIndex ?? 0;
+    const belowZ = below.zIndex ?? 0;
+    return {
+      undoStack: [...s.undoStack, s.theme].slice(-50),
+      redoStack: [], canUndo: true, canRedo: false,
+      theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(w => {
+        if (w.id === id) return { ...w, zIndex: belowZ };
+        if (w.id === below.id) return { ...w, zIndex: currentZ };
+        return w;
+      }) } : p) },
+    };
+  }),
+
+  // ─── 撤销快照（供 AI 调用） ─────────────────────────────
+
+  pushUndoSnapshot: (snapshot) => set(s => ({
+    undoStack: [...s.undoStack, snapshot].slice(-50),
+    redoStack: [],
+    canUndo: true,
+    canRedo: false,
   })),
 }));

@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Card, Avatar, Typography, Row, Col, Statistic, Tabs, Button, Input, Form, Space,
-  Tag, Table, message, Empty, Modal, Divider,
+  Tag, Table, Empty, Modal, Divider,
 } from 'antd';
+import { message } from '../utils/message';
 import {
   UserOutlined, EditOutlined, DeleteOutlined, ExportOutlined, SwapOutlined,
   HeartFilled, LockOutlined, CrownOutlined, GithubOutlined,

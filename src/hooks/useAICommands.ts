@@ -282,14 +282,17 @@ export function executeInstruction(instr: AIInstruction): boolean {
 /** 执行一组指令，带撤销快照；返回执行成功的数量 */
 export function runInstructions(instrs: AIInstruction[]): { ok: number; total: number } {
   if (instrs.length === 0) return { ok: 0, total: 0 };
-  // 撤销快照
-  const snapshot = JSON.stringify(useEditorStore.getState().theme);
-  useAIStore.getState().pushSnapshot(snapshot);
+  // 保存执行前的主题快照，用于撤销
+  const snapshot = useEditorStore.getState().theme;
 
   let ok = 0;
   for (const instr of instrs) {
     if (executeInstruction(instr)) ok++;
     instr.executed = true;
   }
+
+  // 执行完成后，将快照压入编辑器撤销栈
+  useEditorStore.getState().pushUndoSnapshot(snapshot);
+
   return { ok, total: instrs.length };
 }

@@ -1,4 +1,5 @@
 import type { EditorWidget } from '../../types';
+import { useTranslation } from 'react-i18next';
 
 const BAR_COLORS: Record<string, string> = { cpu: '#4F6EF7', memory: '#52c41a', disk: '#faad14', net: '#13c2c2' };
 
@@ -13,6 +14,7 @@ function MetricRow({ label, pct, color }: { label: string; pct: number; color: s
 }
 
 export default function SystemMonitorWidget({ widget }: { widget: EditorWidget }) {
+  const { t } = useTranslation();
   const v = widget as Record<string, unknown>;
   const showCPU = (v.showCPU as boolean) ?? true;
   const showMemory = (v.showMemory as boolean) ?? true;
@@ -21,16 +23,16 @@ export default function SystemMonitorWidget({ widget }: { widget: EditorWidget }
 
   return (
     <div className="cw-sm">
-      <div className="sm-header">系统监控</div>
-      {showCPU && <MetricRow label="CPU" pct={75} color={BAR_COLORS.cpu} />}
-      {showMemory && <MetricRow label="内存" pct={68} color={BAR_COLORS.memory} />}
-      {showDisk && <MetricRow label="磁盘" pct={45} color={BAR_COLORS.disk} />}
+      <div className="sm-header">{t('common.widgets.monitor.title')}</div>
+      {showCPU && <MetricRow label={t('common.widgets.monitor.cpu')} pct={75} color={BAR_COLORS.cpu} />}
+      {showMemory && <MetricRow label={t('common.widgets.monitor.memory')} pct={68} color={BAR_COLORS.memory} />}
+      {showDisk && <MetricRow label={t('common.widgets.monitor.disk')} pct={45} color={BAR_COLORS.disk} />}
       {showNetwork && (
         <div className="sm-row">
-          <div className="sm-label">网络</div>
+          <div className="sm-label">{t('common.widgets.monitor.network')}</div>
           <div className="sm-net">
-            <span className="sm-net-up">↑ 12.3 KB/s</span>
-            <span className="sm-net-down">↓ 45.6 KB/s</span>
+            <span className="sm-net-up">{t('common.widgets.monitor.upload', { val: '12.3' })}</span>
+            <span className="sm-net-down">{t('common.widgets.monitor.download', { val: '45.6' })}</span>
           </div>
         </div>
       )}

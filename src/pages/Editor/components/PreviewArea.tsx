@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { CloseOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../store/editorStore';
 import { useWidgetDrag } from '../hooks/useWidgetDrag';
 import type { EditorWidget, EditorPage } from '../types';
@@ -23,8 +24,8 @@ function CanvasWidget({ widget, page, canvasW, canvasH }: {
   const cellH = canvasH / rows;
 
   const style: React.CSSProperties = isGrid
-    ? { left: widget.gridCol * cellW, top: widget.gridRow * cellH, width: widget.gridW * cellW, height: widget.gridH * cellH }
-    : { left: `${widget.freeX}%`, top: `${widget.freeY}%`, width: `${widget.freeW}%`, height: `${widget.freeH}%` };
+    ? { left: widget.gridCol * cellW, top: widget.gridRow * cellH, width: widget.gridW * cellW, height: widget.gridH * cellH, zIndex: widget.zIndex }
+    : { left: `${widget.freeX}%`, top: `${widget.freeY}%`, width: `${widget.freeW}%`, height: `${widget.freeH}%`, zIndex: widget.zIndex };
 
   return (
     <div className={`cw${isSelected ? ' cw-selected' : ''}`} style={style}
@@ -56,6 +57,7 @@ function buildBgStyle(page: EditorPage): React.CSSProperties {
 }
 
 export default function PreviewArea() {
+  const { t } = useTranslation();
   const { theme, activePageIdx, orientation, zoom, selectWidget } = useEditorStore();
   const page = theme.pages[activePageIdx] ?? null;
   const { setNodeRef, isOver } = useDroppable({ id: 'canvas' });
@@ -90,7 +92,7 @@ export default function PreviewArea() {
             {(!page || page.widgets.length === 0) && (
               <div className="canvas-empty">
                 <AppstoreOutlined style={{ fontSize: 28, color: '#bbb' }} />
-                <span>从左侧拖拽控件到此处</span>
+                <span>{t('common.widgets.preview.dragHint')}</span>
               </div>
             )}
           </div>

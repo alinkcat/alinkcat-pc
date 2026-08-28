@@ -78,6 +78,8 @@ pub struct AppConfig {
     pub active_theme_id: Option<String>,
     #[serde(default)]
     pub command_whitelist: Vec<String>,
+    #[serde(default)]
+    pub deleted_builtin_themes: Vec<String>,
 }
 
 impl Default for AppConfig {
@@ -85,6 +87,7 @@ impl Default for AppConfig {
         Self {
             active_theme_id: None,
             command_whitelist: Vec::new(),
+            deleted_builtin_themes: Vec::new(),
         }
     }
 }

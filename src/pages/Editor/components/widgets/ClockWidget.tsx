@@ -6,6 +6,8 @@ export default function ClockWidget({ widget }: { widget: EditorWidget }) {
   const format24h = (v.format24h as boolean) ?? true;
   const showSeconds = (v.showSeconds as boolean) ?? true;
   const showAmpm = (v.showAmpm as boolean) ?? true;
+  const showWeekday = (v.showWeekday as boolean) ?? false;
+  const label = (v.label as string) || '';
 
   const clockDisplay = (v.clockDisplay as string) ?? 'digital';
 
@@ -60,8 +62,16 @@ export default function ClockWidget({ widget }: { widget: EditorWidget }) {
         >
           {time}
         </div>
+        {showWeekday && (
+          <div style={{ fontSize: '0.85em', opacity: 0.85, fontWeight: 500 }}>
+            {new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(now)}
+          </div>
+        )}
         {!format24h && showAmpm && (
           <div style={{ fontSize: '0.85em', opacity: 0.7 }}>{ap}</div>
+        )}
+        {label && (
+          <div style={{ fontSize: '0.7em', opacity: 0.5 }}>{label}</div>
         )}
       </div>
     );

@@ -2,8 +2,9 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/setup';
 import { useEffect, useState } from 'react';
 import {
-  Card, Row, Col, Button, Table, Tag, Input, Typography, Space, Empty, message, Avatar,
+  Card, Row, Col, Button, Table, Tag, Input, Typography, Space, Empty, Avatar,
 } from 'antd';
+import { message } from '../utils/message';
 import {
   CrownOutlined, UserOutlined,
 } from '@ant-design/icons';

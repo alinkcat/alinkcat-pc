@@ -20,9 +20,9 @@ import {
   Tag,
   Segmented,
   Tabs,
-  message,
   Input,
 } from 'antd';
+import { message } from '../utils/message';
 import {
   PlusOutlined,
   DeleteOutlined,
@@ -35,6 +35,7 @@ import {
   UnorderedListOutlined,
   ImportOutlined,
   ShareAltOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { useDownloadStore } from '../store/downloadStore';
 import TemplatePicker from '../components/TemplatePicker';
@@ -80,6 +81,12 @@ export default function Themes() {
     }
   }, []);
 
+  // 手动刷新主题列表，成功后给出提示
+  const handleRefresh = async () => {
+    await fetchData();
+    message.success(t('themes.refreshSuccess') ?? 'Theme list refreshed');
+  };
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -122,7 +129,29 @@ export default function Themes() {
       message.success(t('themes.themeImportSuccess'));
       fetchData();
     } catch (e) {
-      message.error(String(e));
+      const err = String(e);
+        console.error('Import theme error:', err);
+      if (err.includes('already exists') || err.includes('已存在')) {
+        const match = err.match(/Theme '([^']+)' already exists/);
+        const themeId = match ? match[1] : null;
+        Modal.confirm({
+          title: t('themes.confirmOverwriteTitle') ?? 'Overwrite Theme?',
+          content: themeId ? t('themes.confirmOverwriteContent', { name: themeId }) : 'A theme with the same ID already exists. Overwrite?',
+          okText: t('themes.confirmOverwrite') ?? 'Overwrite',
+          okType: 'danger',
+          cancelText: t('common.cancel') ?? 'Cancel',
+          onOk: async () => {
+            if (themeId) {
+              await tauriInvoke('delete_theme', { id: themeId });
+            }
+            await tauriInvoke('import_theme', { path: file });
+            message.success(t('themes.themeImportSuccess'));
+            fetchData();
+          },
+        });
+      } else {
+        message.error(err);
+      }
     } finally {
       setImporting(false);
     }
@@ -147,6 +176,8 @@ export default function Themes() {
     try {
       await tauriInvoke('activate_theme', { id });
       setActiveId(id);
+      // 立即刷新列表，确保激活状态同步显示
+      fetchData();
       // 广播 theme.switch 消息给所有已连接的手机端
       try {
         await tauriInvoke('broadcast', {
@@ -262,6 +293,13 @@ export default function Themes() {
           >
             {t('themes.importTheme')}
           </Button>
+          <Button
+            icon={<ReloadOutlined />}
+            loading={loading}
+            onClick={handleRefresh}
+          >
+            {t('themes.refresh') ?? 'Refresh'}
+          </Button>
         </Space>
       </div>
 
@@ -285,6 +323,13 @@ export default function Themes() {
             { value: 'table', icon: <UnorderedListOutlined /> },
           ]}
         />
+        <Button
+          icon={<ReloadOutlined />}
+          loading={loading}
+          onClick={handleRefresh}
+        >
+          {t('themes.refresh') ?? 'Refresh'}
+        </Button>
         <Input.Search
           placeholder={t('themes.searchPlaceholder')}
           allowClear

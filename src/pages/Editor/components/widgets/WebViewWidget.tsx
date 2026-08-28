@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { GlobalOutlined } from '@ant-design/icons';
 import type { EditorWidget } from '../../types';
 import WebViewRSS from './WebViewRSS';
@@ -14,8 +15,9 @@ function normalizeUrl(raw: string): string | null {
 }
 
 export default function WebViewWidget({ widget }: { widget: EditorWidget }) {
+  const { t } = useTranslation();
   const v = widget as Record<string, unknown>;
-  const preset = (v.preset as string) || 'none';
+  const preset = (v.preset as string) || (widget.type === 'weather' ? 'weather' : 'none');
 
   if (preset === 'bilibili') {
     return <WebViewPresetBilibili widget={widget} />;
@@ -45,8 +47,8 @@ export default function WebViewWidget({ widget }: { widget: EditorWidget }) {
     return (
       <div className="cw-webview-empty">
         <GlobalOutlined style={{ fontSize: 28, color: '#ccc' }} />
-        <span>请输入网址</span>
-        <span className="cw-webview-hint">在右侧属性面板输入要加载的网页地址</span>
+        <span>{t('common.widgets.webview.enterUrl')}</span>
+        <span className="cw-webview-hint">{t('common.widgets.webview.enterUrlHint')}</span>
       </div>
     );
   }
@@ -54,7 +56,7 @@ export default function WebViewWidget({ widget }: { widget: EditorWidget }) {
   return (
     <iframe
       src={normalized}
-      title={widget.label || '网页视图'}
+      title={widget.label || t('common.widgets.webview.view')}
       className="cw-webview"
       style={{ pointerEvents: 'none' }}
       sandbox="allow-same-origin allow-scripts"

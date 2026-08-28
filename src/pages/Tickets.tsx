@@ -2,8 +2,9 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/setup';
 import { useEffect, useState } from 'react';
 import {
-  Card, Table, Tag, Button, Modal, Form, Input, Select, message, Empty, Descriptions,
+  Card, Table, Tag, Button, Modal, Form, Input, Select, Empty, Descriptions,
 } from 'antd';
+import { message } from '../utils/message';
 import { PlusOutlined, MessageOutlined } from '@ant-design/icons';
 import { useTicketStore } from '../store/ticketStore';
 import { useAuthStore } from '../store/authStore';
