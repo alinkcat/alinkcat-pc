@@ -132,7 +132,6 @@ pub fn get_local_ip() -> Vec<String> {    let mut ips = Vec::new();
 
 #[tauri::command]
 pub fn scan_themes() -> Result<Vec<ThemeSummary>, String> {
-    // Retrieve all themes then filter out any built‑in themes that have been marked as deleted.
     let mut themes = manager::scan_themes()?;
     let cfg = config::load_config();
     if !cfg.deleted_builtin_themes.is_empty() {
