@@ -1,22 +1,6 @@
 import { apiFetch } from './client';
 import type { ApiResponse } from './types';
 
-/**
- * 天气 API Key 管理（PC 端）。
- *
- * 后端重构后（v1.0）：
- * - 用户申请 Key → 获得 ALM- 格式密钥（仅展示一次）
- * - 遗失可重置，旧 Key 立即作废
- * - Key 无城市绑定，城市是天气查询时的参数
- * - 额度按申请时的会员等级固化
- *
- * 天气查询接口（Android 端使用）：
- *   GET /api/public/weather?g=<lng>,<lat>&f=wttr   （定位后）
- *   GET /api/public/weather?q=北京&f=wttr           （无定位按城市）
- *   X-API-Key: ALM-... (请求头)
- * 返回 wttr.in j1 格式（current_condition[].temp_C / weatherDesc 等），渲染逻辑不变。
- */
-
 export interface WeatherKeyInfo {
   id?: string;
   /** 密钥全文（apply/reset 返回明文仅展示一次；status 返回掩码） */

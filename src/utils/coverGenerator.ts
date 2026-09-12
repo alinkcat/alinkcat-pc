@@ -1,10 +1,6 @@
 import type { ThemeMeta } from '../types/theme';
 
-/**
- * 使用 Canvas 生成主题包封面图（240x170, 3:2）。
- * 降级方案：不依赖 html2canvas，直接绘制渐变背景 + 主题名。
- * 返回 PNG data URL，供 save_theme 命令写入 cover.png。
- */
+// Canvas 直接绘制封面（不依赖 html2canvas），返回 PNG data URL 供 save_theme 写入 cover.png
 export async function generateThemeCover(theme: ThemeMeta): Promise<string> {
   const canvas = document.createElement('canvas');
   canvas.width = 240;

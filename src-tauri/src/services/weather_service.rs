@@ -42,7 +42,7 @@ pub async fn fetch_weather(city: &str, api_key: &str, unit: &str) -> Result<Weat
         .build()
         .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
 
-    // 1. 实时天气
+    // 实时天气
     let url = format!(
         "https://api.openweathermap.org/data/2.5/weather?q={}&appid={}&units={}",
         city, api_key, units
@@ -82,7 +82,7 @@ pub async fn fetch_weather(city: &str, api_key: &str, unit: &str) -> Result<Weat
         forecast: Vec::new(),
     };
 
-    // 2. 3 天预报
+    // 3 天预报（失败不阻塞主数据）
     let forecast_url = format!(
         "https://api.openweathermap.org/data/2.5/forecast?q={}&appid={}&units={}",
         city, api_key, units

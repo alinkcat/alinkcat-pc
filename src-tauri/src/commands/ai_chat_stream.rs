@@ -1,16 +1,5 @@
-// AI 流式聊天转发命令。
-//
-// 背景：桌面 Tauri WebView 中，浏览器原生 fetch 跨域请求第三方 AI API
-// （如 api.deepseek.com）会被 CORS 拦截；而现有 api_request / generic_http
-// 都是一次性读完整响应体，无法支持 SSE 流式输出。
-//
-// 本命令在 Rust 侧发起 POST {apiUrl}/chat/completions（stream: true），
-// 逐块读取 SSE 增量，并通过 Tauri 事件推送给前端：
-//   - "ai-chunk"  → delta.content 文本增量（string）
-//   - "ai-done"   → 流结束（即 [DONE]）
-//   - "ai-error"  → 失败原因（string），如 401 / HTTP 错误 / 网络错误
-// 前端（useAI.streamChat）在 Tauri 环境下监听这些事件完成打字机效果。
-
+// WebView 里 fetch 第三方 AI 会被 CORS 拦，这里在 Rust 侧 POST 并用
+// Tauri 事件把 SSE 增量推给前端（ai-chunk / ai-done / ai-error）。
 use std::collections::HashMap;
 
 use futures_util::StreamExt;

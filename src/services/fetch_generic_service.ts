@@ -1,12 +1,6 @@
-/**
- * 通用请求‑映射服务（用于可配置的天气、RSS、JSON 等 widget）
- * - 根据用户在主题 JSON 中填写的 URL、method、headers、body 渲染占位符
- * - 通过 Tauri 的 generic_http 命令执行实际网络请求
- * - 使用 JMESPath（已在项目中通过 npm 安装）把任意返回 JSON 映射为统一的 DTO
- */
-
 import { tauriInvoke } from '../utils/tauri';
-// Simple path resolver (dot notation + optional array index) as a lightweight replacement for jmespath
+
+// 轻量 JSON 取值：点号路径 + 可选数组下标，替代 jmespath
 function simpleSearch(obj: any, expr: string): any {
   if (!expr) return undefined;
   const parts = expr.split('.');
@@ -34,11 +28,6 @@ function renderTemplate(str: string, vars: Record<string, string | number>): str
   });
 }
 
-/**
- * 发起请求并把返回的 JSON 按映射表转换为目标结构。
- * config.requestUrl、headers、body 均支持占位符。
- * responseMapping 的 value 为 JMESPath 表达式，例如 "main.temp" 或 "weather[0].icon"。
- */
 export async function fetchWithMapping(config: {
   requestUrl: string;
   requestMethod: 'GET' | 'POST';
@@ -49,7 +38,7 @@ export async function fetchWithMapping(config: {
 }) {
   const { requestUrl, requestMethod, requestHeaders = {}, requestBody = '', vars, responseMapping } = config;
 
-  // 1️⃣ 渲染占位符
+  // 先渲染占位符，再走后端 generic_http
   const url = renderTemplate(requestUrl, vars);
   const headers: Record<string, string> = {};
   for (const k of Object.keys(requestHeaders)) {
@@ -57,7 +46,6 @@ export async function fetchWithMapping(config: {
   }
   const body = requestBody ? renderTemplate(requestBody, vars) : undefined;
 
-  // 2️⃣ 调用后端 generic_http（返回原始 JSON）
   const raw = await tauriInvoke<any>('generic_http', {
     url,
     method: requestMethod,
@@ -65,7 +53,7 @@ export async function fetchWithMapping(config: {
     body,
   });
 
-  // 3️⃣ 按映射表提取字段
+  // 按映射表提取字段
   const result: Record<string, any> = {};
   for (const [target, expr] of Object.entries(responseMapping)) {
     result[target] = simpleSearch(raw, expr);
