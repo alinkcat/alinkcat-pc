@@ -29,19 +29,19 @@ export default function ThemeCover({ themeId, themeName, coverUrl, hasCover }: T
     setSrc(null);
 
     (async () => {
-      // Level 1: page background
+      // 优先用页面背景图
       const bg = await resolveImage(themeId, coverUrl);
       if (cancelled) return;
       if (bg) { setSrc(bg); setState('ready'); return; }
 
-      // Level 2: cover.png
+      // 其次 cover.png
       if (hasCover) {
         const cover = await resolveImage(themeId, 'cover.png');
         if (cancelled) return;
         if (cover) { setSrc(cover); setState('ready'); return; }
       }
 
-      // Level 3: placeholder
+      // 都没捞到就画占位
       if (!cancelled) setState('placeholder');
     })();
 

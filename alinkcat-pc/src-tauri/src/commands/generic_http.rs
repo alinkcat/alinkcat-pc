@@ -1,7 +1,3 @@
-// Generic HTTP command for Tauri
-// Allows PC front‑end to issue arbitrary GET/POST requests with custom headers
-// and receive the raw JSON response. This is used by the configurable weather widget.
-
 use tauri::command;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -9,7 +5,7 @@ use std::collections::HashMap;
 #[command]
 pub async fn generic_http(
     url: String,
-    method: String, // "GET" or "POST"
+    method: String,
     headers: Option<HashMap<String, String>>,
     body: Option<String>,
 ) -> Result<Value, String> {
@@ -22,7 +18,7 @@ pub async fn generic_http(
     let mut request = match method.as_str() {
         "GET" => client.get(&url),
         "POST" => client.post(&url),
-        other => return Err(format!("Unsupported HTTP method: {}", other)),
+        other => return Err(format!("不支持的 HTTP 方法: {}", other)),
     };
 
     if let Some(h) = headers {
@@ -32,7 +28,7 @@ pub async fn generic_http(
     }
 
     if let Some(b) = body {
-        // POST 默认 JSON 语义，避免部分服务因缺 Content-Type 返回 415
+        // 不加 Content-Type 的话部分服务直接 415
         if method == "POST" {
             request = request.header("Content-Type", "application/json");
         }

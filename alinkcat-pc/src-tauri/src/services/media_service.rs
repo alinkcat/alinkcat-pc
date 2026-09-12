@@ -162,7 +162,7 @@ fn find_music_window_title() -> Option<String> {
         EnumWindows, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
     };
 
-    // 1. 定位已知播放器进程 PID
+    // 先定位已知播放器进程 PID
     let mut pids: Vec<u32> = Vec::new();
     unsafe {
         let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else { return None };
@@ -184,7 +184,7 @@ fn find_music_window_title() -> Option<String> {
         return None;
     }
 
-    // 2. 枚举顶层窗口，取第一个属于播放器进程且可见的窗口标题
+    // 再枚举顶层窗口，取第一个属于播放器进程且可见的窗口标题
     struct WindowCtx {
         pids: Vec<u32>,
         title: Option<String>,
@@ -220,7 +220,7 @@ fn find_music_window_title() -> Option<String> {
 
 #[cfg(target_os = "windows")]
 fn get_media_info_windows() -> Result<MediaInfo, String> {
-    // 1. SMTC 会话枚举
+    // SMTC 会话枚举
     let sessions = get_sessions();
     for session in &sessions {
         if let Some(info) = parse_session(session) {
@@ -239,7 +239,7 @@ fn get_media_info_windows() -> Result<MediaInfo, String> {
     }
     println!("[MediaDebug] SMTC 未捕获到有效媒体会话（共 {} 个会话），尝试窗口标题兜底…", sessions.len());
 
-    // 2. 窗口标题兜底（QQ音乐等不注册 SMTC 的播放器）
+    // 窗口标题兜底（QQ音乐等不注册 SMTC 的播放器）
     if let Some(info) = parse_window_title() {
         println!(
             "[MediaDebug] 成功抓取！来源: 窗口标题兜底({}), 状态: 播放, 歌手: {}, 歌名: {}",
@@ -251,7 +251,7 @@ fn get_media_info_windows() -> Result<MediaInfo, String> {
     }
     println!("[MediaDebug] 窗口标题兜底失败：未找到 {}(QQMusic.exe 等) 的活动窗口标题", PLAYER_PROCESS_NAMES.join("/"));
 
-    // 3. 无任何播放器
+    // 都没有就按"未在播放"处理
     println!("[MediaDebug] 未检测到活跃的媒体会话，当前无可用音视频源。");
     Ok(MediaInfo {
         title: "未在播放".into(), artist: String::new(), album: String::new(),
