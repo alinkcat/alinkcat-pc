@@ -14,13 +14,29 @@ function loadApiPort(): string {
   return localStorage.getItem(API_PORT_KEY) || '8080';
 }
 
+/**
+ * 构建时环境变量（Vite 注入）：
+ *   .env.development → pnpm dev / tauri dev → 本地接口
+ *   .env.production  → pnpm build / tauri build → 云端接口
+ *
+ * 此外保留「开发者模式」（运行时 localStorage）作为最高优先级覆盖，
+ * 点 Settings 标题 5 次解锁，用于调试已构建的包指向本地后端。
+ */
+const BUILD_API_BASE = import.meta.env.VITE_API_BASE_URL as string | undefined;
+
 export const config = {
   get apiBaseUrl() {
-    if (!loadDevMode()) return 'http://top.atqx.cn';
-    const host = loadApiHost();
-    const port = loadApiPort();
-    if (host.includes('://')) return host.replace(/\/+$/, '');
-    return `http://${host}:${port}`;
+    // 1) 运行时开发者模式（最高优先级，用于调试生产包）
+    if (loadDevMode()) {
+      const host = loadApiHost();
+      const port = loadApiPort();
+      if (host.includes('://')) return host.replace(/\/+$/, '');
+      return `http://${host}:${port}`;
+    }
+    // 2) 构建时环境变量（dev→本地，prod→云端）
+    if (BUILD_API_BASE) return BUILD_API_BASE;
+    // 3) 回退
+    return 'http://top.atqx.cn';
   },
   wsPort: 9527,
 };

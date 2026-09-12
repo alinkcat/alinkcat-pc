@@ -5,7 +5,7 @@ import {
   Input, Select, Row, Col, Card, Pagination, Spin, Empty, Button,
   Tag, Rate, Typography, Space,
 } from 'antd';
-import { SearchOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { SearchOutlined, DownloadOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMarketStore } from '../store/marketStore';
 import { useMessage } from '../hooks/useMessage';
 import { downloadToQueue } from '../utils/downloadTheme';
@@ -86,6 +86,9 @@ export default function Market() {
         />
         <Select value={category} onChange={setCategory} options={CATEGORY_OPTIONS} style={{ width: 130 }} />
         <Select value={sortBy} onChange={setSort} options={SORT_OPTIONS} style={{ width: 120 }} />
+        <Button icon={<ReloadOutlined />} onClick={() => fetchList()} loading={loading}>
+          {t('market.refresh')}
+        </Button>
       </div>
 
       {loading ? (

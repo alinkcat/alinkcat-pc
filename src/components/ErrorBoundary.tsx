@@ -51,7 +51,7 @@ function FallbackRender({ error, resetError }: { error: Error | null; resetError
 
 export default function ErrorBoundary({ children }: { children: React.ReactNode }) {
   return (
-    <Sentry.ErrorBoundary fallback={FallbackRender}>
+    <Sentry.ErrorBoundary fallback={FallbackRender as Sentry.FallbackRender}>
       {children}
     </Sentry.ErrorBoundary>
   );

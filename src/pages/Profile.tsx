@@ -397,12 +397,12 @@ export default function Profile() {
     </div>
   );
 
-  async function handleExport(t: ThemeSummary) {
+  async function handleExport(theme: ThemeSummary) {
     try {
       const { save } = await import('@tauri-apps/plugin-dialog');
-      const path = await save({ defaultPath: `${t.name}_${t.version}.alc`, filters: [{ name: t('profile.alcFilter'), extensions: ['alc'] }] });
+      const path = await save({ defaultPath: `${theme.name}_${theme.version}.alc`, filters: [{ name: t('profile.alcFilter'), extensions: ['alc'] }] });
       if (!path) return;
-      await tauriInvoke('export_theme', { id: t.id, outputPath: path });
+      await tauriInvoke('export_theme', { id: theme.id, outputPath: path });
       message.success(t('profile.exportSuccess'));
     } catch (e) { message.error(String(e)); }
   }

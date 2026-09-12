@@ -2,21 +2,38 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/setup';
 import { useEffect, useState } from 'react';
 import {
-  Card, Row, Col, Button, Table, Tag, Input, Typography, Space, Empty, Avatar,
+  Card, Row, Col, Button, Table, Tag, Input, Typography, Space, Empty, Avatar, Alert, Modal,
 } from 'antd';
 import { message } from '../utils/message';
 import {
-  CrownOutlined, UserOutlined,
+  CrownOutlined, UserOutlined, CloudOutlined, KeyOutlined, ReloadOutlined,
 } from '@ant-design/icons';
 import { useMemberStore } from '../store/memberStore';
 import { useAuthStore } from '../store/authStore';
 import { usePointsStore } from '../store/pointsStore';
+import { weatherApi, extractKey } from '../api/weatherApi';
+import type { WeatherKeyInfo } from '../api/weatherApi';
 import { useNavigate } from 'react-router-dom';
 import BenefitsComparison from '../components/BenefitsComparison';
 
 const { Title, Text } = Typography;
 
 const PLAN_COLORS: Record<number, string> = { 1: '#faad14', 2: '#722ed1' };
+
+// 天气 Key 本地持久化（仅存"已申请"标记，不存明文；明文只展示一次后即丢）
+const WEATHER_KEY_STORAGE = 'ilinkcat_weather_key';
+
+function hasStoredWeatherKey(): boolean {
+  try { return localStorage.getItem(WEATHER_KEY_STORAGE) === '1'; } catch { return false; }
+}
+
+function markWeatherKeyApplied() {
+  try { localStorage.setItem(WEATHER_KEY_STORAGE, '1'); } catch { /* ignore */ }
+}
+
+function clearWeatherKeyMarker() {
+  try { localStorage.removeItem(WEATHER_KEY_STORAGE); } catch { /* ignore */ }
+}
 
 function parseBenefits(raw: string): Record<string, unknown> {
   try { return JSON.parse(raw); } catch { return {}; }
@@ -43,10 +60,18 @@ export default function Member() {
   const { plans, member, comparison, orders, fetchPlans, fetchMy, fetchComparison, fetchOrders, createOrder, redeemCard } = useMemberStore();
   const { balance, fetchBalance } = usePointsStore();
   const [cardCode, setCardCode] = useState('');
+  // 服务端返回的天气 Key 状态（status 接口为准）
+  const [weatherInfo, setWeatherInfo] = useState<WeatherKeyInfo | null>(null);
+  // 本地"已申请"标记（status 接口异常时兜底展示已申请，避免误显示"未申请"）
+  const [hasFallbackKey, setHasFallbackKey] = useState(hasStoredWeatherKey());
+  // 申请/重置后返回的明文 Key（仅本次展示，提示用户复制保存）
+  const [freshToken, setFreshToken] = useState<string | null>(null);
+  const [applyingWeather, setApplyingWeather] = useState(false);
+  const [resettingWeather, setResettingWeather] = useState(false);
 
   const STATUS_MAP: Record<number, { text: string; color: string }> = {
-    0: { text: t('member.payment_unpaid'), color: 'default' },
-    1: { text: t('member.payment_paid'), color: 'success' },
+    0: { text: t('member.paymentUnpaid'), color: 'default' },
+    1: { text: t('member.paymentPaid'), color: 'success' },
   };
 
   useEffect(() => {
@@ -59,6 +84,74 @@ export default function Member() {
       fetchBalance().catch(() => {});
     }
   }, [isLoggedIn]);
+
+  // 加载当前天气 Key 状态（token 为掩码）。依赖 isLoggedIn：登录态变化后重新拉取，
+  // 避免未登录时 401 被吞掉导致登录成功后仍显示"未申请"。
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let cancelled = false;
+    // 本地已保存的 Key 兜底：仅作"已申请"占位，避免 status 接口异常时误显示"未申请"。
+    // 注意：这里不把明文 Key 渲染到最终显示层（见下），仅用于状态兜底。
+    setHasFallbackKey(hasStoredWeatherKey());
+    weatherApi.status()
+      .then((resp) => {
+        if (cancelled) return;
+        if (resp.code === 200) {
+          // 后端明确无 Key → 清除本地兜底，回到"未申请"（避免展示已吊销/无效的旧 Key）
+          if (!resp.data) {
+            clearWeatherKeyMarker();
+            setHasFallbackKey(false);
+            setWeatherInfo(null);
+          } else {
+            // status 返回的是掩码 token，直接渲染，不要覆盖为明文
+            setHasFallbackKey(false);
+            setWeatherInfo(resp.data);
+          }
+        }
+        // 非 200（网���/未登录）：保留本地兜底占位不降级
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isLoggedIn]);
+
+  const handleApplyWeather = async () => {
+    setApplyingWeather(true);
+    try {
+      const resp = await weatherApi.apply();
+      if (resp.code !== 200) throw new Error(resp.message);
+      setWeatherInfo(resp.data);
+      const key = extractKey(resp.data);
+      if (key) markWeatherKeyApplied();
+      setFreshToken(key);
+      message.success(t('member.weather_applied'));
+    } catch (e) { message.error(String(e)); } finally {
+      setApplyingWeather(false);
+    }
+  };
+
+  const handleResetWeather = () => {
+    Modal.confirm({
+      title: t('member.weather_reset_title'),
+      content: t('member.weather_reset_desc'),
+      okText: t('member.weather_reset'),
+      okType: 'danger',
+      cancelText: t('common.cancel'),
+      onOk: async () => {
+        setResettingWeather(true);
+        try {
+          const resp = await weatherApi.reset();
+          if (resp.code !== 200) throw new Error(resp.message);
+          setWeatherInfo(resp.data);
+          const key = extractKey(resp.data);
+          if (key) markWeatherKeyApplied();
+          setFreshToken(key);
+          message.success(t('member.weather_reset_success'));
+        } catch (e) { message.error(String(e)); } finally {
+          setResettingWeather(false);
+        }
+      },
+    });
+  };
 
   if (!isLoggedIn) {
     return (
@@ -123,6 +216,125 @@ export default function Member() {
             <Button onClick={() => navigate('/profile')}>{t('member.profile')}</Button>
           </Col>
         </Row>
+      </Card>
+
+      {/* 天气服务（申请天气 Key） */}
+      <Card
+        style={{ marginBottom: 16 }}
+        title={<span><CloudOutlined style={{ marginRight: 8 }} />{t('member.weather_service')}</span>}
+      >
+        {freshToken ? (
+          /* 刚申请/重置：展示完整 Key 仅一次（引用后端 warning 文案） */
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Alert
+              type="warning"
+              showIcon
+              message={t('member.weather_show_once_title')}
+              description={weatherInfo?.warning || t('member.weather_show_once_desc')}
+            />
+            <div>
+              <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>{t('member.weather_key')}</div>
+              <Typography.Text
+                code
+                copyable={{ text: freshToken }}
+                style={{ fontSize: 12, wordBreak: 'break-all', display: 'block' }}
+              >
+                {freshToken}
+              </Typography.Text>
+            </div>
+            <div style={{ fontSize: 12, color: '#999' }}>
+              {t('member.weather_android_hint')}
+            </div>
+            <Space>
+              <Button type="primary" onClick={() => setFreshToken(null)}>
+                {t('member.weather_saved')}
+              </Button>
+              <Button
+                danger
+                icon={<ReloadOutlined />}
+                loading={resettingWeather}
+                onClick={handleResetWeather}
+              >
+                {t('member.weather_reset')}
+              </Button>
+            </Space>
+          </Space>
+        ) : weatherInfo ? (
+          /* 已有 Key：展示掩码、用量（可选）、重置 */
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Alert
+              type="success"
+              showIcon
+              message={t('member.weather_key_active')}
+              description={
+                <div style={{ fontSize: 12, lineHeight: 1.7 }}>
+                  <div>
+                    <b>{t('member.weather_key')}：</b>
+                    <Typography.Text code style={{ fontSize: 12 }}>
+                      {weatherInfo.apiKey || weatherInfo.token || ''}
+                    </Typography.Text>
+                  </div>
+                  {weatherInfo.dailyLimit != null && (
+                    <div style={{ marginTop: 4 }}>
+                      <b>{t('member.weather_daily_limit')}：</b>
+                      {weatherInfo.usedToday ?? '--'} / {weatherInfo.dailyLimit}
+                    </div>
+                  )}
+                </div>
+              }
+            />
+            <div style={{ fontSize: 12, color: '#999' }}>
+              {t('member.weather_android_hint')}
+            </div>
+            <Button
+              danger
+              icon={<ReloadOutlined />}
+              loading={resettingWeather}
+              onClick={handleResetWeather}
+            >
+              {t('member.weather_reset')}
+            </Button>
+          </Space>
+        ) : hasFallbackKey ? (
+          /* 本地兜底：已申请过但 status 接口暂不可用 → 不降级为"未申请"，提示稍后刷新 */
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Alert
+              type="success"
+              showIcon
+              message={t('member.weather_key_active')}
+              description={t('member.weather_fallback_desc')}
+            />
+            <div style={{ fontSize: 12, color: '#999' }}>
+              {t('member.weather_android_hint')}
+            </div>
+            <Button
+              danger
+              icon={<ReloadOutlined />}
+              loading={resettingWeather}
+              onClick={handleResetWeather}
+            >
+              {t('member.weather_reset')}
+            </Button>
+          </Space>
+        ) : (
+          /* 未申请：显示申请按钮 */
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Alert
+              type="info"
+              showIcon
+              message={t('member.weather_apply_hint')}
+              description={t('member.weather_apply_desc')}
+            />
+            <Button
+              type="primary"
+              icon={<KeyOutlined />}
+              loading={applyingWeather}
+              onClick={handleApplyWeather}
+            >
+              {t('member.weather_apply')}
+            </Button>
+          </Space>
+        )}
       </Card>
 
       {/* Current membership status */}

@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { tauriInvoke } from '../utils/tauri';
 import { authApi } from '../api/authApi';
-import { setTokens } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import i18n from '../i18n/setup';
 
@@ -138,8 +137,7 @@ export async function startGithubOAuth(): Promise<boolean> {
         throw new Error(friendly.text);
       }
       if (result?.token) {
-        setTokens(result.token, result.refreshToken || '');
-        await useAuthStore.getState().fetchProfile().catch(() => {});
+        await useAuthStore.getState().applyTokens(result.token, result.refreshToken || '');
         return true;
       }
     } catch (e) {

@@ -61,6 +61,8 @@ pub struct PushResult {
 
 pub struct AckBusState {
     pub bus: AckBus,
+    /// 正在进行的推送任务（key: (client_id, theme_id)）。cancel_push 据此 abort 停止推送。
+    pub push_tasks: std::sync::Mutex<std::collections::HashMap<(String, String), tokio::task::JoinHandle<()>>>,
 }
 
 enum AckOutcome {
@@ -170,7 +172,7 @@ pub async fn push_theme_to_device(
     let base64 = packed.base64.clone();
     let theme_id2 = theme_id.clone();
 
-    tokio::spawn(async move {
+    let task = tokio::spawn(async move {
         let outcome = run_push(
             &server,
             &ack,
@@ -193,12 +195,18 @@ pub async fn push_theme_to_device(
                 }));
             }
             Err(e) => {
-                let _ = app2.emit("theme-push-failed", serde_json::json!({
-                    "themeId": theme_id2, "error": e
-                }));
+                // 主动取消时不再弹错误（前端已感知；避免覆盖取消提示）
+                if e != "cancelled" {
+                    let _ = app2.emit("theme-push-failed", serde_json::json!({
+                        "themeId": theme_id2, "error": e
+                    }));
+                }
             }
         }
     });
+
+    // 登记任务句柄，供 cancel_push 中止
+    ack_state.push_tasks.lock().unwrap().insert((client_id, theme_id), task);
 
     Ok(result)
 }
@@ -332,44 +340,52 @@ async fn run_push(
     start_chunk: u32,
     app: &tauri::AppHandle,
 ) -> Result<(), String> {
-    // 1. start 确认（awaiting_confirm：10 秒超时 + ready/busy/reject 处理）
-    //    断点续传时跳过 start 握手（手机端已确认过并保留了部分数据）
-    if start_chunk == 0 {
-        send_start(server, ack, client_id, theme_id, name, version, size, total_chunks, &hash).await?;
-    }
+    // start_chunk 参数保留以兼容调用方，但接收端采用"全量覆盖接收"：
+    // 手机端始终需要完整 start 握手（重新确认），失败重试即全量重传，
+    // 因此不再跳过握手、不从中间块续传（跨端协议保持一致，避免 .part 数据错位）。
+    let _ = start_chunk;
 
-    // 2. chunks（每块 8 秒超时、重试 3 次；从 start_chunk 继续）
+    // 1. start 确认（awaiting_confirm：10 秒超时 + ready/busy/reject 处理）
+    send_start(server, ack, client_id, theme_id, name, version, size, total_chunks, &hash).await?;
+
+    // 2. chunks（每块 8 秒超时、重试 3 次；全量发送，从第 0 块开始）
     let t0 = Instant::now();
-    for i in start_chunk..total_chunks {
+    let mut bytes_sent: u64 = 0;
+    for i in 0..total_chunks {
         let start = i as usize * CHUNK_SIZE;
         let end = std::cmp::min(start + CHUNK_SIZE, base64.len());
         let chunk = &base64[start..end];
         send_chunk(server, ack, client_id, theme_id, i, chunk, i == total_chunks - 1).await?;
 
-        let sent = start + chunk.len();
+        // chunk 是 base64 字符串，实际字节数 = 字符数 * 3 / 4（进度按真实字节计算）
+        bytes_sent += (chunk.len() as u64) * 3 / 4;
         let elapsed = t0.elapsed().as_secs_f64().max(0.001);
-        let speed = (sent as f64 / 1024.0) / elapsed; // KB/s
+        let speed = (bytes_sent as f64 / 1024.0) / elapsed; // KB/s
         let progress = if size > 0 {
-            (sent as f64 / size as f64 * 100.0).min(100.0).round()
+            (bytes_sent as f64 / size as f64 * 100.0).min(100.0).round()
         } else {
             100.0
         };
         let _ = app.emit("theme-push-progress", serde_json::json!({
             "themeId": theme_id,
             "progress": progress,
-            "sentSize": sent,
+            "sentSize": bytes_sent,
             "totalSize": size,
             "speed": speed.round(),
             "currentChunk": i,
             "totalChunks": total_chunks,
-            "resumed": start_chunk > 0
+            "resumed": false
         }));
     }
 
-    // 3. complete
+    // 3. complete：手机端回执失败（如 SHA-256 校验失败、解压失败）时中止并报错，
+    //    避免"PC 显示成功、手机端实际失败"的假成功。
     let done_id = next_id();
     let done_msg = push_handler::push_complete(done_id, theme_id, "success");
-    send_and_await(server, ack, client_id, &done_msg, done_id, CHUNK_TIMEOUT_SECS).await;
+    match send_and_await(server, ack, client_id, &done_msg, done_id, CHUNK_TIMEOUT_SECS).await {
+        AckOutcome::Error(m) => return Err(m),
+        _ => {} // 成功 / 超时（回执丢失但手机端已处理）均视为完成
+    }
 
     Ok(())
 }
@@ -378,10 +394,17 @@ async fn run_push(
 #[tauri::command]
 pub async fn cancel_push(
     server_state: State<'_, WsServerState>,
+    ack_state: State<'_, AckBusState>,
     theme_id: String,
     client_id: String,
 ) -> Result<(), String> {
+    // 1) 先中止 Rust 侧推送任务（停止继续发块）
+    if let Some(handle) = ack_state.push_tasks.lock().unwrap().remove(&(client_id.clone(), theme_id.clone())) {
+        handle.abort();
+    }
+    // 2) 通知手机端取消（best-effort，可能已断连）
     let msg = push_handler::push_cancel(next_id(), &theme_id, "user_cancelled");
     let s = server_state.server.lock().await;
-    s.send_to_client(&client_id, &msg.to_string()).await
+    let _ = s.send_to_client(&client_id, &msg.to_string()).await;
+    Ok(())
 }

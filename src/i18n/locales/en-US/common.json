@@ -70,8 +70,9 @@
   },
   "weather": {
     "title": "Weather",
-    "enterCity": "Enter a city and API Key to get started",
-    "apiKeyHint": "URL / params support ${city} and ${apiKey} placeholders; you can configure any API",
+    "enterCity": "Enter a city name to preview weather",
+    "apiKeyHint": "Weather Key is auto-injected from Member Center once applied; just fill in the city name",
+    "applyKey": "Apply for a Weather Key in the Member Center first to enable preview",
     "noData": "No weather data"
   },
   "widgets": {

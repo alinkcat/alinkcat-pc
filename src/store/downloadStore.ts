@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { Modal } from 'antd';
+import { i18n } from '../i18n';
 import { tauriInvoke } from '../utils/tauri';
 
 const STORAGE_KEY = 'ilinkcat_download_queue';
@@ -22,6 +24,41 @@ function load(): PendingDownload[] {
 
 function save(list: PendingDownload[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+/** 从错误消息中解析已存在的主题 ID，如 "Theme 'xxx' already exists" */
+function parseExistingThemeId(err: string): string | null {
+  const match = err.match(/Theme '([^']+)' already exists/);
+  return match ? match[1] : null;
+}
+
+/** 若目标主题已存在则弹覆盖确认，确认后删除旧包再导入。返回是否真正导入成功。 */
+async function importThemeFileWithOverwrite(filePath: string): Promise<boolean> {
+  try {
+    await tauriInvoke('import_theme_from_file', { path: filePath });
+    return true;
+  } catch (e) {
+    const err = String(e);
+    if (!err.includes('already exists') && !err.includes('已存在')) throw e;
+    const themeId = parseExistingThemeId(err);
+    return new Promise<boolean>((resolve) => {
+      Modal.confirm({
+        title: i18n.t('themes.confirmOverwriteTitle') || 'Overwrite Theme?',
+        content: themeId
+          ? i18n.t('themes.confirmOverwriteContent', { name: themeId })
+          : 'A theme with the same ID already exists. Overwrite?',
+        okText: i18n.t('themes.confirmOverwrite') || 'Overwrite',
+        okType: 'danger',
+        cancelText: i18n.t('common.cancel') || 'Cancel',
+        onOk: async () => {
+          if (themeId) await tauriInvoke('delete_theme', { id: themeId });
+          await tauriInvoke('import_theme_from_file', { path: filePath });
+          resolve(true);
+        },
+        onCancel: () => resolve(false),
+      });
+    });
+  }
 }
 
 interface DownloadState {
@@ -56,8 +93,8 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
     if (!item) throw new Error('未找到下载记录');
     set({ importing: true });
     try {
-      await tauriInvoke('import_theme_from_file', { path: item.filePath });
-      get().remove(themeId);
+      const ok = await importThemeFileWithOverwrite(item.filePath);
+      if (ok) get().remove(themeId);
     } finally {
       set({ importing: false });
     }
@@ -66,11 +103,26 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
   importAll: async () => {
     set({ importing: true });
     try {
-      for (const item of get().queue) {
-        await tauriInvoke('import_theme_from_file', { path: item.filePath });
+      const snapshot = [...get().queue];
+      const failedItems: PendingDownload[] = [];
+      for (const item of snapshot) {
+        try {
+          const ok = await importThemeFileWithOverwrite(item.filePath);
+          if (!ok) failedItems.push(item);
+        } catch (e) {
+          failedItems.push(item);
+        }
       }
-      save([]);
-      set({ queue: [] });
+      if (failedItems.length === 0) {
+        save([]);
+        set({ queue: [] });
+      } else {
+        // 保留失败的项，移除已成功的项
+        const failedIds = new Set(failedItems.map((i) => i.id));
+        const rest = get().queue.filter((q) => !failedIds.has(q.id));
+        save(rest);
+        set({ queue: rest });
+      }
     } finally {
       set({ importing: false });
     }

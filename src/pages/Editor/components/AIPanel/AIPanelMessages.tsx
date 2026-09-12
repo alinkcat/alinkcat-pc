@@ -8,10 +8,15 @@ export default function AIPanelMessages() {
   const { t } = useTranslation();
   const messages = useAIStore((s) => s.messages);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isStreaming = messages.length > 0 && messages[messages.length - 1].status === 'streaming';
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages]);
+    const el = bottomRef.current;
+    if (!el) return;
+    // 流式逐 chunk 更新时用瞬时滚动（避免排队多个 smooth 动画导致的抖动）；
+    // 消息定型/新增用平滑滚动。
+    el.scrollIntoView({ behavior: isStreaming ? 'auto' : 'smooth', block: 'end' });
+  }, [messages, isStreaming]);
 
   if (messages.length === 0) {
     return (

@@ -28,7 +28,7 @@ function formatSize(bytes: number): string {
 }
 
 function getFileIcon(name: string) {
-  if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.webp'))
+  if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.webp') || name.endsWith('.gif'))
     return <FileImageOutlined style={{ color: '#52c41a' }} />;
   if (name.endsWith('.svg'))
     return <FileImageOutlined style={{ color: '#eb2f96' }} />;

@@ -22,7 +22,10 @@ import onboarding from './onboarding.json';
 
 // 所有模块合并进顶层，仅使用一个 common 命名空间
 // t('editor.foo') / t('push.bar') 等按点路径直接解析
+// common.json 展开到顶层，使 t('versionGate.titleUpdate') / t('noData') 等直接可用
+// 同时保留 common 键兼容旧式 t('common.x') 调用
 export default {
+  ...common,
   common,
   layout,
   settings,

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Spin, Typography, Result, Button } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { setTokens } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 
 const { Text } = Typography;
@@ -11,7 +10,7 @@ export default function OAuthCallback() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { fetchProfile } = useAuthStore();
+  const { applyTokens } = useAuthStore();
   const [status, setStatus] = useState<'processing' | 'done' | 'error'>('processing');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -33,9 +32,8 @@ export default function OAuthCallback() {
       return;
     }
 
-    // 存储令牌（refreshToken 可能为空，由后端按需下发）
-    setTokens(token, refreshToken || '');
-    fetchProfile()
+    // 存储令牌（refreshToken 可能为空，由后端按需下发）并同步登录状态
+    applyTokens(token, refreshToken || '')
       .then(() => {
         setStatus('done');
         setTimeout(() => navigate('/profile', { replace: true }), 1200);

@@ -41,7 +41,7 @@ export default function WebViewPresetBilibili({ widget }: { widget: EditorWidget
       if (info) {
         setRoom(info);
       } else {
-        setError(t('common.widgets.noData'));
+        setError(t('noData'));
       }
     } catch (e) {
       setError(String(e));
@@ -70,7 +70,7 @@ export default function WebViewPresetBilibili({ widget }: { widget: EditorWidget
 
   if (loading && !room) return <div className="cw-webview-loading"><Spin size="small" /></div>;
   if (error) return <div className="cw-webview-error">{error}</div>;
-  if (!room) return <div className="cw-webview-empty">{t('common.widgets.noData')}</div>;
+  if (!room) return <div className="cw-webview-empty">{t('noData')}</div>;
 
   const live = room.liveStatus === 1;
 

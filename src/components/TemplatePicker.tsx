@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, Row, Col, Card, Typography, Empty, Divider } from 'antd';
 import { useTranslation } from 'react-i18next';
@@ -66,7 +66,7 @@ export default function TemplatePicker({ open, onClose }: Props) {
         </Text>
         {categories.map(([cat, list]) => (
           <div key={cat} style={{ marginBottom: 20 }}>
-            <Divider orientation="left" plain style={{ margin: '0 0 12px' }}>
+            <Divider titlePlacement="left" plain style={{ margin: '0 0 12px' }}>
               <span>{CATEGORY_EMOJI[cat] || '📦'} {t(`themes.templates.category.${cat}`)}</span>
             </Divider>
             <Row gutter={[12, 12]}>

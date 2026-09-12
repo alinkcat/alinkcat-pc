@@ -13,6 +13,7 @@ import { downloadToQueue } from '../utils/downloadTheme';
 import { resolveImageUrl } from '../utils/resolveImageUrl';
 import FavoriteButton from '../components/FavoriteButton';
 import UserRating from '../components/UserRating';
+import ScreenshotCarousel from '../components/ScreenshotCarousel';
 import type { ThemeItem, ThemeVersion } from '../api/types';
 // 评论模块暂时禁用：import type { ThemeComment } from '../api/types';
 
@@ -39,6 +40,7 @@ export default function MarketDetail() {
   const [item, setItem] = useState<ThemeItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [screenshots, setScreenshots] = useState<string[]>([]);
   // 评论模块暂时禁用：const [comments, setComments] = useState<ThemeComment[]>([]);
   const [versions, setVersions] = useState<ThemeVersion[]>([]);
   // 评论模块暂时禁用：const [commentText, setCommentText] = useState('');
@@ -56,6 +58,13 @@ export default function MarketDetail() {
       // 评论模块暂时禁用：if (commentResp.code === 200) setComments(commentResp.data?.records ?? []);
       if (versionResp.code === 200) setVersions(Array.isArray(versionResp.data) ? versionResp.data : []);
     }).finally(() => setLoading(false));
+
+    // 截图轮播：独立请求，无认证、无浏览量副作用；失败不影响详情展示
+    themeApi.screenshots(Number(id))
+      .then((resp) => {
+        if (resp.code === 200 && Array.isArray(resp.data)) setScreenshots(resp.data);
+      })
+      .catch((e) => console.error('[MarketDetail] screenshots error:', e));
   }, [id]);
 
   const handleDownload = async () => {
@@ -107,19 +116,23 @@ export default function MarketDetail() {
       <Card>
         <Row gutter={[24, 24]}>
           <Col xs={24} md={10}>
-            <div style={{
-              background: coverGradient(item.themeId || item.name),
-              height: 280, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              position: 'relative', overflow: 'hidden',
-            }}>
-              {item.ossCoverUrl ? (
-                <img src={resolveImageUrl(item.ossCoverUrl)} alt={item.name}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span className="market-cover-name" style={{ fontSize: 20 }}>{item.name}</span>
-              )}
-            </div>
+            {screenshots.length > 0 ? (
+              <ScreenshotCarousel images={screenshots} alt={item.name} />
+            ) : (
+              <div style={{
+                background: coverGradient(item.themeId || item.name),
+                height: 280, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'relative', overflow: 'hidden',
+              }}>
+                {item.ossCoverUrl ? (
+                  <img src={resolveImageUrl(item.ossCoverUrl)} alt={item.name}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span className="market-cover-name" style={{ fontSize: 20 }}>{item.name}</span>
+                )}
+              </div>
+            )}
           </Col>
           <Col xs={24} md={14}>
             <Title level={3} style={{ marginTop: 0 }}>{item.name}</Title>

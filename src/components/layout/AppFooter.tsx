@@ -2,16 +2,32 @@ import { useEffect } from 'react';
 import { Flex, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useServerStatusStore } from '../../store/serverStatusStore';
+import { DEFAULT_SETTINGS } from '../../types/theme';
+
+const SETTINGS_KEY = 'ilinkcat_settings';
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch { /* ignore */ }
+  return DEFAULT_SETTINGS;
+}
 
 export default function AppFooter() {
   const { t } = useTranslation();
   const { running, port, deviceCount, fetchStatus } = useServerStatusStore();
 
   useEffect(() => {
+    // 初始拉取一次（无论开关如何，展示当前状态）
     fetchStatus();
-    const timer = setInterval(fetchStatus, 3000);
+    // 定时轮询遵循设置：关闭时静默，不发起 IPC 请求
+    const settings = loadSettings();
+    if (!settings.status_polling) return;
+    const intervalMs = Math.max(1, settings.status_polling_interval || 3) * 1000;
+    const timer = setInterval(fetchStatus, intervalMs);
     return () => clearInterval(timer);
-  }, []);
+  }, [fetchStatus]);
 
   return (
     <footer className="app-footer">

@@ -26,6 +26,12 @@ function snakeToCamel<T = unknown>(value: unknown): T {
 
 let refreshing: Promise<string> | null = null;
 
+/** 本会话是否已触发过"登录过期"弹窗（只弹一次，登录成功后可重置） */
+let authExpiredNotified = false;
+export function resetAuthExpiredFlag() {
+  authExpiredNotified = false;
+}
+
 export function getAccessToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -104,6 +110,10 @@ export async function apiFetch<T = unknown>(
     console.log(`[API] ← ${resp.status} ${url}`);
 
     if (resp.status === 401) {
+      // 无 token（未登录用户访问需鉴权接口）→ 静默失败，不弹"登录过期"
+      if (!getAccessToken()) {
+        throw new Error('未登录');
+      }
       try {
         const newToken = await doRefresh();
         const retry = await rustFetch(url, httpMethod, body, {
@@ -115,7 +125,11 @@ export async function apiFetch<T = unknown>(
         return snakeToCamel<T>(retry.body);
       } catch {
         clearTokens();
-        window.dispatchEvent(new CustomEvent('auth:expired'));
+        // 登录过期弹窗：每会话只触发一次
+        if (!authExpiredNotified) {
+          authExpiredNotified = true;
+          window.dispatchEvent(new CustomEvent('auth:expired'));
+        }
         throw new Error('登录已过期，请重新登录');
       }
     }

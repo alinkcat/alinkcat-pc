@@ -11,7 +11,14 @@
     "adminTickets": "工单管理",
     "loginRegister": "登录 / 注册",
     "logout": "退出登录",
-    "loginTip": "登录/注册"
+    "loginTip": "登录/注册",
+    "member": "会员中心",
+    "mycloud": "云备份",
+    "points": "积分中心",
+    "tickets": "工单",
+    "invite": "邀请",
+    "cloudServices": "云服务",
+    "cloudLoginRequired": "登录后使用云服务"
   },
   "header": {
     "switchLight": "切换到浅色模式",

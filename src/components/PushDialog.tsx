@@ -51,7 +51,9 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
     setSelectAll(false);
     reset();
     startTimeRef.current = 0;
-    tauriInvoke<ClientInfo[]>('get_connections').then(setDevices).catch(() => setDevices([]));
+    tauriInvoke<ClientInfo[]>('get_connections')
+      .then((list) => setDevices(list.filter((d) => !d.device_name.includes('(Display)'))))
+      .catch(() => setDevices([]));
   }, [open, reset]);
 
   // 记录推送开始时间（用于 ETA 计算）
@@ -151,16 +153,20 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
               disabled={active || retrying}
               showSearch
               filterOption={(input, option) =>
-                (option?.label as string).toLowerCase().includes(input.toLowerCase())
+                String(option?.searchLabel ?? '').toLowerCase().includes(input.toLowerCase())
               }
-              options={devices.map((d) => ({
-                value: d.client_id,
-                label: (
-                  <span>
-                    {d.device_name || t('push.dialog.unknownDevice')} <Tag color="green" style={{ marginLeft: 4 }}>{t('push.dialog.connected')}</Tag>
-                  </span>
-                ),
-              }))}
+              options={devices.map((d) => {
+                const name = d.device_name || t('push.dialog.unknownDevice');
+                return {
+                  value: d.client_id,
+                  searchLabel: name,
+                  label: (
+                    <span>
+                      {name} <Tag color="green" style={{ marginLeft: 4 }}>{t('push.dialog.connected')}</Tag>
+                    </span>
+                  ),
+                };
+              })}
             />
           </div>
         )}

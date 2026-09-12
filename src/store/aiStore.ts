@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AIMessage, AIConfig } from '../types/ai';
+import type { AIMessage, AIConfig, AIInstruction } from '../types/ai';
 import { DEFAULT_AI_CONFIG } from '../types/ai';
 import { buildSystemPrompt } from '../utils/promptBuilder';
 import { buildRequestMessages, streamChat, chatOnce } from '../hooks/useAI';
@@ -292,11 +292,15 @@ export const useAIStore = create<AIState>((set, get) => ({
       id: genId(), role: 'assistant', content: '', timestamp: Date.now(),
       status: config.streamOutput ? 'streaming' : 'sending',
     };
-    set((s) => ({ sending: true, messages: [...s.messages, userMsg, aiMsg] }));
 
+    // 注意：必须在 set() 加入本轮消息【之前】基于历史构建请求——
+    // 否则 get().messages 已包含本轮 userMsg（内容重复发送一次）
+    // 与空内容的 aiMsg 占位（把空 assistant 消息发给模型）。
     const editorState = useEditorStore.getState();
     const system = buildSystemPrompt(editorState.theme, editorState.activePageIdx, get().droppedImages);
     const reqMsgs = buildRequestMessages(system, get().messages.filter((m) => m.role !== 'system'), content, config.maxTurns);
+
+    set((s) => ({ sending: true, messages: [...s.messages, userMsg, aiMsg] }));
 
     try {
       let full = '';
@@ -314,10 +318,17 @@ export const useAIStore = create<AIState>((set, get) => ({
       const instrs = parseInstructions(full);
       let finalMsg: AIMessage = { ...aiMsg, content: full, status: 'done', instructions: instrs };
 
-      if (instrs.length > 0 && config.autoExecute) {
-        runInstructions(instrs);
-        instrs.forEach((i) => { i.executed = true; i.confirmed = true; });
+      // autoExecute 只自动执行普通指令；danger（整页生成等破坏性操作）强制等待用户确认
+      const auto = instrs.filter((i) => i.severity !== 'danger');
+      if (auto.length > 0 && config.autoExecute) {
+        const r = runInstructions(auto);
+        auto.forEach((i) => { i.confirmed = true; });
         finalMsg = { ...finalMsg, instructions: instrs };
+        // 静默自动执行失败时，把错误反馈给用户（避免"点了没反应"）
+        if (r.errors.length > 0) {
+          const failLine = r.errors.map((e) => `⚠️ ${e}`).join('\n');
+          finalMsg = { ...finalMsg, content: `${full}\n\n${failLine}` };
+        }
       }
 
       set((s) => ({
@@ -325,8 +336,9 @@ export const useAIStore = create<AIState>((set, get) => ({
         messages: s.messages.map((m) => (m.id === aiMsg.id ? finalMsg : m)),
       }));
 
-      // 保存到当前会话
-      if (themeId && currentSessionId) {
+      // 保存到当前会话。必须校验会话身份未变：若用户在本轮流式期间切换了会话/主题，
+      // 旧主题的保存不应把新会话/新主题的 messages 覆盖写进去。
+      if (themeId && currentSessionId && get().themeId === themeId && get().currentSessionId === currentSessionId) {
         const msgs = get().messages;
         saveSessionMessages(themeId, currentSessionId, msgs);
         // 更新会话元数据
@@ -359,19 +371,25 @@ export const useAIStore = create<AIState>((set, get) => ({
     if (!message?.instructions) return;
     const instr = message.instructions.find((i) => i.id === instrId);
     if (!instr) return;
-    runInstructions([instr]);
-    instr.confirmed = true;
-    instr.executed = true;
-    set({ messages: s.messages.map((m) => (m.id === messageId ? { ...m, instructions: message.instructions } : m)) });
+    // runInstructions 会写回 executed/failed/error（复制一份执行，避免原地改 store 状态）
+    const copy: AIInstruction = { ...instr };
+    runInstructions([copy]);
+    copy.confirmed = true;
+    copy.executed = true;
+    const instructions = message.instructions;
+    set({ messages: s.messages.map((m) => (m.id === messageId
+      ? { ...m, instructions: instructions.map((i) => (i.id === instrId ? copy : i)) }
+      : m)) });
   },
 
   cancelInstruction: (messageId, instrId) => {
     const s = get();
     const message = s.messages.find((m) => m.id === messageId);
     if (!message?.instructions) return;
-    const instr = message.instructions.find((i) => i.id === instrId);
-    if (instr) { instr.canceled = true; instr.confirmed = false; }
-    set({ messages: s.messages.map((m) => (m.id === messageId ? { ...m, instructions: message.instructions } : m)) });
+    const instructions = message.instructions;
+    set({ messages: s.messages.map((m) => (m.id === messageId
+      ? { ...m, instructions: instructions.map((i) => (i.id === instrId ? { ...i, canceled: true, confirmed: false } : i)) }
+      : m)) });
   },
 
   addDroppedImages: (files) => {

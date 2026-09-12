@@ -57,12 +57,18 @@ export async function exportEncryptedLogs(): Promise<void> {
     plaintext,
   );
 
-  // 打包为 { iv, data } 结构，前端 base64 编码后保存
+  // 打包为 { iv, data } 结构，前端 base64 编码后保存。
+  // 注意：不能用 btoa(String.fromCharCode(...combined)) —— 大日志负载会触发
+  // "Maximum call stack size exceeded"（参数展开有栈深上限）。改为分块编码。
   const combined = new Uint8Array(iv.length + ciphertext.byteLength);
   combined.set(iv, 0);
   combined.set(new Uint8Array(ciphertext), iv.length);
 
-  const base64 = btoa(String.fromCharCode(...combined));
+  let base64 = '';
+  const CHUNK = 0x8000; // 32768，规避参数栈深限制
+  for (let i = 0; i < combined.length; i += CHUNK) {
+    base64 += btoa(String.fromCharCode(...combined.subarray(i, i + CHUNK)));
+  }
   const blobStr = JSON.stringify({ v: 1, alg: 'AES-256-GCM', key: 'app-version', data: base64 }, null, 2);
   const defaultName = `ilinkcat-diag-${new Date().toISOString().slice(0, 10)}.json`;
 

@@ -27,6 +27,12 @@ import OAuthCallback from './pages/OAuthCallback';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminThemeReview from './pages/AdminThemeReview';
 import AdminTickets from './pages/AdminTickets';
+import Member from './pages/Member';
+import MyCloud from './pages/MyCloud';
+import Points from './pages/Points';
+import Tickets from './pages/Tickets';
+import Invite from './pages/Invite';
+import Notifications from './pages/Notifications';
 import './styles.css';
 
 const { Text, Title } = Typography;
@@ -204,7 +210,7 @@ export default function App() {
 
   return (
     <ConfigProvider
-      locale={antdLocale}
+      locale={antdLocale ?? undefined}
       theme={{
         algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
         token: { colorPrimary: '#4F6EF7' },
@@ -254,6 +260,12 @@ export default function App() {
                   <Route path="market/:id" element={<MarketDetail />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="settings" element={<Settings />} />
+                  <Route path="member" element={<Member />} />
+                  <Route path="mycloud" element={<MyCloud />} />
+                  <Route path="points" element={<Points />} />
+                  <Route path="tickets" element={<Tickets />} />
+                  <Route path="invite" element={<Invite />} />
+                  <Route path="notifications" element={<Notifications />} />
                   <Route path="auth" element={<Auth />} />
                   <Route path="admin" element={<AdminDashboard />} />
                   <Route path="admin/themes" element={<AdminThemeReview />} />
