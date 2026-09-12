@@ -73,7 +73,7 @@
 
 ### 下载安装
 
-前往 [GitHub Releases](https://github.com/mosder66/alinkcat-pc/releases) 下载对应平台的安装包：
+前往 [GitHub Releases](https://github.com/alinkcat/-alinkcat-pc/releases) 下载对应平台的安装包：
 
 | 平台 | 文件 |
 |------|------|
@@ -210,7 +210,7 @@ alinkcat-pc/
 ## 🤝 反馈与交流
 
 - 应用内「工单中心」提交问题与建议；
-- 欢迎在仓库 [Issues](https://github.com/mosder66/alinkcat-pc/issues) 反馈 Bug 与功能需求。
+- 欢迎在仓库 [Issues](https://github.com/alinkcat/-alinkcat-pc/issues) 反馈 Bug 与功能需求。
 
 ---
 
@@ -222,5 +222,5 @@ alinkcat-pc/
 
 > 艾联猫 · ailinkcat
 > 官网：https://top.atqx.cn
-> PC 开源仓库：https://github.com/mosder66/alinkcat-pc
-> Android 端：https://github.com/mosder66/alinkcat-android
+> PC 开源仓库：https://github.com/alinkcat/-alinkcat-pc
+> Android 端：https://github.com/alinkcat/-alinkcat-android（待建）
