@@ -24,7 +24,7 @@ const OWM_MAPPING: Record<string, string> = {
 };
 
 /** 自建天气 API 默认请求地址（免登录，X-API-Key 鉴权，Key 由 Android 端注入；未配置 requestUrl 时兜底使用） */
-const OWM_URL = 'https://top.atqx.cn/api/public/weather?q=${city}&f=wttr';
+const OWM_URL = 'https://www.pynen.com/api/public/weather?q=${city}&f=wttr';
 
 /** wttr.in 使用的 Met Office 天气代码 → emoji（与 Android 端一致） */
 const CODE_ICONS: Record<number, string> = {

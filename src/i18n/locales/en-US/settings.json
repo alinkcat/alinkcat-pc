@@ -50,7 +50,7 @@
   "ai_saved": "AI settings saved",
   "dev_title": "🔧 Developer Mode",
   "dev_api_server": "API Server URL",
-  "dev_api_desc": "Supported formats: localhost:8080 / top.atqx.cn:8080 / http://top.atqx.cn:8080 / https://api.example.com",
+  "dev_api_desc": "Supported formats: localhost:8080 / www.pynen.com:8080 / https://www.pynen.com:8080 / https://api.example.com",
   "dev_server_addr": "Server URL",
   "dev_server_placeholder": "localhost:8080",
   "dev_current": "Current",

@@ -13,7 +13,7 @@ const { Text } = Typography;
 // ─── 天气组件：自建天气 API 默认配置兜底（免登录，X-API-Key 鉴权，Key 由 Android 端注入） ─
 // 后端接口规范：GET /api/public/weather?q=${city}&f=wttr（Android 定位时替换为 ?g=lng,lat&f=wttr）
 // 返回 wttr.in j1 格式（current_condition[].temp_C、weatherDesc 等），渲染逻辑不变
-const OWM_URL = 'https://top.atqx.cn/api/public/weather?q=${city}&f=wttr';
+const OWM_URL = 'https://www.pynen.com/api/public/weather?q=${city}&f=wttr';
 const OWM_MAPPING: Record<string, string> = {
   city: 'nearest_area[0].areaName[0].value',
   temp: 'current_condition[0].temp_C',

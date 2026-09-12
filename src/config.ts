@@ -36,7 +36,7 @@ export const config = {
     // 2) 构建时环境变量（dev→本地，prod→云端）
     if (BUILD_API_BASE) return BUILD_API_BASE;
     // 3) 回退
-    return 'http://top.atqx.cn';
+    return 'https://www.pynen.com';
   },
   wsPort: 9527,
 };

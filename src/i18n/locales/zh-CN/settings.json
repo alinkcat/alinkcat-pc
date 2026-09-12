@@ -50,7 +50,7 @@
   "ai_saved": "AI 设置已保存",
   "dev_title": "🔧 开发者模式",
   "dev_api_server": "API 服务器地址",
-  "dev_api_desc": "支持格式：localhost:8080 / top.atqx.cn:8080 / http://top.atqx.cn:8080 / https://api.example.com",
+  "dev_api_desc": "支持格式：localhost:8080 / www.pynen.com:8080 / https://www.pynen.com:8080 / https://api.example.com",
   "dev_server_addr": "服务器地址",
   "dev_server_placeholder": "localhost:8080",
   "dev_current": "当前解析",
