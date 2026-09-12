@@ -52,6 +52,10 @@
   "downloadedAt": "下载于 {{date}}",
   "pages": "{{count}} 个页面",
   "refresh": "刷新",
+  "refreshSuccess": "主题列表已刷新",
+  "confirmOverwriteTitle": "覆盖主题包",
+  "confirmOverwriteContent": "已存在同名主题包「{{name}}」，是否覆盖？",
+  "confirmOverwrite": "覆盖",
   "templates": {
     "title": "从模板开始",
     "subtitle": "选择一个模板快速开始，也可以先空白主题",

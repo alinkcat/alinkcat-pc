@@ -50,6 +50,24 @@ function renderContent(widget: EditorWidget) {
 function WidgetRenderer({ widget }: { widget: EditorWidget }) {
   const bg = widget.backgroundColor || '#f0f2f5';
   const opacity = (widget.backgroundOpacity ?? 100) / 100;
+  const isGradient = /gradient\(/i.test(bg);
+
+  // 渐变背景：直接写 background（background-color 不接受 gradient 值）
+  if (isGradient) {
+    return (
+      <>
+        <div className="cw-bg" style={{ background: bg, opacity }} />
+        <div className="cw-inner" style={{
+          color: widget.textColor || '#333',
+          fontSize: `${widget.fontSize || 12}px`,
+          fontWeight: widget.fontWeight || 'normal',
+        }}>
+          {renderContent(widget)}
+        </div>
+      </>
+    );
+  }
+
   const [r, g, b] = hexToRgb(bg);
 
   return (

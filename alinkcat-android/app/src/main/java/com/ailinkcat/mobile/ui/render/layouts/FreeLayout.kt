@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ailinkcat.mobile.domain.models.Action
@@ -41,11 +42,15 @@ fun FreeLayout(
 ) {
     if (widgets.isEmpty()) return
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .clipToBounds() // 超出画布的控件裁剪掉
+    ) {
         val parentWidth = maxWidth
         val parentHeight = maxHeight
 
-        // 设计基准缩放：分别按宽、高计算，最终取较小者，保证等比不变形
+        // 缩放取宽高较小者，等比不变形
         val scaleX = parentWidth.value / DesignCanvas.DESIGN_WIDTH
         val scaleY = parentHeight.value / DesignCanvas.DESIGN_HEIGHT
         val uniformScale = minOf(scaleX, scaleY)
@@ -74,17 +79,18 @@ fun FreeLayout(
             if (layout.freeX != null || layout.freeY != null ||
                 layout.freeW != null || layout.freeH != null
             ) {
-                // PC 百分比坐标 (0-100)：天然适配屏幕比例，无需缩放
-                xOffset = parentWidth * ((layout.freeX ?: 0f) / 100f)
-                yOffset = parentHeight * ((layout.freeY ?: 0f) / 100f)
+                // 百分比坐标 (0-100)，叠加画布居中偏移 baseOffset，与设计像素控件混用时相对位置一致
+                xOffset = baseOffset.first + parentWidth * ((layout.freeX ?: 0f) / 100f)
+                yOffset = baseOffset.second + parentHeight * ((layout.freeY ?: 0f) / 100f)
                 wSize = parentWidth * ((layout.freeW ?: 20f) / 100f)
                 hSize = parentHeight * ((layout.freeH ?: 20f) / 100f)
             } else {
-                // 设计像素坐标：统一缩放 + 画布居中，横竖屏均不变形、不跑偏
+                // 设计像素坐标：统一缩放 + 画布居中
+                // 尺寸缺失时默认画布 20%，避免静默 0 尺寸
                 xOffset = baseOffset.first + ((layout.x ?: 0f) * uniformScale).dp
                 yOffset = baseOffset.second + ((layout.y ?: 0f) * uniformScale).dp
-                wSize = ((layout.width ?: 0f) * uniformScale).dp
-                hSize = ((layout.height ?: 0f) * uniformScale).dp
+                wSize = ((layout.width ?: DesignCanvas.DESIGN_WIDTH * 0.2f) * uniformScale).dp
+                hSize = ((layout.height ?: DesignCanvas.DESIGN_HEIGHT * 0.2f) * uniformScale).dp
             }
 
             Box(

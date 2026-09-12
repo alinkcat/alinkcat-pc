@@ -34,13 +34,15 @@ fun LauncherIconWidgetRenderer(
     themeId: String,
     onClick: () -> Unit
 ) {
-    val iconFile = remember(widget.icon, themeId) {
-        widget.icon?.takeIf { it.isNotBlank() && !it.startsWith("data:") }?.let {
-            File(themeDir, "$themeId/$it")
+    // data: URI 图标直接交给 Coil 解码（与 CardWidgetRenderer 行为一致）；否则视为主题包 assets 内文件
+    val iconModel = remember(widget.icon, themeId) {
+        widget.icon?.takeIf { it.isNotBlank() }?.let { icon ->
+            if (icon.startsWith("data:")) icon else File(themeDir, "$themeId/$icon")
         }
     }
-    val hasIconFile = iconFile?.exists() == true
-    val isEmoji = !hasIconFile && widget.icon?.let { it.length <= 4 && it.all { c -> c.isSurrogate() || c.code in 0x1F000..0x1FFFF } } == true
+    val hasIconFile = iconModel is File && iconModel.exists()
+    val isDataIcon = iconModel is String
+    val isEmoji = !hasIconFile && !isDataIcon && widget.icon?.let { it.length <= 4 && it.all { c -> c.isSurrogate() || c.code in 0x1F000..0x1FFFF } } == true
 
     Box(
         modifier = Modifier
@@ -52,10 +54,10 @@ fun LauncherIconWidgetRenderer(
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // 图标：优先加载本地文件，其次 emoji，最后占位符
-            if (hasIconFile) {
+            // 图标：优先加载本地文件 / data: URI，其次 emoji，最后占位符
+            if (hasIconFile || isDataIcon) {
                 AsyncImage(
-                    model = iconFile,
+                    model = iconModel,
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxSize()

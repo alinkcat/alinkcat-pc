@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+   Android 自动备份排除规则（API < 31 使用 fullBackupContent）。
+   安全要求：ilinkcat_prefs（SharedPreferences）内含明文 weather_api_key，
+   DataStore（ailinkcat_config）含配对信息 ip/port/pair_code——均不得进入云备份/设备迁移，防外泄。
+   https://developer.android.com/guide/topics/data/autobackup
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="sharedpref" path="ilinkcat_prefs.xml"/>
+    <exclude domain="file" path="datastore/"/>
 </full-backup-content>

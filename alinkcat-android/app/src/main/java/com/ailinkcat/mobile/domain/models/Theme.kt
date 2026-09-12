@@ -3,9 +3,7 @@ package com.ailinkcat.mobile.domain.models
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * 主题包数据模型（对应 files/themes/{themeId}/theme.json）。
- */
+/** 主题包数据模型（对应 files/themes/{themeId}/theme.json）。 */
 data class Theme(
     val id: String,
     val name: String,
@@ -57,14 +55,15 @@ data class Page(
             // PC 端结构：page.layout = { type, columns, rows, backgroundColor, backgroundImage, backgroundMode, backgroundOpacity }
             val layout = json.optJSONObject("layout")
 
-            // 兼容旧扁平结构：page.layoutMode / page.columns 等
+            // 旧扁平结构：page.layoutMode / page.columns 等
             val layoutType = layout?.optString("type")
                 ?: json.optString("layoutMode", "grid")
 
             val widgetsArray = json.optJSONArray("widgets") ?: JSONArray()
             val widgets = buildList {
                 for (i in 0 until widgetsArray.length()) {
-                    Widget.fromJson(widgetsArray.optJSONObject(i))?.let(::add)
+                    // JSON 缺 id 时以 widget-{index} 兜底，避免控件被静默丢弃
+                    Widget.fromJson(widgetsArray.optJSONObject(i), fallbackId = "widget-$i")?.let(::add)
                 }
             }
             return Page(

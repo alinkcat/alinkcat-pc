@@ -49,8 +49,8 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _pendingScanResult = MutableStateFlow<String?>(null)
     val pendingScanResult: StateFlow<String?> = _pendingScanResult.asStateFlow()
 
-    /** PC 端远程切换主题事件（theme.switch）。 */
-    private val _themeSwitchEvent = MutableSharedFlow<String>(extraBufferCapacity = 1, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    /** PC 端远程切换主题事件（theme.switch）。replay=1：防止收集者晚注册时事件被 DROP 丢失。 */
+    private val _themeSwitchEvent = MutableSharedFlow<String>(replay = 1)
     val themeSwitchEvent: SharedFlow<String> = _themeSwitchEvent.asSharedFlow()
 
     /** 快捷启动应用列表（来自 PC 端 launcher.list）。 */
@@ -76,6 +76,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 themeList: List<String>
             ) {
                 viewModelScope.launch {
+                    isAutoConnecting = false
                     _state.value = ConnectionState(
                         status = ConnectionStatus.Connected,
                         deviceName = serverName,
@@ -86,7 +87,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             override fun onConnectionClosed() {
-                // 接收中连接断开：自动清理中止的接收
+                // 连接断开时清理中止的接收
                 pushReceiveManager.handleConnectionLost()
                 _state.value = ConnectionState(status = ConnectionStatus.Disconnected)
             }
@@ -98,7 +99,6 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                     errorType = errorType,
                     errorMessage = message
                 )
-                // 启动自动连接失败时，自动重试
                 onAutoConnectFailed()
             }
         },
@@ -140,7 +140,6 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     init {
         // 推送确认/拒绝/忙碌响应通过 WebSocket 发送
         pushReceiveManager.setResponseSender { json -> webSocket.sendResponse(json) }
-        // 远程切换主题
         webSocket.themeSwitchListener = { themeId ->
             viewModelScope.launch {
                 if (pushReceiveManager.getInstalledThemes().any { it.themeId == themeId }) {
@@ -150,7 +149,6 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                 }
             }
         }
-        // 启动时自动连接
         autoConnect()
     }
 
@@ -193,7 +191,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun disconnect() {
-        // 断开连接：接收中的传输保留 .part 标记为中断，等待恢复
+        // 接收中的传输保留 .part 标记中断，等待恢复
         pushReceiveManager.handleConnectionLost()
         webSocket.close()
         _state.value = ConnectionState(status = ConnectionStatus.Disconnected)
@@ -211,6 +209,20 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    /** 保存天气刷新间隔（秒）；<=0 表示跟随主题默认。 */
+    fun saveWeatherRefreshSeconds(seconds: Int) {
+        viewModelScope.launch {
+            dataStore.saveWeatherRefreshSeconds(seconds)
+        }
+    }
+
+    /** 保存定位失败兜底城市名；空表示跟随主题默认。 */
+    fun saveFallbackCity(city: String) {
+        viewModelScope.launch {
+            dataStore.saveFallbackCity(city)
+        }
+    }
+
     /**
      * 扫码页返回的原始内容，配置页收集后解析并填充表单。
      */
@@ -224,15 +236,21 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
 
     /**
      * 处理宏/片段相关消息（launcher.list / snippet.list）。
+     * 兼容两种形式：PC 端主动推送（method 非空，数据在 params）与
+     * JSON-RPC 响应（method 为空，数据在 result）。
      * 由 WebSocket rawListener 调用。
      */
     private fun handleMacroMessage(text: String) {
         try {
             val root = org.json.JSONObject(text)
-            when (root.optString("method")) {
+            val method = root.optString("method")
+            val params = when {
+                method.isNotBlank() -> root.optJSONObject("params")
+                else -> root.optJSONObject("result") // JSON-RPC 响应：result 即数据
+            } ?: return
+            when (method) {
                 "launcher.list" -> {
-                    val appsArray = root.optJSONObject("params")?.optJSONArray("apps")
-                        ?: root.optJSONArray("params")
+                    val appsArray = params.optJSONArray("apps") ?: params.optJSONArray("list")
                     if (appsArray != null) {
                         val list = mutableListOf<LauncherApp>()
                         for (i in 0 until appsArray.length()) {
@@ -248,12 +266,41 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                     }
                 }
                 "snippet.list" -> {
-                    val itemsArray = root.optJSONObject("params")?.optJSONArray("snippets")
-                        ?: root.optJSONArray("params")
+                    val itemsArray = params.optJSONArray("snippets") ?: params.optJSONArray("list")
                     if (itemsArray != null) {
                         val list = mutableListOf<SnippetItem>()
                         for (i in 0 until itemsArray.length()) {
                             val obj = itemsArray.optJSONObject(i) ?: continue
+                            list.add(SnippetItem(
+                                id = obj.optString("id", ""),
+                                label = obj.optString("label", "Snippet"),
+                                content = obj.optString("content", ""),
+                                category = obj.optString("category").ifBlank { null }
+                            ))
+                        }
+                        _snippetItems.value = list
+                    }
+                }
+                // 无 method 的响应：PC 端 result 不带 method，按结构嗅探
+                "" -> {
+                    val appsArray = params.optJSONArray("apps") ?: params.optJSONArray("list")
+                    val snippetsArray = params.optJSONArray("snippets")
+                    if (appsArray != null) {
+                        val list = mutableListOf<LauncherApp>()
+                        for (i in 0 until appsArray.length()) {
+                            val obj = appsArray.optJSONObject(i) ?: continue
+                            list.add(LauncherApp(
+                                id = obj.optString("id", ""),
+                                name = obj.optString("name", "App"),
+                                iconUrl = obj.optString("icon").ifBlank { null },
+                                position = obj.optInt("position", 0)
+                            ))
+                        }
+                        _launcherApps.value = list
+                    } else if (snippetsArray != null) {
+                        val list = mutableListOf<SnippetItem>()
+                        for (i in 0 until snippetsArray.length()) {
+                            val obj = snippetsArray.optJSONObject(i) ?: continue
                             list.add(SnippetItem(
                                 id = obj.optString("id", ""),
                                 label = obj.optString("label", "Snippet"),
@@ -311,7 +358,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                         name = meta.name,
                         version = meta.version,
                         author = "PC",
-                        pageCount = 1,
+                        pageCount = meta.pageCount,
                         isActive = index == 0,
                         coverEmoji = "📦",
                         coverColor = 0xFF4F6EF7
@@ -334,31 +381,40 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * 以服务端握手返回的主题包列表填充列表；为空时退回示例数据。
+     * 握手成功后填充主题列表。
+     * 展示一律以本地安装数据（含真实 pageCount/themeId）为准，保证已安装主题可打开；
+     * PC 端列表仅在本地无任何主题时作为"可推送"提示（themeId 为空，点击提示未下载）。
      */
     private fun populateThemePackages(themeList: List<String>) {
-        if (themeList.isNotEmpty()) {
-            _themePackages.value = themeList.mapIndexed { index, name ->
-                ThemePackage(
-                    name = name,
-                    version = "1.0.0",
-                    author = "PC",
-                    pageCount = 1,
-                    isActive = index == 0
-                )
+        viewModelScope.launch {
+            val metas = withContext(Dispatchers.IO) { pushReceiveManager.getInstalledThemes() }
+            if (metas.isNotEmpty()) {
+                _themePackages.value = metas.mapIndexed { index, meta ->
+                    ThemePackage(
+                        themeId = meta.themeId,
+                        name = meta.name,
+                        version = meta.version,
+                        author = "PC",
+                        pageCount = meta.pageCount,
+                        isActive = index == 0,
+                        coverEmoji = "📦",
+                        coverColor = 0xFF4F6EF7
+                    )
+                }
+            } else if (themeList.isNotEmpty()) {
+                // 本地无主题：以 PC 列表展示，仅提示不可打开
+                _themePackages.value = themeList.mapIndexed { index, name ->
+                    ThemePackage(
+                        name = name,
+                        version = "1.0.0",
+                        author = "PC",
+                        pageCount = 1,
+                        isActive = index == 0
+                    )
+                }
+            } else {
+                _themePackages.value = emptyList()
             }
-        } else {
-            loadMockThemePackagesIfEmpty()
         }
-    }
-
-    private fun loadMockThemePackagesIfEmpty() {
-        if (_themePackages.value.isNotEmpty()) return
-        _themePackages.value = listOf(
-            ThemePackage(name = "Aurora Blue · Business", version = "1.2.0", author = "iLinkCat Studio", pageCount = 3, isActive = true),
-            ThemePackage(name = "Sakura Pink · Sweet", version = "0.9.1", author = "CatWorks", pageCount = 2, isActive = false, coverEmoji = "🌸", coverColor = 0xFFF06292),
-            ThemePackage(name = "Dark Night Geek", version = "2.0.0", author = "NeoPixel", pageCount = 4, isActive = false, coverEmoji = "🌙", coverColor = 0xFF343A5C),
-            ThemePackage(name = "Mint Green · Fresh", version = "1.0.3", author = "Mint Tea", pageCount = 5, isActive = false, coverEmoji = "🍃", coverColor = 0xFF4DB6AC)
-        )
     }
 }

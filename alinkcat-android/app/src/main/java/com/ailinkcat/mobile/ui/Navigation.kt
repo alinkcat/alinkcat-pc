@@ -3,9 +3,16 @@ package com.ailinkcat.mobile.ui
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -15,17 +22,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.ailinkcat.mobile.data.TokenManager
 import com.ailinkcat.mobile.ui.config.ConfigScreen
 import com.ailinkcat.mobile.ui.config.SettingsScreen
 import com.ailinkcat.mobile.ui.dialog.ReceiveConfirmDialog
 import com.ailinkcat.mobile.ui.dialog.ReceiveProgressDialog
-import com.ailinkcat.mobile.ui.login.LoginScreen
 import com.ailinkcat.mobile.ui.main.MainScreen
 import com.ailinkcat.mobile.ui.onboarding.OnboardingScreen
 import com.ailinkcat.mobile.ui.profile.ProfileScreen
@@ -36,37 +42,45 @@ import com.ailinkcat.mobile.ui.themeList.ThemeListScreen
 import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
 import com.ailinkcat.mobile.viewmodel.PushReceiveViewModel
 import com.ailinkcat.mobile.websocket.models.ReceiveStatus
-import kotlinx.coroutines.flow.first
 
 object Routes {
     const val SPLASH = "splash"
     const val ONBOARDING = "onboarding"
-    const val LOGIN = "login"
     const val MAIN = "main"
     const val SCANNER = "scanner"
     const val SETTINGS = "settings"
 }
 
 private const val ONBOARDING_KEY = "onboarding_done"
+private const val WEATHER_KEY_PROMPTED = "weather_key_prompted"
 
 /**
- * 应用导航图：启动页 -> (登录页 | 主界面) -> 扫码页。
- * 启动时读取本地登录状态：已登录直接进主界面，未登录进登录页。
+ * 应用导航图：启动页 -> 主界面（无登录）。
+ * 所有功能本地可用，天气等云端数据通过「天气 API Key」配置。
+ * 首次启动且未配置天气 Key 时提示一次（可取消）。
  * 同时挂载主题包推送进度对话框与 Snackbar 提示。
  */
 @Composable
 fun AlinkcatApp(connectionViewModel: ConnectionViewModel) {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val tokenManager = remember { TokenManager(context.applicationContext) }
     val sharedPrefs = remember { context.applicationContext.getSharedPreferences("ilinkcat_prefs", Context.MODE_PRIVATE) }
 
-    // 启动时读取本地登录状态（已登录则跳过登录页）
-    var isLoggedIn by remember { mutableStateOf(false) }
     var onboardingDone by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) {
-        isLoggedIn = tokenManager.isLoggedIn.first()
         onboardingDone = sharedPrefs.getBoolean(ONBOARDING_KEY, false)
+    }
+
+    // 首次启动且未配置天气 Key 时弹窗建议配置
+    var showWeatherKeyPrompt by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        val alreadyPrompted = sharedPrefs.getBoolean(WEATHER_KEY_PROMPTED, false)
+        val hasKey = !sharedPrefs.getString("weather_api_key", "").isNullOrBlank()
+        if (!alreadyPrompted && !hasKey) showWeatherKeyPrompt = true
+    }
+    fun dismissWeatherKeyPrompt() {
+        showWeatherKeyPrompt = false
+        sharedPrefs.edit().putBoolean(WEATHER_KEY_PROMPTED, true).apply()
     }
 
     val pushViewModel: PushReceiveViewModel = viewModel(
@@ -105,10 +119,8 @@ fun AlinkcatApp(connectionViewModel: ConnectionViewModel) {
             composable(Routes.SPLASH) {
                 SplashScreen(
                     onFinished = {
-                        // 未完成引导 -> 引导页；已登录 -> 主界面；未登录 -> 登录页
-                        val dest = if (!onboardingDone) Routes.ONBOARDING
-                                   else if (isLoggedIn) Routes.MAIN
-                                   else Routes.LOGIN
+                        // 未完成引导进引导页，否则直接进主界面
+                        val dest = if (!onboardingDone) Routes.ONBOARDING else Routes.MAIN
                         navController.navigate(dest) {
                             popUpTo(Routes.SPLASH) { inclusive = true }
                         }
@@ -119,17 +131,8 @@ fun AlinkcatApp(connectionViewModel: ConnectionViewModel) {
                 OnboardingScreen(
                     onFinished = {
                         sharedPrefs.edit().putBoolean(ONBOARDING_KEY, true).apply()
-                        navController.navigate(if (isLoggedIn) Routes.MAIN else Routes.LOGIN) {
-                            popUpTo(Routes.ONBOARDING) { inclusive = true }
-                        }
-                    }
-                )
-            }
-            composable(Routes.LOGIN) {
-                LoginScreen(
-                    onLoginSuccess = {
                         navController.navigate(Routes.MAIN) {
-                            popUpTo(Routes.LOGIN) { inclusive = true }
+                            popUpTo(Routes.ONBOARDING) { inclusive = true }
                         }
                     }
                 )
@@ -168,7 +171,6 @@ fun AlinkcatApp(connectionViewModel: ConnectionViewModel) {
         val currentReceiveState = receiveState
         if (dialogVisible && currentReceiveState != null) {
             if (currentReceiveState.status == ReceiveStatus.PENDING_CONFIRM) {
-                // 询问用户是否接收
                 ReceiveConfirmDialog(
                     state = currentReceiveState,
                     onAccept = { pushViewModel.acceptReceive() },
@@ -182,5 +184,30 @@ fun AlinkcatApp(connectionViewModel: ConnectionViewModel) {
                 )
             }
         }
+    }
+
+    if (showWeatherKeyPrompt) {
+        AlertDialog(
+            onDismissRequest = { dismissWeatherKeyPrompt() },
+            title = { Text("配置天气 Key") },
+            text = {
+                Column {
+                    Text("为天气组件配置 API Key 即可显示实时天气。Key 在 PC 端会员中心申请，仅展示一次，请妥善保存。")
+                    Spacer(Modifier.height(4.dp))
+                    Text("不配置也可正常使用其他功能。", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        dismissWeatherKeyPrompt()
+                        navController.navigate(Routes.SETTINGS)
+                    }
+                ) { Text("去设置") }
+            },
+            dismissButton = {
+                TextButton(onClick = { dismissWeatherKeyPrompt() }) { Text("暂不") }
+            }
+        )
     }
 }

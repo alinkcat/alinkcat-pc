@@ -2,14 +2,10 @@ package com.ailinkcat.mobile.utils
 
 import androidx.compose.ui.graphics.Color
 
-/**
- * 颜色解析工具：支持 #RGB、#RRGGBB、#AARRGGBB。
- */
+/** 颜色解析工具：支持 #RGB、#RRGGBB、#AARRGGBB。 */
 object ColorParser {
 
-    /**
-     * 解析十六进制颜色字符串。8 位按 AARRGGBB（Android 惯例）。
-     */
+    /** 解析十六进制颜色字符串，8 位按 AARRGGBB（Android 惯例）。 */
     fun parse(hex: String?, default: Color = Color.Transparent): Color {
         if (hex.isNullOrBlank()) return default
         var raw = hex.trim().removePrefix("#")
@@ -30,9 +26,7 @@ object ColorParser {
         )
     }
 
-    /**
-     * 应用透明度百分比（0-100）。
-     */
+    /** 应用透明度百分比（0-100）。 */
     fun withOpacity(color: Color, opacityPercent: Int?): Color {
         if (opacityPercent == null) return color
         val factor = opacityPercent.coerceIn(0, 100) / 100f

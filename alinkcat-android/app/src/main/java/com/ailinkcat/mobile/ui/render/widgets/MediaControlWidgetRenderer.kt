@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 import coil.compose.AsyncImage
 import com.ailinkcat.mobile.domain.models.MediaControlWidget
 import com.ailinkcat.mobile.domain.models.MediaState
@@ -49,25 +50,36 @@ import androidx.compose.ui.res.stringResource
 import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.utils.FileUtils
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * 本地插值：播放中的进度条以 60fps 平滑滚动，不依赖后端推送。
+ * - remember 与 LaunchedEffect 的键完全一致（含 position/duration），
+ *   避免 position 变化时 remember 重建而插值循环未重启，导致进度冻结/回跳；
+ * - baseSystemTime <= 0（MediaState 默认 0）时后端未推插值基线：
+ *   以当前 position + 当前时间为基准重建基线，进度从当前位置继续平滑前进；
+ * - 插值结果 clamp 到 [0, duration]，避免进度条满格或负数。
  */
 @Composable
 private fun useDisplayPosition(state: MediaState): Float {
-    val displayPos = remember(state.basePosition, state.baseSystemTime, state.isPlaying, state.position) {
+    val displayPos = remember(
+        state.basePosition, state.baseSystemTime, state.isPlaying, state.position, state.duration
+    ) {
         mutableStateOf(state.position.toFloat())
     }
-    LaunchedEffect(state.isPlaying, state.basePosition, state.baseSystemTime) {
+    LaunchedEffect(state.isPlaying, state.basePosition, state.baseSystemTime, state.position, state.duration) {
         if (!state.isPlaying || state.duration <= 0L) {
             displayPos.value = state.position.toFloat()
             return@LaunchedEffect
         }
+        // 基线兜底：baseSystemTime <= 0 时用当前时间，basePosition 缺失时用当前 position 重建
+        val baseTime = if (state.baseSystemTime > 0L) state.baseSystemTime else System.currentTimeMillis()
+        val basePos = if (state.baseSystemTime > 0L) state.basePosition else state.position
         while (true) {
             withFrameNanos {
-                val elapsed = (System.currentTimeMillis() - state.baseSystemTime).coerceAtLeast(0)
-                val interpolated = state.basePosition + elapsed
-                displayPos.value = interpolated.toFloat().coerceAtMost(state.duration.toFloat())
+                val elapsed = (System.currentTimeMillis() - baseTime).coerceAtLeast(0)
+                val interpolated = basePos + elapsed
+                displayPos.value = interpolated.toFloat().coerceIn(0f, state.duration.toFloat())
             }
         }
     }
@@ -139,7 +151,7 @@ private fun ActiveMediaCard(
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 封面
+            // 封面区
             if (widget.showCover) {
                 Box(
                     modifier = Modifier
@@ -187,37 +199,9 @@ private fun ActiveMediaCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                // 进度条（本地插值）
-                val displayPosition = if (state.duration > 0) useDisplayPosition(state) else state.position.toFloat()
-                if (widget.showProgress && state.duration > 0) {
-                    Spacer(Modifier.height(4.dp))
-                    val progress = (displayPosition / state.duration.toFloat()).coerceIn(0f, 1f)
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(2.dp)),
-                        color = Color(0xFF4F6EF7),
-                        trackColor = Color.White.copy(alpha = 0.15f)
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = formatDuration(displayPosition.toLong()),
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = timeSize
-                        )
-                        Text(
-                            text = formatDuration(state.duration),
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = timeSize
-                        )
-                    }
-                }
+                // 进度条（本地插值）：插值状态只存在于 MediaProgressSection 内部，
+                // 60fps 更新不会导致封面 AsyncImage / 音量 Slider 等兄弟组件每帧重组
+                MediaProgressSection(showProgress = widget.showProgress, state = state, timeSize = timeSize)
 
                 // 控制按钮
                 Spacer(Modifier.height(4.dp))
@@ -245,11 +229,13 @@ private fun ActiveMediaCard(
                 ) {
                     Text("🔊", fontSize = (timeSize.value + 2).sp, color = Color.White.copy(alpha = 0.5f))
                     Spacer(Modifier.width(6.dp))
-                    val sliderVolume = remember(state.volume) { mutableStateOf(state.volume.toFloat()) }
+                    // 音量 clamp 到 0..100：兼容后端可能推送越界值（展示与上报同源）
+                    val clampedVolume = state.volume.coerceIn(0, 100)
+                    val sliderVolume = remember(clampedVolume) { mutableStateOf(clampedVolume.toFloat()) }
                     Slider(
                         value = sliderVolume.value,
                         onValueChange = { sliderVolume.value = it },
-                        onValueChangeFinished = { onVolumeChange(sliderVolume.value.toInt()) },
+                        onValueChangeFinished = { onVolumeChange(sliderVolume.value.roundToInt().coerceIn(0, 100)) },
                         valueRange = 0f..100f,
                         modifier = Modifier.weight(1f),
                         colors = SliderDefaults.colors(
@@ -266,6 +252,43 @@ private fun ActiveMediaCard(
                 }
             }
         }
+    }
+}
+
+/**
+ * 进度条 + 时间文本：60fps 插值状态局部化在此组件内，
+ * 高频重组不会扩散到封面 / 音量滑块等兄弟组件。
+ */
+@Composable
+private fun MediaProgressSection(showProgress: Boolean, state: MediaState, timeSize: TextUnit) {
+    if (!showProgress || state.duration <= 0L) return
+    val displayPosition = useDisplayPosition(state)
+    Spacer(Modifier.height(4.dp))
+    val progress = (displayPosition / state.duration.toFloat()).coerceIn(0f, 1f)
+    LinearProgressIndicator(
+        progress = { progress },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(3.dp)
+            .clip(RoundedCornerShape(2.dp)),
+        color = Color(0xFF4F6EF7),
+        trackColor = Color.White.copy(alpha = 0.15f)
+    )
+    Spacer(Modifier.height(2.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = formatDuration(displayPosition.toLong()),
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = timeSize
+        )
+        Text(
+            text = formatDuration(state.duration),
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = timeSize
+        )
     }
 }
 

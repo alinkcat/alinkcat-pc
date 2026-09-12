@@ -3,12 +3,9 @@ package com.ailinkcat.mobile.utils
 import java.time.LocalDate
 
 /**
- * 农历工具类，基于查表法。
- * 数据表包含 1900-2100 年农历信息（每月大小月 + 闰月信息）。
- * 每行为一个 16 位二进制（实际用到 17 位）：
- * - 位 0-3：闰月月份（0=无闰月）
- * - 位 4-15：12 个月的大小月（1=大月30天，0=小月29天），bit (16-month)
- * - 位 16 (0x10000)：闰月的天数（1=闰月大月30天，0=闰月小月29天）
+ * 农历工具，查表法，覆盖 1900-2100 年。
+ * 数据表每行 16 位二进制（实际用到 17 位）：位 0-3 闰月月份（0=无闰月）；
+ * 位 4-15 每月大小（1=大月 30 天，0=小月 29 天），bit (16-month)；位 16 (0x10000) 闰月大小。
  */
 object LunarCalendar {
     // 1900-2100 年农历数据表
@@ -49,7 +46,7 @@ object LunarCalendar {
     /** 闰月月份（0=无闰月）。 */
     private fun leapMonth(info: Int): Int = info and 0xf
 
-    /** 闰月天数（无闰月时为 0）。闰月大小由 bit16 (0x10000) 决定。 */
+    /** 闰月天数（无闰月为 0），大小由 bit16 (0x10000) 决定。 */
     private fun leapMonthDays(info: Int): Int {
         val leap = leapMonth(info)
         if (leap == 0) return 0
@@ -70,19 +67,15 @@ object LunarCalendar {
         return days + leapMonthDays(info)
     }
 
-    /**
-     * 将公历日期转为农历字符串。
-     * 返回格式如 "正月廿三" 或 "闰二月十五"。
-     * 支持 1900-01-31 至 2100 年，超出范围返回空串。
-     */
+    /** 公历转农历字符串，如 "正月廿三" / "闰二月十五"。支持 1900-01-31 至 2100 年，超出返回空串。 */
     fun solarToLunar(solar: LocalDate): String {
-        // 计算从 1900-01-31（农历 1900-01-01）到当前日期的天数
+        // 距 1900-01-31（农历 1900-01-01）的天数
         var offset = solar.toEpochDay() - LocalDate.of(1900, 1, 31).toEpochDay()
         if (offset < 0) return ""
 
         // 逐年推算农历年份
         var lunarYear = 1900
-        while (lunarYear < 2100) {
+        while (lunarYear <= 2100) {
             val yearInfo = LUNAR_INFO[lunarYear - 1900]
             val days = yearDays(yearInfo)
             if (offset < days) break
@@ -119,7 +112,10 @@ object LunarCalendar {
             }
         }
 
+        // 月份/日须落在合法区间，否则视为表外数据（如 2100 年末残余 offset）
+        if (lunarMonth !in 1..12) return ""
         val lunarDay = offset.toInt() + 1
+        if (lunarDay !in 1..30) return ""
         val monthName = if (isLeap) "闰${LUNAR_MONTH_NAMES.getOrElse(lunarMonth - 1) { "" }}" else LUNAR_MONTH_NAMES.getOrElse(lunarMonth - 1) { "" }
         val dayName = LUNAR_DAY_NAMES.getOrElse(lunarDay - 1) { "$lunarDay" }
 

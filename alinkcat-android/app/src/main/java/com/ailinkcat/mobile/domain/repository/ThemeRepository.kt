@@ -18,6 +18,9 @@ class ThemeRepository(private val context: Context) {
     private val themesDir = File(context.filesDir, "themes")
     private val tempDir = File(context.cacheDir, "push_temp")
 
+    /** 串行化 saveMeta / loadThemes，避免并发读写 meta.json 的竞态（写一半读一半 / 相互覆盖）。 */
+    private val metaLock = Any()
+
     init {
         if (!themesDir.exists()) themesDir.mkdirs()
         if (!tempDir.exists()) tempDir.mkdirs()

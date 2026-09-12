@@ -57,5 +57,22 @@
   "benefitsTimes": "{{count}} times",
   "unlimited": "Unlimited",
   "outOfStock": "Out of Stock",
-  "stock": "Stock {{count}}"
+  "stock": "Stock {{count}}",
+  "weather_service": "Weather Service",
+  "weather_key_active": "Weather Key Active",
+  "weather_daily_limit": "Daily Limit",
+  "weather_key": "Key",
+  "weather_android_hint": "Fill this Key into the weather widget on Android to use the service. No third-party weather API registration needed.",
+  "weather_fallback_desc": "You have applied for a weather Key before, but the status API is temporarily unavailable. Refresh later to confirm.",
+  "weather_apply_hint": "Apply for a Weather Key",
+  "weather_apply_desc": "After applying, you get a weather API Key. Paste it into the Android client to use, no login required. Quota is fixed by membership level to prevent abuse",
+  "weather_apply": "Apply Key",
+  "weather_applied": "Weather Key applied successfully",
+  "weather_show_once_title": "Key shown only once",
+  "weather_show_once_desc": "Copy and save this Key to your Android client now. The full Key will not be shown again after refresh; reset it if lost",
+  "weather_saved": "I've saved it",
+  "weather_reset": "Reset Key",
+  "weather_reset_title": "Reset Weather Key?",
+  "weather_reset_desc": "After reset, the old Key is immediately invalidated and Android needs the new Key. Continue?",
+  "weather_reset_success": "Weather Key reset. New Key shown only once"
 }

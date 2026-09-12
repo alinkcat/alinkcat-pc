@@ -68,7 +68,6 @@ fun OnboardingScreen(onFinished: () -> Unit) {
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(BrandBlue, BrandPurple)))
     ) {
-        // 跳过按钮
         TextButton(
             onClick = onFinished,
             modifier = Modifier
@@ -82,7 +81,6 @@ fun OnboardingScreen(onFinished: () -> Unit) {
             )
         }
 
-        // 主内容
         HorizontalPager(
             state = pagerState,
             modifier = Modifier
@@ -95,7 +93,6 @@ fun OnboardingScreen(onFinished: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // 图标
                 Box(
                     modifier = Modifier
                         .size(120.dp)
@@ -111,7 +108,6 @@ fun OnboardingScreen(onFinished: () -> Unit) {
 
                 Spacer(Modifier.height(32.dp))
 
-                // 标题
                 Text(
                     text = page.title,
                     color = Color.White,
@@ -122,7 +118,6 @@ fun OnboardingScreen(onFinished: () -> Unit) {
 
                 Spacer(Modifier.height(12.dp))
 
-                // 描述
                 Text(
                     text = page.desc,
                     color = Color.White.copy(alpha = 0.8f),
@@ -141,7 +136,6 @@ fun OnboardingScreen(onFinished: () -> Unit) {
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 步骤指示器
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -161,7 +155,6 @@ fun OnboardingScreen(onFinished: () -> Unit) {
 
             Spacer(Modifier.height(32.dp))
 
-            // 按钮
             if (pagerState.currentPage < 2) {
                 Button(
                     onClick = {

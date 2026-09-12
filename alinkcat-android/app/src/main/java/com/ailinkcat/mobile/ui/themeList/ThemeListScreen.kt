@@ -83,7 +83,7 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
     var localLoaded by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
 
-    // 将 ThemeMeta 转为 ThemePackage（使用真实页数和覆盖信息）
+    // ThemeMeta -> ThemePackage（用真实页数和封面信息）
     fun List<ThemeMeta>.toThemePackages(): List<ThemePackage> = mapIndexed { index, meta ->
         // 从 theme.json 读取真实页数（meta.json 可能来自旧版本没有 pageCount）
         val realPageCount = try {
@@ -106,11 +106,14 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
         )
     }
 
-    // 页面加载时直接扫描本地已安装的主题（不依赖连接状态）
+    // 页面加载时扫描本地已安装主题（不依赖连接）
     LaunchedEffect(Unit) {
         val repo = ThemeRepository(context)
-        val metas = withContext(Dispatchers.IO) { repo.loadThemes() }
-        localThemes = metas.toThemePackages()
+        // 文件 IO 都在 IO 线程执行
+        val packages = withContext(Dispatchers.IO) {
+            repo.loadThemes().toThemePackages()
+        }
+        localThemes = packages
         localLoaded = true
     }
 
@@ -123,14 +126,16 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
                 viewModel.refreshThemePackages()
             } else {
                 val repo = ThemeRepository(context)
-                val metas = withContext(Dispatchers.IO) { repo.loadThemes() }
-                localThemes = metas.toThemePackages()
+                val packages = withContext(Dispatchers.IO) {
+                    repo.loadThemes().toThemePackages()
+                }
+                localThemes = packages
             }
             isRefreshing = false
         }
     }
 
-    // 连接成功后刷新已安装主题包
+    // 连接后刷新已安装主题包
     LaunchedEffect(state.status) {
         if (state.status == ConnectionStatus.Connected) {
             viewModel.refreshThemePackages()
@@ -140,6 +145,15 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
     fun onThemeClick(pkg: ThemePackage) {
         val themeId = pkg.themeId
         if (themeId.isNullOrBlank()) {
+            // PC 列表项 themeId 为空（未下载）：同名已安装旧主题仍可打开
+            val localMatch = localThemes.firstOrNull { it.name == pkg.name && !it.themeId.isNullOrBlank() }
+            if (localMatch?.themeId != null) {
+                context.startActivity(
+                    Intent(context, ThemeRenderActivity::class.java)
+                        .putExtra(ThemeRenderActivity.EXTRA_THEME_ID, localMatch.themeId)
+                )
+                return
+            }
             Toast.makeText(context, context.getString(R.string.theme_not_downloaded), Toast.LENGTH_SHORT).show()
             return
         }
@@ -153,7 +167,6 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
         if (pkg.themeId != null) deleteTarget = pkg
     }
 
-    // 删除确认对话框
     deleteTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
@@ -171,7 +184,7 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
         )
     }
 
-    // 决定显示哪些主题：连接时用 PC 同步列表，否则用本地列表
+    // 连接时显示 PC 列表，否则本地
     val displayThemes = if (state.status == ConnectionStatus.Connected) csThemes else localThemes
 
     when {
@@ -254,7 +267,6 @@ fun ThemeCard(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 封面
             Box(
                 modifier = Modifier
                     .size(72.dp)

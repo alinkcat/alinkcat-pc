@@ -63,6 +63,8 @@ android {
     }
     buildFeatures {
         compose = true
+        // 生成 BuildConfig（用于区分 debug 本地 / release 云端服务器地址）
+        buildConfig = true
     }
     lint {
         checkReleaseBuilds = false
@@ -100,6 +102,7 @@ dependencies {
     implementation(libs.zxing.core)
     implementation(libs.accompanist.permissions)
     implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
     implementation(libs.androidx.security.crypto)
 
     testImplementation(libs.junit)

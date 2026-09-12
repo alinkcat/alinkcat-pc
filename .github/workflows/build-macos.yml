@@ -1,0 +1,50 @@
+name: Build macOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: alinkcat-pc/src-tauri
+
+      - name: Install frontend deps
+        working-directory: alinkcat-pc
+        run: pnpm install --frozen-lockfile
+
+      - name: Build macOS app (universal)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: alinkcat-pc
+          args: --target universal-apple-darwin
+          tagName: v__VERSION__
+          releaseName: 'alinkcat-pc v__VERSION__'
+          releaseBody: 'macOS 通用二进制（Apple Silicon + Intel）自动构建产物。'
+          releaseDraft: true
+          prerelease: false

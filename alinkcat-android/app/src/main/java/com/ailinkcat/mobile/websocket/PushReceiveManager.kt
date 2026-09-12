@@ -17,7 +17,9 @@ import com.ailinkcat.mobile.websocket.models.ThemePushError
 import com.ailinkcat.mobile.websocket.models.ThemePushStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,12 +65,17 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
     private var lastUpdateAt = 0L
     private var lastUpdateBytes = 0L
 
+    /** 接收看门狗：RECEIVING 后长时间无数据块到达时自动中断（保留 .part）。 */
+    private var watchdogJob: Job? = null
+
     companion object {
         private const val TAG = "PushReceiveManager"
         private const val ERR_PUSH_REJECTED = -32020
         private const val ERR_PUSH_FAILED = -32021
         private const val ERR_CHUNK_WRITE_FAILED = -32030
         private const val ERR_INVALID_PARAMS = -32602
+        /** 无数据块看门狗超时（毫秒）。 */
+        private const val WATCHDOG_TIMEOUT_MS = 30_000L
     }
 
     init {
@@ -82,8 +89,15 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
 
     @Synchronized
     override fun onThemePushStart(requestId: Int, params: ThemePushStart) {
-        // 忙碌：正在接收其他主题包，通知 PC 稍后重试
-        if (_state.value?.status == ReceiveStatus.RECEIVING) {
+        // 忙碌：正在接收或等待确认时回 busy，禁止覆盖进行中的传输；
+        // INTERRUPTED（中断遗留）允许被新推送接管（覆盖写会重建临时文件）
+        val cur = _state.value
+        if (cur != null && cur.status != ReceiveStatus.IDLE
+            && cur.status != ReceiveStatus.COMPLETED
+            && cur.status != ReceiveStatus.CANCELLED
+            && cur.status != ReceiveStatus.FAILED
+            && cur.status != ReceiveStatus.INTERRUPTED
+        ) {
             Log.d(TAG, "Busy: replying busy for ${params.themeId}")
             sendBusyResponse(requestId)
             return
@@ -106,7 +120,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
             return
         }
 
-        // 存在残留 .part 且此前被中断 -> 断点续传提示
+        // 检测到中断遗留的 .part，提示断点续传
         val isResume = tempFile.exists() && tempFile.length() > 0
         val interrupted = _state.value?.takeIf {
             it.status == ReceiveStatus.INTERRUPTED && it.themeId == params.themeId
@@ -128,12 +142,14 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
             isResume = isResume
         )
         _state.value = state
-        // 询问用户：UI 弹出确认对话框（10 秒无操作自动拒绝由 ViewModel 控制）
+        // 询问用户确认（10 秒无操作自动拒绝由 ViewModel 控制）
         listener?.onPushStart(state)
     }
 
     /**
-     * 用户点击"接收"：回复 ready 并开始接收（支持断点续传追加写入）。
+     * 用户点击"接收"：回复 ready 并开始接收。
+     * 采用全量覆盖接收：若存在残留 .part（上一次中断），直接覆盖重建文件，
+     * 与 PC 端"总是完整握手 + 全量重传"的协议保持一致（不做块级续传，避免数据错位）。
      */
     @Synchronized
     fun acceptPending() {
@@ -142,7 +158,6 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         val params = pendingStartParams ?: return
         Log.d(TAG, "User accepted push of ${params.themeId}")
 
-        // 再次检查存储空间
         val tempFile = repository.tempFile(params.themeId)
         val storageDir = tempFile.parentFile ?: tempFile
         if (!FileUtils.hasEnoughSpace(storageDir, params.size)) {
@@ -153,8 +168,8 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
 
         try {
             outputStream?.close()
-            // 断点续传：追加写入
-            outputStream = FileOutputStream(tempFile, st.isResume)
+            // 覆盖写：忽略旧 .part 内容，重新开始接收
+            outputStream = FileOutputStream(tempFile, false)
         } catch (e: Exception) {
             Log.e(TAG, "Cannot create temp file: ${e.message}")
             sendErrorResponse(pendingStartId, ERR_INVALID_PARAMS, "Cannot create temp file")
@@ -166,13 +181,17 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         sendReadyResponse(pendingStartId, params.themeId)
 
         lastUpdateAt = System.currentTimeMillis()
-        lastUpdateBytes = st.receivedSize
+        lastUpdateBytes = 0
 
         val state = st.copy(
             status = ReceiveStatus.RECEIVING,
-            progress = if (st.totalSize > 0) st.receivedSize.toFloat() / st.totalSize else 0f
+            receivedSize = 0,
+            receivedChunks = 0,
+            progress = 0f,
+            speed = 0f
         )
         _state.value = state
+        resetWatchdog(st.themeId)
         listener?.onPushProgress(state)
     }
 
@@ -197,28 +216,46 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
     @Synchronized
     override fun onThemePushChunk(requestId: Int, params: ThemePushChunk) {
         val st = _state.value ?: return
-        if (st.themeId != params.themeId || st.status != ReceiveStatus.RECEIVING) return
+        if (st.themeId != params.themeId || st.status != ReceiveStatus.RECEIVING) {
+            // 状态不匹配（如 PC 端跳过握手直接发块）：明确回错误，避免 PC 端永久等待 ack
+            sendErrorResponse(requestId, ERR_INVALID_PARAMS, "Not receiving")
+            return
+        }
         val out = outputStream ?: return
 
         val bytes = try {
             Base64.decode(params.data, Base64.DEFAULT)
         } catch (_: Exception) {
+            sendErrorResponse(requestId, ERR_INVALID_PARAMS, "Invalid chunk data")
             return
         }
-        if (bytes.isEmpty()) return
+        if (bytes.isEmpty()) {
+            sendErrorResponse(requestId, ERR_INVALID_PARAMS, "Empty chunk data")
+            return
+        }
+
+        // 块序号校验：等于期望序号则写入；小于为重复块（ack 丢失重发），幂等确认；大于为缺口，回错误全量重传
+        if (params.chunkIndex < st.receivedChunks) {
+            sendChunkAckResponse(requestId, params.chunkIndex)
+            return
+        }
+        if (params.chunkIndex > st.receivedChunks) {
+            sendErrorResponse(requestId, ERR_INVALID_PARAMS, "Chunk gap at ${st.receivedChunks}")
+            return
+        }
 
         try {
             out.write(bytes)
             out.flush()
         } catch (e: Exception) {
             Log.e(TAG, "Write failed for chunk ${params.chunkIndex}: ${e.message}")
-            sendChunkErrorResponse(requestId, params.chunkIndex, e.message ?: "disk full")
+            failCurrent("磁盘写入失败: ${e.message ?: "disk full"}", requestId)
             return
         }
 
         val received = st.receivedSize + bytes.size
         if (received > st.totalSize) {
-            failCurrent(appContext.getString(R.string.data_size_error))
+            failCurrent(appContext.getString(R.string.data_size_error), requestId)
             return
         }
         val chunks = st.receivedChunks + 1
@@ -238,7 +275,8 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
             speed = speed / 1024f
         )
         _state.value = state
-        // 每个 chunk 写入完成后发送确认
+        resetWatchdog(st.themeId)
+        // 每块写入后回执确认
         sendChunkAckResponse(requestId, params.chunkIndex)
         listener?.onPushProgress(state)
     }
@@ -248,13 +286,19 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         val st = _state.value ?: return
         if (st.themeId != params.themeId || st.status != ReceiveStatus.RECEIVING) return
         if (params.status != "success") {
-            failCurrent(appContext.getString(R.string.transfer_status_error, params.status))
+            failCurrent(appContext.getString(R.string.transfer_status_error, params.status), requestId)
             return
         }
+        cancelWatchdog()
         closeStream()
         val tempFile = repository.tempFile(params.themeId)
+        // 快照当前阶段共享字段，finalize 在 IO 线程执行，避免与读线程竞争
+        val snapshotHash = expectedHash
+        val snapshotStartId = pendingStartId
+        pendingStartId = -1
+        pendingStartParams = null
         scope.launch {
-            val result = finalizeReceive(st, tempFile, requestId)
+            val result = finalizeReceive(st, tempFile, requestId, snapshotHash, snapshotStartId)
             _state.value = result
             when (result.status) {
                 ReceiveStatus.COMPLETED -> listener?.onPushComplete(result)
@@ -280,7 +324,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
     override fun onThemePushError(requestId: Int, params: ThemePushError) {
         val st = _state.value ?: return
         if (st.themeId != params.themeId || st.status != ReceiveStatus.RECEIVING) return
-        failCurrent(appContext.getString(R.string.push_error_format, params.code, params.message))
+        failCurrent(appContext.getString(R.string.push_error_format, params.code, params.message), requestId)
     }
 
     /**
@@ -291,6 +335,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         val st = _state.value ?: return
         if (st.status != ReceiveStatus.RECEIVING) return
         Log.d(TAG, "User cancelled receive of ${st.themeId}")
+        cancelWatchdog()
         sendRejectResponse(pendingStartId)
         pendingStartId = -1
         pendingStartParams = null
@@ -302,13 +347,14 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
     }
 
     /**
-     * 连接断开（中断）：保留 .part 文件，置为 INTERRUPTED，等待恢复。
+     * 连接断开（中断）：保留 .part 文件，置为 INTERRUPTED，等待后续重新接收。
      */
     @Synchronized
     fun handleConnectionLost() {
         val st = _state.value ?: return
         if (st.status == ReceiveStatus.RECEIVING) {
-            Log.d(TAG, "Connection lost during receive of ${st.themeId}, keeping .part for resume")
+            Log.d(TAG, "Connection lost during receive of ${st.themeId}, keeping .part")
+            cancelWatchdog()
             closeStream()
             pendingStartId = -1
             pendingStartParams = null
@@ -319,8 +365,14 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
             _state.value = state
             listener?.onPushProgress(state)
         } else if (st.status == ReceiveStatus.PENDING_CONFIRM) {
-            // 确认过程中断：清理待确认状态（10 秒超时逻辑由 ViewModel 处理）
+            // 确认过程中断：置回 IDLE 并通知 UI 关闭确认框
             Log.d(TAG, "Connection lost while awaiting confirm of ${st.themeId}")
+            pendingStartId = -1
+            pendingStartParams = null
+            closeStream()
+            val state = st.copy(status = ReceiveStatus.IDLE)
+            _state.value = state
+            listener?.onPushCancelled(state)
         }
     }
 
@@ -380,12 +432,45 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         listener?.onPushFailed(state, message)
     }
 
-    private fun failCurrent(message: String) {
+    /**
+     * 接收看门狗：进入 RECEIVING 后若长时间无数据块到达，自动置为 INTERRUPTED 并保留 .part。
+     * 每次收到数据块时通过 [resetWatchdog] 重置计时。
+     */
+    private fun resetWatchdog(themeId: String) {
+        watchdogJob?.cancel()
+        watchdogJob = scope.launch {
+            delay(WATCHDOG_TIMEOUT_MS)
+            val cur = _state.value
+            if (cur?.status == ReceiveStatus.RECEIVING && cur.themeId == themeId) {
+                Log.w(TAG, "No chunk received for ${WATCHDOG_TIMEOUT_MS}ms, interrupting")
+                closeStream()
+                pendingStartId = -1
+                pendingStartParams = null
+                val state = cur.copy(
+                    status = ReceiveStatus.INTERRUPTED,
+                    errorMessage = appContext.getString(R.string.status_interrupted)
+                )
+                _state.value = state
+                listener?.onPushProgress(state)
+            }
+        }
+    }
+
+    private fun cancelWatchdog() {
+        watchdogJob?.cancel()
+        watchdogJob = null
+    }
+
+    private fun failCurrent(message: String, errorId: Int? = null) {
         val st = _state.value ?: return
         Log.e(TAG, "Receive failed: $message")
+        cancelWatchdog()
         closeStream()
         cleanup(st.themeId)
-        sendErrorResponse(pendingStartId, ERR_PUSH_FAILED, message)
+        // 错误回执使用当前请求的 id（start/chunk/complete），保证 PC 端 AckBus 按 id 匹配到
+        if (errorId != null && errorId >= 0) {
+            sendErrorResponse(errorId, ERR_PUSH_FAILED, message)
+        }
         pendingStartId = -1
         pendingStartParams = null
         val state = st.copy(status = ReceiveStatus.FAILED, errorMessage = message)
@@ -393,7 +478,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         listener?.onPushFailed(state, message)
     }
 
-    // ─── 响应构建 ────────────────────────────────────────────
+    // 响应构建
 
     private fun sendReadyResponse(id: Int, themeId: String) {
         responseSender?.invoke(
@@ -464,20 +549,19 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
 
     /**
      * 完成阶段（IO 线程）：SHA-256 校验 -> 解压 -> 写入元数据 -> 删除临时文件 -> 回复结果。
+     * 失败时回 error 结构（PC 端 extract_error 可识别），保证 PC 端不会显示"假成功"。
      */
-    private fun finalizeReceive(st: ReceiveState, tempFile: java.io.File, requestId: Int): ReceiveState {
+    private fun finalizeReceive(st: ReceiveState, tempFile: java.io.File, requestId: Int, expectedHash: String, startId: Int): ReceiveState {
         // SHA-256 校验
         val actualHash = FileUtils.sha256(tempFile)
         if (actualHash == null) {
             cleanup(st.themeId)
-            sendCompleteResponse(requestId, "failed", st.themeId)
-            resetPending()
+            sendErrorResponse(requestId, ERR_PUSH_FAILED, appContext.getString(R.string.hash_verify_failed))
             return st.copy(status = ReceiveStatus.FAILED, errorMessage = appContext.getString(R.string.hash_verify_failed))
         }
         if (expectedHash.isNotBlank() && !actualHash.equals(expectedHash, ignoreCase = true)) {
             cleanup(st.themeId)
-            sendCompleteResponse(requestId, "failed", st.themeId)
-            resetPending()
+            sendErrorResponse(requestId, ERR_PUSH_FAILED, appContext.getString(R.string.hash_mismatch))
             return st.copy(status = ReceiveStatus.FAILED, errorMessage = appContext.getString(R.string.hash_mismatch))
         }
 
@@ -486,8 +570,7 @@ class PushReceiveManager(context: Context) : PushMessageHandler {
         if (!FileUtils.unzipTo(tempFile, destDir)) {
             cleanup(st.themeId)
             repository.deleteTheme(st.themeId)
-            sendCompleteResponse(requestId, "failed", st.themeId)
-            resetPending()
+            sendErrorResponse(requestId, ERR_PUSH_FAILED, appContext.getString(R.string.unzip_failed))
             return st.copy(status = ReceiveStatus.FAILED, errorMessage = appContext.getString(R.string.unzip_failed))
         }
 

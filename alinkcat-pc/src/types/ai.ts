@@ -15,6 +15,12 @@ export interface AIInstruction {
   executed: boolean;
   confirmed: boolean;
   canceled?: boolean;
+  /** 执行失败标记（runInstructions 返回失败时置位） */
+  failed?: boolean;
+  /** 失败原因（人类可读） */
+  error?: string;
+  /** 破坏性指令（如 generate_full_theme）即使 autoExecute 也强制确认 */
+  severity?: 'normal' | 'danger';
 }
 
 export interface AIMessage {

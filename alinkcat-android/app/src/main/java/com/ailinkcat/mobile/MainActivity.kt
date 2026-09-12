@@ -22,6 +22,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.Coil
+import coil.ImageLoader
+import coil.decode.GifDecoder
+import coil.decode.ImageDecoderDecoder
 import com.ailinkcat.mobile.ui.AlinkcatApp
 import com.ailinkcat.mobile.ui.theme.AlinkcatTheme
 import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
@@ -30,6 +34,16 @@ import com.ailinkcat.mobile.utils.SignatureVerifier
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 显式注册 GIF 解码器：release 混淆后 ServiceLoader 自动发现会失效
+        Coil.setImageLoader(
+            ImageLoader.Builder(this)
+                .components {
+                    add(GifDecoder.Factory())
+                    add(ImageDecoderDecoder.Factory())
+                }
+                .build()
+        )
 
         // debug 构建跳过校验（签名不同）；release 构建必须通过 Native 签名校验
         val isDebuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0

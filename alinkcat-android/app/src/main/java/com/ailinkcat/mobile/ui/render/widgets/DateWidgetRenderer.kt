@@ -11,6 +11,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,9 +38,21 @@ import java.util.Locale
  */
 @Composable
 fun DateWidgetRenderer(widget: DateWidget) {
-    val now = LocalDate.now()
-    val dateStr = now.format(DateTimeFormatter.ofPattern("yyyy M d", Locale.getDefault()))
-    val weekStr = now.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+    // 午夜 ticker：跨天自动刷新日期/星期/农历
+    var today by remember { mutableStateOf(LocalDate.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = java.time.LocalDateTime.now()
+            val nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay()
+            kotlinx.coroutines.delay(
+                java.time.Duration.between(now, nextMidnight).toMillis().coerceAtLeast(1_000L)
+            )
+            today = LocalDate.now()
+        }
+    }
+
+    val dateStr = today.format(DateTimeFormatter.ofPattern("yyyy M d", Locale.getDefault()))
+    val weekStr = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
 
     Box(
         modifier = Modifier
@@ -63,7 +80,7 @@ fun DateWidgetRenderer(widget: DateWidget) {
             if (widget.showLunar) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = getLunarDateString(now),
+                    text = getLunarDateString(today),
                     color = Color.White.copy(alpha = 0.5f),
                     fontSize = 12.sp
                 )

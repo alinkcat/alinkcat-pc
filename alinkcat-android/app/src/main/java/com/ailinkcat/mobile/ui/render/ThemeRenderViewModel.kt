@@ -56,11 +56,17 @@ class ThemeRenderViewModel(
     private val _uiState = MutableStateFlow(RenderUiState())
     val uiState: StateFlow<RenderUiState> = _uiState.asStateFlow()
 
-    private var requestId = 100
+    private val requestId = java.util.concurrent.atomic.AtomicInteger(100)
     private var reconnectJob: Job? = null
+    private var reconnectAttempt = 0
 
-    /** 标记是否已进入主题（enterTheme 已调用），用于在 handshake 完成后补发订阅。 */
+    /** 标记是否已进入主题（enterTheme 已调用），用于在 handshake 完成后补发订阅。跨线程（OkHttp 回调）可见。 */
+    @Volatile
     private var entered = false
+
+    /** theme.enter 是否已成功发出（避免重复发送；连接可用性由 send 返回值判定）。 */
+    @Volatile
+    private var enterSent = false
 
     private val webSocket = WebSocketManager(
         context = application,
@@ -72,9 +78,10 @@ class ThemeRenderViewModel(
                 themeList: List<String>
             ) {
                 _uiState.update { it.copy(connectionStatus = ConnectionStatus.Connected) }
+                reconnectAttempt = 0
                 // 如果 enterTheme 在 handshake 完成前已被调用，补发订阅
-                if (entered) {
-                    sendThemeEnter()
+                if (entered && !enterSent) {
+                    if (sendThemeEnter()) enterSent = true
                 }
             }
 
@@ -152,20 +159,24 @@ class ThemeRenderViewModel(
 
     /**
      * 用户进入主题包页面：发送 theme.enter 并订阅数据。
-     * 如果 WebSocket 尚未连接，标记为待发送，handshake 完成后自动补发。
+     * 如果 WebSocket 尚未连接，标记为待发送，handshake 完成后自动补发（幂等）。
      */
     fun enterTheme() {
         entered = true
-        sendThemeEnter()
+        if (!enterSent) {
+            if (sendThemeEnter()) enterSent = true
+        }
     }
 
-    private fun sendThemeEnter() {
-        webSocket.send(JsonRpc.buildRequest("theme.enter",
+    /** @return theme.enter 是否已真正下发（连接不可用时返回 false，等待握手后补发）。 */
+    private fun sendThemeEnter(): Boolean {
+        val ok = webSocket.send(JsonRpc.buildRequest("theme.enter",
             JSONObject().put("themeId", themeId), nextId()))
         subscribeData()
         // 主动拉取当前媒体状态
         webSocket.send(JsonRpc.buildRequest("media.get_current",
             JSONObject(), nextId()))
+        return ok
     }
 
     /**
@@ -173,15 +184,23 @@ class ThemeRenderViewModel(
      */
     fun leaveTheme() {
         entered = false
+        enterSent = false
         webSocket.send(JsonRpc.buildRequest("theme.leave",
             JSONObject(), nextId()))
         unsubscribeData()
     }
 
+    /**
+     * 断线重连：指数退避（5s → 10s → 20s → 40s → 60s 封顶）+ 随机抖动，
+     * 避免 PC 离线时每 5s 一次长连接尝试持续耗电与刷服务端日志。
+     */
     private fun scheduleReconnect() {
         reconnectJob?.cancel()
+        val base = (5_000L shl reconnectAttempt.coerceAtMost(3)).coerceAtMost(60_000L)
+        reconnectAttempt++
+        val jitter = (0..500L).random()
         reconnectJob = viewModelScope.launch {
-            delay(5000)
+            delay(base + jitter)
             val config = dataStore.config.first()
             if (config.ip.isNotBlank()) {
                 _uiState.update { it.copy(connectionStatus = ConnectionStatus.Connecting) }
@@ -201,13 +220,25 @@ class ThemeRenderViewModel(
                 return
             }
             val method = root.optString("method")
-            Log.d("RenderVM", "handleRawMessage: method=$method text=$text")
+            if (method.isBlank()) {
+                // 无 method 的响应只取媒体状态（media.get_current 拉取的 result），其余 RPC 响应忽略，避免污染 mediaState
+                val result = root.optJSONObject("result")
+                if (result != null && (
+                        result.has("position") || result.has("title") || result.has("duration")
+                            || result.has("isPlaying") || result.has("state")
+                        )) {
+                    parseMediaState(root)
+                }
+                return
+            }
+            Log.d(TAG, "handleRawMessage: method=$method")
             when (method) {
                 "monitor.data", "data.update", "monitor.update" -> parseDataUpdate(root)
                 "media.state.update", "media.update" -> parseMediaState(root)
-                else -> Log.d("RenderVM", "Unhandled method: $method")
+                else -> Log.d(TAG, "Unhandled method: $method")
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e(TAG, "handleRawMessage parse error: ${e.message}")
         }
     }
 
@@ -288,8 +319,11 @@ class ThemeRenderViewModel(
             }
         }
         if (map.isNotEmpty()) {
-            Log.d("RenderVM", "parseDataUpdate: widgetData updated keys=${map.keys}")
-            _uiState.update { it.copy(widgetData = it.widgetData + map) }
+            // 白名单过滤：防止随机键导致 widgetData 无限增长；整体替换避免陈旧值残留
+            val filtered = map.filterKeys { it in DataSourceResolver.INTERNAL_KEYS }
+            if (filtered.isNotEmpty()) {
+                _uiState.update { it.copy(widgetData = filtered) }
+            }
         }
     }
 
@@ -313,7 +347,6 @@ class ThemeRenderViewModel(
                 return
             }
             "toggle_widget" -> {
-                // 通过 WebSocket 通知 PC 端切换控件可见性
                 val params = JSONObject()
                     .put("widgetId", action.content ?: widgetId)
                     .put("action", "toggle_visibility")
@@ -323,9 +356,25 @@ class ThemeRenderViewModel(
             "open_link", "url" -> {
                 val url = action.content
                 if (!url.isNullOrBlank()) {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    getApplication<android.app.Application>().startActivity(intent)
+                    // 安全：只允许 http/https，防止主题包拉起任意应用（file:/javascript: 等 scheme）
+                    val uri = try {
+                        android.net.Uri.parse(url)
+                    } catch (_: Exception) {
+                        null
+                    }
+                    val scheme = uri?.scheme?.lowercase()
+                    if (scheme != "http" && scheme != "https") {
+                        _uiState.update { it.copy(actionError = "不支持的链接: $url") }
+                        return
+                    }
+                    try {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        getApplication<android.app.Application>().startActivity(intent)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "open_link failed: ${e.message}")
+                        _uiState.update { it.copy(actionError = "无法打开链接") }
+                    }
                 }
                 return
             }
@@ -378,7 +427,6 @@ class ThemeRenderViewModel(
      * 切换指定控件的可见性（用于 toggle_widget 联动）。
      */
     fun toggleWidgetVisibility(widgetId: String) {
-        // 通过 WebSocket 通知 PC 端
         webSocket.send(JsonRpc.buildRequest("action.execute",
             JSONObject()
                 .put("widgetId", widgetId)
@@ -430,7 +478,7 @@ class ThemeRenderViewModel(
         webSocket.close()
     }
 
-    private fun nextId(): Int = ++requestId
+    private fun nextId(): Int = requestId.incrementAndGet()
 
     override fun onCleared() {
         reconnectJob?.cancel()
@@ -447,6 +495,8 @@ class ThemeRenderViewModel(
     }
 
     companion object {
+        private const val TAG = "RenderVM"
+
         fun factory(themeId: String): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]

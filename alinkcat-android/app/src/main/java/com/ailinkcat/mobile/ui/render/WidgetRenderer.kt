@@ -74,15 +74,6 @@ fun WidgetRenderer(
     onButtonClick: (String, Action) -> Unit,
     onSnippetClick: (String) -> Unit
 ) {
-    // 数据完整性检查：输出每个控件的位置、大小、类型
-    Log.d(
-        "WidgetRenderer",
-        "type=${widget.type}, id=${widget.id}, " +
-            "grid=(${widget.layout.gridRow},${widget.layout.gridCol}) " +
-            "span=${widget.layout.colSpan}x${widget.layout.rowSpan}, " +
-            "pos=(${widget.layout.x},${widget.layout.y}) size=(${widget.layout.width}x${widget.layout.height})"
-    )
-
     when (widget) {
         is ButtonWidget -> ButtonWidgetRenderer(
             widget = widget,

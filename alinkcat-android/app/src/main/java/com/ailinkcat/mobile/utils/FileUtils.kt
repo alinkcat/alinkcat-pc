@@ -6,19 +6,20 @@ import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
-/**
- * 文件操作工具类：大小/速度格式化、SHA-256 校验、.alc（zip）解压。
- */
+/** 文件操作工具：大小/速度格式化、SHA-256 校验、.alc（zip）解压。 */
 object FileUtils {
+
+    /** zip 炸弹防护：累计解压字节上限（500MB）。 */
+    private const val MAX_UNZIP_BYTES = 500L * 1024 * 1024
+
+    /** zip 炸弹防护：entry 数量上限（5000）。 */
+    private const val MAX_UNZIP_ENTRIES = 5000
 
     fun ensureDirs(vararg dirs: File) {
         dirs.forEach { if (!it.exists()) it.mkdirs() }
     }
 
-    /**
-     * 存储空间检查：目录可用空间需大于 requiredBytes × reserveMultiplier
-     * （默认预留 1.5 倍，供解压使用）。
-     */
+    /** 存储空间检查：目录可用空间需大于 requiredBytes × reserveMultiplier（默认 1.5 倍）。 */
     fun hasEnoughSpace(
         directory: File,
         requiredBytes: Long,
@@ -45,9 +46,7 @@ object FileUtils {
         return String.format("%.2f MB/s", kbPerSecond / 1024f)
     }
 
-    /**
-     * 计算文件 SHA-256（小写十六进制）。
-     */
+    /** 计算文件 SHA-256（小写十六进制）。 */
     fun sha256(file: File): String? {
         return try {
             val digest = MessageDigest.getInstance("SHA-256")
@@ -65,23 +64,42 @@ object FileUtils {
         }
     }
 
-    /**
-     * 解压 .alc（zip）文件到目标目录，带路径穿越防护。
-     */
+    /** 解压 .alc（zip）到目标目录，带路径穿越与 zip 炸弹防护（超限立即中断并清理）。 */
     fun unzipTo(zipFile: File, destDir: File): Boolean {
         return try {
             destDir.mkdirs()
             ZipFile(zipFile).use { zip ->
                 val entries = zip.entries()
+                var entryCount = 0
+                var totalBytes = 0L
                 while (entries.hasMoreElements()) {
                     val entry = entries.nextElement()
+                    entryCount++
+                    if (entryCount > MAX_UNZIP_ENTRIES) {
+                        // entry 数超限，视为 zip 炸弹
+                        destDir.deleteRecursively()
+                        return false
+                    }
                     val target = resolveSafe(destDir, entry) ?: continue
                     if (entry.isDirectory) {
                         target.mkdirs()
                     } else {
                         target.parentFile?.mkdirs()
                         zip.getInputStream(entry).use { input ->
-                            target.outputStream().use { output -> input.copyTo(output) }
+                            target.outputStream().use { output ->
+                                val buffer = ByteArray(8192)
+                                while (true) {
+                                    val read = input.read(buffer)
+                                    if (read < 0) break
+                                    output.write(buffer, 0, read)
+                                    totalBytes += read
+                                    if (totalBytes > MAX_UNZIP_BYTES) {
+                                        // 解压字节超限，视为 zip 炸弹
+                                        destDir.deleteRecursively()
+                                        return false
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -144,7 +144,6 @@ private fun QuickActionCellRenderer(
         contentAlignment = Alignment.Center
     ) {
         if (isLauncher) {
-            // 启动器：图标 + 名称
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center

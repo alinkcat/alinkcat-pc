@@ -79,9 +79,9 @@ fun ThemeRenderScreen(
         }
     }
 
-    // 进入主题包页面时激活订阅，离开时取消
-    LaunchedEffect(Unit) {
-        viewModel.enterTheme()
+    // 主题加载成功后才进入订阅；错误页不连接 WebSocket（离开时取消）
+    LaunchedEffect(uiState.theme) {
+        uiState.theme?.let { viewModel.enterTheme() }
     }
     DisposableEffect(Unit) {
         onDispose { viewModel.leaveTheme() }
@@ -151,6 +151,27 @@ private fun RenderContent(
     val pagerState = rememberPagerState(pageCount = { theme.pages.size })
     val themeDir = File(context.filesDir, "themes")
 
+    // 主题无页面：显示提示而非黑屏
+    if (theme.pages.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color(0xFF101320)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("😿", fontSize = 48.sp)
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.theme_load_failed),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(16.dp))
+                TextButton(onClick = onExit) { Text(stringResource(R.string.back), color = Color.White) }
+            }
+        }
+        return
+    }
+
     LaunchedEffect(pagerState.currentPage) {
         viewModel.onPageChanged(pagerState.currentPage)
     }
@@ -213,7 +234,6 @@ private fun RenderContent(
                         WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
                     )
             ) {
-                // 左上角退出按钮
                 Box(
                     modifier = Modifier
                         .padding(8.dp)
@@ -236,7 +256,6 @@ private fun RenderContent(
                         WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
                     )
             ) {
-                // 右上角连接状态
                 Row(
                     modifier = Modifier
                         .padding(12.dp)
@@ -287,7 +306,7 @@ private fun RenderContent(
             text = { Text(stringResource(R.string.exit_theme_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.leaveTheme()
+                    // leaveTheme 由 DisposableEffect onDispose 统一执行，避免重复发送
                     viewModel.releaseConnection()
                     onExit()
                 }) {

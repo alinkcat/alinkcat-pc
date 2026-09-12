@@ -1,19 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+   数据提取规则（API 31+ 使用 dataExtractionRules）。
+   与 backup_rules.xml 保持一致：排除含明文 weather_api_key 的 SharedPreferences
+   与含配对信息的 DataStore 文件，云备份与设备迁移均不携带。
+   https://developer.android.com/about/versions/12/backup-restore#xml-changes
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="sharedpref" path="ilinkcat_prefs.xml"/>
+        <exclude domain="file" path="datastore/"/>
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="ilinkcat_prefs.xml"/>
+        <exclude domain="file" path="datastore/"/>
     </device-transfer>
-    -->
 </data-extraction-rules>

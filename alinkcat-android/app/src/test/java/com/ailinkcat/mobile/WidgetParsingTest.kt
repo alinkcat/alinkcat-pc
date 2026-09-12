@@ -129,7 +129,7 @@ class WidgetParsingTest {
     @Test
     fun `malformed json returns null`() {
         val json = JSONObject("""{"id": "bad"}""")
-        // Missing type field — optString returns "" which falls to else -> null
+        // 缺 type 字段，optString 返回空串落入 else 分支 → null
         val widget = Widget.fromJson(json)
         assertNull(widget)
     }
@@ -147,8 +147,8 @@ class WidgetParsingTest {
         assertTrue(widget is BatteryWidget)
         widget as BatteryWidget
         assertEquals("battery_min", widget.id)
-        assertEquals("Battery", widget.label) // default
-        assertEquals(true, widget.showLevel) // default
-        assertEquals(false, widget.showTemp) // default
+        assertEquals("Battery", widget.label)
+        assertEquals(true, widget.showLevel)
+        assertEquals(false, widget.showTemp)
     }
 }

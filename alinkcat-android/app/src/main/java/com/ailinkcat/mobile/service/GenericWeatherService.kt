@@ -6,11 +6,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import kotlin.math.roundToInt
 
 /**
- * 负责把用户在 widget JSON 中配置的请求细节转成统一的 WeatherInfo DTO。
- * 通过 GenericHttpService 发送请求，然后依据用户提供的映射路径抽取字段。
+ * 把 widget JSON 中的请求配置转成 WeatherInfo DTO：经 GenericHttpService 发请求，按映射路径抽取字段。
  */
 object GenericWeatherService {
     data class WeatherWidgetConfig(
@@ -58,13 +56,13 @@ object GenericWeatherService {
     )
 
     suspend fun fetchWeather(config: WeatherWidgetConfig): WeatherInfo = withContext(Dispatchers.IO) {
-        // 1️⃣ 渲染占位符
+        // 1. 渲染占位符
         val vars = mutableMapOf<String, String>("city" to config.city, "apiKey" to config.apiKey)
         config.extraParams?.forEach { (k, v) -> vars[k] = v }
         fun render(tpl: String): String = tpl.replace(Regex("\$\\{([^}]+)}")) { match ->
             vars[match.groupValues[1].trim()] ?: ""
         }
-        // URL 中的占位符值做百分号编码，避免中文城市等非 ASCII 字符导致请求失败
+        // URL 占位符值做百分号编码，避免中文等非 ASCII 字符破坏 URL
         fun renderUrl(tpl: String): String = tpl.replace(Regex("\$\\{([^}]+)}")) { match ->
             val v = vars[match.groupValues[1].trim()] ?: ""
             URLEncoder.encode(v, "UTF-8")
@@ -73,7 +71,7 @@ object GenericWeatherService {
         val headers = config.requestHeaders?.mapValues { (_, v) -> render(v) } ?: emptyMap()
         val body = config.requestBody?.let { render(it) }
 
-        // 2️⃣ 发请求
+        // 2. 发请求
         val raw: JSONObject = GenericHttpService.request(
             url = url,
             method = config.requestMethod,
@@ -81,36 +79,68 @@ object GenericWeatherService {
             body = body
         )
 
-        // 3️⃣ 映射字段
+        // 3. 映射字段
         val map = config.responseMapping
-        fun <T> get(path: String?): T? = path?.let { JsonPath.get(raw, it) as? T }
+        // wttr.in j1 的数字字段是字符串（如 "27"），统一兼容 Number / String / JSONArray{value}
+        fun jsonToNumber(v: Any?): Double? = when (v) {
+            is Number -> v.toDouble()
+            is String -> v.toDoubleOrNull()
+            is JSONArray -> v.optJSONObject(0)?.optString("value")?.toDoubleOrNull()
+            else -> null
+        }
+        fun jsonToString(v: Any?): String? = when (v) {
+            is String -> v
+            is Number -> v.toString()
+            is JSONArray -> v.optJSONObject(0)?.optString("value")?.takeIf { it.isNotBlank() }
+            else -> null
+        }
+        fun getNum(path: String?): Double? = path?.let { jsonToNumber(JsonPath.get(raw, it)) }
+        fun getStr(path: String?): String? = path?.let { jsonToString(JsonPath.get(raw, it)) }
         val forecastList = mutableListOf<ForecastDay>()
-        val forecastArray = get<JSONArray>(map.forecastPath)
+        val forecastArray = map.forecastPath?.let { JsonPath.get(raw, it) as? JSONArray }
         if (forecastArray != null) {
             for (i in 0 until forecastArray.length()) {
-                val obj = forecastArray.getJSONObject(i)
-                // 这里假设用户已经在映射里把 forecast 的每个字段映射成相对路径
-                // 为简化，仅直接读取常见字段名，若不存在则回退空值
+                // optJSONObject：坏项跳过，不影响整条预报
+                val obj = forecastArray.optJSONObject(i) ?: continue
+                // 字段名兼容：maxtempC/mintempC、tempMax/tempMin、temp_max/temp_min
+                var condition = obj.optString("weather", obj.optString("condition", ""))
+                var icon = obj.optString("icon", "")
+                // wttr 的 condition/icon 在 hourly[0]（weatherDesc / weatherCode）
+                val hourly = obj.optJSONArray("hourly")
+                if (hourly != null && hourly.length() > 0) {
+                    val h0 = hourly.optJSONObject(0) ?: continue
+                    if (condition.isBlank()) {
+                        condition = h0.optJSONArray("weatherDesc")?.optJSONObject(0)?.optString("value") ?: ""
+                    }
+                    if (icon.isBlank()) {
+                        icon = when (val code = h0.opt("weatherCode")) {
+                            is Int -> code.toString()
+                            is Long -> code.toString()
+                            is Double -> code.toInt().toString()
+                            else -> code?.toString() ?: ""
+                        }
+                    }
+                }
                 forecastList.add(
                     ForecastDay(
                         date = obj.optString("date", ""),
-                        temp_max = obj.optDouble("temp_max"),
-                        temp_min = obj.optDouble("temp_min"),
-                        condition = obj.optString("condition", ""),
-                        icon = obj.optString("icon", "")
+                        temp_max = obj.optDouble("maxtempC", obj.optDouble("tempMax", obj.optDouble("temp_max", 0.0))),
+                        temp_min = obj.optDouble("mintempC", obj.optDouble("tempMin", obj.optDouble("temp_min", 0.0))),
+                        condition = condition,
+                        icon = icon
                     )
                 )
             }
         }
         WeatherInfo(
-            city = get<String>(map.city) ?: "",
-            temp = (get<Number>(map.temp)?.toDouble()) ?: 0.0,
-            condition = get<String>(map.condition) ?: "",
-            description = get<String>(map.description) ?: "",
-            icon = get<String>(map.icon) ?: "",
-            humidity = (get<Number>(map.humidity)?.toInt()) ?: 0,
-            wind_speed = (get<Number>(map.wind_speed)?.toDouble()) ?: 0.0,
-            feels_like = (get<Number>(map.feels_like)?.toDouble()) ?: 0.0,
+            city = getStr(map.city) ?: "",
+            temp = getNum(map.temp) ?: 0.0,
+            condition = getStr(map.condition) ?: "",
+            description = getStr(map.description) ?: "",
+            icon = getStr(map.icon) ?: "",
+            humidity = getNum(map.humidity)?.toInt() ?: 0,
+            wind_speed = getNum(map.wind_speed) ?: 0.0,
+            feels_like = getNum(map.feels_like) ?: 0.0,
             forecast = forecastList
         )
     }

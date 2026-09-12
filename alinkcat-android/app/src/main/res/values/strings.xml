@@ -30,6 +30,7 @@
     <!-- Login Screen -->
     <string name="login">Login</string>
     <string name="login_button">Log In</string>
+    <string name="login_register">Log In / Sign Up</string>
     <string name="logging_in">Logging in…</string>
     <string name="username_or_email">Username / Email</string>
     <string name="enter_username_or_email">Enter username or email</string>
@@ -110,6 +111,10 @@
     <string name="reject_receive">Reject</string>
     <string name="cancel_receive">Cancel</string>
     <string name="close">Close</string>
+
+    <!-- Scanner -->
+    <string name="scan_success">QR code detected</string>
+    <string name="rescan">Scan again</string>
 
     <!-- Theme Render Screen -->
     <string name="theme_load_failed">Theme load failed</string>

@@ -23,15 +23,12 @@ pub struct UploadRecord {
     pub review_comment: Option<String>,
 }
 
-fn records_path() -> PathBuf {
-    dirs::home_dir()
-        .expect("Cannot determine home directory")
-        .join(".ilinkcat")
-        .join("upload_history.json")
+fn records_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".ilinkcat").join("upload_history.json"))
 }
 
 fn load_records() -> Vec<UploadRecord> {
-    let p = records_path();
+    let Some(p) = records_path() else { return Vec::new(); };
     if !p.exists() {
         return Vec::new();
     }
@@ -42,7 +39,7 @@ fn load_records() -> Vec<UploadRecord> {
 }
 
 fn save_records(records: &[UploadRecord]) -> Result<(), String> {
-    let p = records_path();
+    let p = records_path().ok_or("无法确定用户主目录，无法保存上传历史")?;
     if let Some(parent) = p.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {}", e))?;
     }

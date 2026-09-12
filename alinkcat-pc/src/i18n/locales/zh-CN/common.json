@@ -67,8 +67,9 @@
   },
   "weather": {
     "title": "天气",
-    "enterCity": "请输入城市与 API Key 以开始",
-    "apiKeyHint": "URL / 请求参数支持 ${city}、${apiKey} 占位符，可自由配置任意接口",
+    "enterCity": "请输入城市名以开始",
+    "apiKeyHint": "Key 在会员中心申请后自动注入，仅需填写城市名即可预览",
+    "applyKey": "请先在会员中心申请天气 Key，申请后保存即可自动预览",
     "noData": "暂无天气数据"
   },
   "widgets": {

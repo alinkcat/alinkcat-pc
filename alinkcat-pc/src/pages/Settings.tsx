@@ -23,7 +23,7 @@ import { exportEncryptedLogs } from '../utils/errorExport';
 import { getLogs } from '../utils/logger';
 import { devConfig, config as appConfig } from '../config';
 import { getDeveloperPassword } from '../utils/md5';
-import { tauriInvoke } from '../utils/tauri';
+import { isTauri, tauriInvoke } from '../utils/tauri';
 import type { AppSettings } from '../types/theme';
 import { DEFAULT_SETTINGS } from '../types/theme';
 
@@ -40,7 +40,7 @@ function loadSettings(): AppSettings {
 }
 
 export default function Settings() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const [aiForm] = Form.useForm();
@@ -144,16 +144,25 @@ export default function Settings() {
       const headers: Record<string, string> = {};
       if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-      // 通过 Tauri Rust 后端转发，绕过 CORS
-      const result = await tauriInvoke<{ status: number; body: unknown }>('api_request', {
-        url,
-        method: 'GET',
-        headers,
-      });
+      let ids: string[];
+      if (isTauri()) {
+        // 通过 Tauri Rust 后端转发，绕过 CORS
+        const result = await tauriInvoke<{ status: number; body: unknown }>('api_request', {
+          url,
+          method: 'GET',
+          headers,
+        });
+        if (result.status >= 400) throw new Error(`HTTP ${result.status}`);
+        const json = result.body as { data?: { id: string }[] };
+        ids = (json.data || []).map((m: { id: string }) => m.id).filter(Boolean);
+      } else {
+        // 浏览器环境（开发）：原生 fetch
+        const resp = await fetch(url, { headers });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const json = await resp.json();
+        ids = (json.data || []).map((m: { id: string }) => m.id).filter(Boolean);
+      }
 
-      if (result.status >= 400) throw new Error(`HTTP ${result.status}`);
-      const json = result.body as { data?: { id: string }[] };
-      const ids: string[] = (json.data || []).map((m: { id: string }) => m.id).filter(Boolean);
       if (ids.length === 0) throw new Error(t('settings.ai_fetch_models_no_models'));
       aiForm.setFieldsValue({ models: ids.join('\n'), defaultModel: ids[0] });
       message.success(t('settings.ai_fetch_models_success', { count: ids.length }));
@@ -292,6 +301,29 @@ export default function Settings() {
             valuePropName="checked"
           >
             <Switch />
+          </Form.Item>
+
+          <Form.Item
+            name="status_polling"
+            label={t('settings.status_polling')}
+            valuePropName="checked"
+            extra={t('settings.status_polling_extra')}
+          >
+            <Switch />
+          </Form.Item>
+
+          <Form.Item
+            name="status_polling_interval"
+            label={t('settings.status_polling_interval')}
+            rules={[{ required: true, message: t('settings.status_polling_interval_required') }]}
+            extra={t('settings.status_polling_interval_extra')}
+          >
+            <InputNumber
+              min={1}
+              max={600}
+              style={{ width: '100%' }}
+              placeholder={t('settings.status_polling_interval_placeholder')}
+            />
           </Form.Item>
 
           <Form.Item

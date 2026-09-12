@@ -6,7 +6,6 @@ import org.json.JSONObject
  * PC 端推送主题包的消息模型（JSON-RPC 通知）。
  */
 
-// 推送开始
 data class ThemePushStart(
     val themeId: String,
     val name: String,
@@ -31,7 +30,6 @@ data class ThemePushStart(
     }
 }
 
-// 数据块
 data class ThemePushChunk(
     val themeId: String,
     val chunkIndex: Int,
@@ -52,7 +50,6 @@ data class ThemePushChunk(
     }
 }
 
-// 完成通知
 data class ThemePushComplete(
     val themeId: String,
     val status: String // 'success' | 'failed'
@@ -69,7 +66,6 @@ data class ThemePushComplete(
     }
 }
 
-// 取消通知
 data class ThemePushCancel(
     val themeId: String
 ) {
@@ -82,7 +78,6 @@ data class ThemePushCancel(
     }
 }
 
-// 错误通知
 data class ThemePushError(
     val themeId: String,
     val code: Int,
@@ -101,7 +96,7 @@ data class ThemePushError(
     }
 }
 
-// ─── 接收状态 ───────────────────────────────────────────────
+// 接收状态
 
 enum class ReceiveStatus {
     IDLE,
@@ -128,7 +123,7 @@ data class ReceiveState(
     val isResume: Boolean = false // 是否为断点续传
 )
 
-// ─── 已安装主题元数据 ───────────────────────────────────────
+// 已安装主题元数据
 
 data class ThemeMeta(
     val themeId: String,

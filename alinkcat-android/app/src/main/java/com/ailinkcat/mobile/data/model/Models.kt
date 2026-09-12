@@ -1,8 +1,6 @@
 package com.ailinkcat.mobile.data.model
 
-/**
- * 快捷启动应用（PC 端程序/快捷方式）。
- */
+/** 快捷启动应用（PC 端程序/快捷方式）。 */
 data class LauncherApp(
     val id: String,
     val name: String,
@@ -10,9 +8,7 @@ data class LauncherApp(
     val position: Int = 0
 )
 
-/**
- * 文本片段。
- */
+/** 文本片段。 */
 data class SnippetItem(
     val id: String,
     val label: String,
@@ -32,9 +28,7 @@ enum class ConnectionStatus {
     Idle, Connecting, Connected, Disconnected, Error
 }
 
-/**
- * 连接失败原因分类，用于向用户展示友好的错误提示。
- */
+/** 连接失败原因分类，用于向用户展示友好的错误提示。 */
 enum class ConnectionErrorType {
     NETWORK_UNREACHABLE,
     PORT_CLOSED,
@@ -62,5 +56,9 @@ data class StoredConfig(
     val pairCode: String = "",
     val deviceName: String = "My Android",
     val lastConnectedIp: String = "",
-    val lastConnectedPort: String = ""
+    val lastConnectedPort: String = "",
+    /** 天气组件刷新间隔（秒）。>0 覆盖主题 refreshInterval，0 跟随主题。 */
+    val weatherRefreshSeconds: Int = 0,
+    /** 定位失败时的兜底城市名，空则跟随主题默认。 */
+    val fallbackCity: String = ""
 )

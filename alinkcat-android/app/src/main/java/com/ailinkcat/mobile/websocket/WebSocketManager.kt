@@ -96,6 +96,10 @@ class WebSocketManager(
     @Volatile
     private var expectedClose = false
 
+    /** 连接代数：每次 connect() 递增，回调校验代数一致才上报，防止旧连接孤儿回调触发重复重连。 */
+    @Volatile
+    private var connectionGeneration = 0L
+
     /** PC 端远程切换主题监听器（theme.switch）。 */
     @Volatile
     var themeSwitchListener: ((themeId: String) -> Unit)? = null
@@ -105,6 +109,11 @@ class WebSocketManager(
     private val handshakeTimeoutTask = Runnable {
         if (handshakePending.compareAndSet(true, false)) {
             Log.e(TAG, "Handshake timeout: no response in ${HANDSHAKE_TIMEOUT_MS / 1000}s")
+            // 必须关闭底层连接，否则重连后新旧连接并存（双连接双订阅）
+            try {
+                webSocket?.cancel()
+            } catch (_: Exception) {
+            }
             listener.onConnectionFailed(
                 ConnectionErrorType.HANDSHAKE_TIMEOUT,
                 context.getString(R.string.handshake_timeout)
@@ -117,11 +126,25 @@ class WebSocketManager(
      * @param url 形如 ws://192.168.1.100:9527
      */
     fun connect(url: String, pairingCode: String, deviceName: String, appVersion: String) {
+        // 递增代数，让旧连接的后续回调失效
+        connectionGeneration++
+        val gen = connectionGeneration
         expectedClose = false
+        try {
+            webSocket?.cancel()
+        } catch (_: Exception) {
+        }
         Log.d(TAG, "Connecting to $url")
         val request = Request.Builder().url(url).build()
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                if (gen != connectionGeneration) {
+                    try {
+                        webSocket.cancel()
+                    } catch (_: Exception) {
+                    }
+                    return
+                }
                 Log.d(TAG, "WebSocket connected")
                 handshakePending.set(true)
                 mainHandler.postDelayed(handshakeTimeoutTask, HANDSHAKE_TIMEOUT_MS)
@@ -131,9 +154,19 @@ class WebSocketManager(
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                if (gen != connectionGeneration) return
                 val message = JsonRpc.parseMessage(text) ?: return
                 val method = message.method
-                if (method == null || method == "handshake") {
+                if (method == null) {
+                    // 无 method 的是 JSON-RPC 响应：id=1 为握手响应，其余（media.get_current 等）转发原始监听器
+                    if (message.id == 1) {
+                        handleHandshakeResponse(text)
+                    } else {
+                        rawListener?.invoke(text)
+                    }
+                    return
+                }
+                if (method == "handshake") {
                     handleHandshakeResponse(text)
                     return
                 }
@@ -155,20 +188,29 @@ class WebSocketManager(
                     rawListener?.invoke(text)
                     return
                 }
-                // 其他消息交由原始监听器处理
                 rawListener?.invoke(text)
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                webSocket.close(1000, null)
+                if (gen != connectionGeneration) return
+                try {
+                    webSocket.close(1000, null)
+                } catch (_: Exception) {
+                }
                 if (!expectedClose) listener.onConnectionClosed()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                if (gen != connectionGeneration) return
+                handshakePending.set(false)
+                mainHandler.removeCallbacks(handshakeTimeoutTask)
                 if (!expectedClose) listener.onConnectionClosed()
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                if (gen != connectionGeneration) return
+                handshakePending.set(false)
+                mainHandler.removeCallbacks(handshakeTimeoutTask)
                 if (!expectedClose) {
                     Log.e(TAG, "Connection failed: ${t.message}")
                     val (type, message) = classifyFailure(t)
@@ -223,15 +265,28 @@ class WebSocketManager(
         }
     }
 
-    fun send(text: String) {
-        webSocket?.send(text)
+    /**
+     * 发送 JSON-RPC 消息。返回是否真正下发（连接不存在/未打开时为 false，调用方需感知）。
+     */
+    fun send(text: String): Boolean {
+        val ws = webSocket
+        if (ws == null) {
+            Log.w(TAG, "send() ignored: no active websocket")
+            return false
+        }
+        return try {
+            ws.send(text)
+        } catch (_: Exception) {
+            Log.w(TAG, "send() failed: socket error")
+            false
+        }
     }
 
     /**
-     * 发送 JSON-RPC 响应（推送确认 / 拒绝 / 错误等）。
+     * 发送 JSON-RPC 响应（推送确认 / 拒绝 / 错误等）。返回是否真正下发。
      */
-    fun sendResponse(responseJson: String) {
-        webSocket?.send(responseJson)
+    fun sendResponse(responseJson: String): Boolean {
+        return send(responseJson)
     }
 
     /**

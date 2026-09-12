@@ -30,9 +30,11 @@ class ThemeRenderActivity : ComponentActivity() {
             return
         }
 
-        // 启用边缘到边渲染
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge()
+
+        // 展示型页面保持屏幕常亮
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // 进入沉浸模式：隐藏系统栏，上滑短暂显示
         WindowInsetsControllerCompat(window, window.decorView).apply {

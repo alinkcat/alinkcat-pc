@@ -21,6 +21,7 @@ import invite from './invite.json';
 import onboarding from './onboarding.json';
 
 export default {
+  ...common,
   common,
   layout,
   settings,

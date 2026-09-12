@@ -1,8 +1,15 @@
 package com.ailinkcat.mobile.ui.render.widgets
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,12 +41,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ailinkcat.mobile.BuildConfig
+import com.ailinkcat.mobile.data.AuthApi
+import com.ailinkcat.mobile.data.DataStoreManager
+import com.ailinkcat.mobile.data.model.StoredConfig
+import com.ailinkcat.mobile.domain.models.WeatherWidget
 import com.ailinkcat.mobile.domain.models.WebViewWidget
 import com.ailinkcat.mobile.service.GenericHttpService
 import com.ailinkcat.mobile.util.JsonPath
+import com.ailinkcat.mobile.util.LocationUtil
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -80,50 +99,249 @@ fun WebViewWidgetRenderer(widget: WebViewWidget) {
                 loadUrl(url)
             }
         },
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        // 组件销毁时释放 WebView：先移除子 View 再 destroy，杜绝 WebView 泄漏
+        onRelease = { webView ->
+            webView.removeAllViews()
+            webView.destroy()
+        }
     )
 }
 
 /**
  * JSON 数据缓存：页面来回切换（组件销毁重建）时不重复请求，
  * 仅当数据超过刷新周期（TTL）才重新拉取。
+ * - 有界：最多保留 [MAX_ENTRIES] 项，超出后淘汰最旧条目，防止内存无限增长；
+ * - 键含 widget.id 前缀：不同主题的 widget id 不同，按主题/控件隔离，避免跨主题串数据。
  */
 private object JsonDataCache {
-    private val cache = HashMap<String, Pair<Any?, Long>>()
-    fun get(url: String, ttlMs: Long): Any? {
-        val pair = cache[url] ?: return null
+    private const val MAX_ENTRIES = 32
+    private val cache = LinkedHashMap<String, Pair<Any?, Long>>()
+
+    fun get(key: String, ttlMs: Long): Any? {
+        val pair = cache[key] ?: return null
         return if (System.currentTimeMillis() - pair.second < ttlMs) pair.first else null
     }
-    fun put(url: String, data: Any?) {
-        cache[url] = data to System.currentTimeMillis()
+
+    fun put(key: String, data: Any?) {
+        cache[key] = data to System.currentTimeMillis()
+        // 有界淘汰：超出上限移除最旧条目
+        while (cache.size > MAX_ENTRIES) {
+            val oldest = cache.keys.firstOrNull() ?: break
+            cache.remove(oldest)
+        }
     }
 }
 
+/**
+ * 主题包中 WebView(json) 组件的 jsonUrl 常由 PC 编辑器写死为开发环境局域网地址
+ * （如 http://192.168.6.144:8080）。debug 构建保留原样便于连本地后端调试；
+ * release 构建自动把局域网 IP 地址替换为单一 host 常量 AuthApi.BASE_URL（生产域名），
+ * 避免打包后接口仍指向局域网导致无法访问。
+ * 注意：天气接口不在此重写——其 host/路径由 WeatherWidget.normalizeLegacyUrl 统一处理，
+ * 两个重写只取其一，避免叠加。
+ */
+private fun resolveThemeJsonUrl(raw: String): String {
+    if (BuildConfig.DEBUG) return raw
+    return raw.replace(
+        Regex("""^http://\d{1,3}(\.\d{1,3}){3}(:\d+)?"""),
+        AuthApi.BASE_URL
+    )
+}
+
+/** 判断是否为自建天气 API URL（与 WeatherWidget.normalizeLegacyUrl 的判定一致） */
+private fun String.isWeatherApiUrl(): Boolean =
+    contains("api/public/weather") || contains("api/weather/mobile") || contains("api/weather/")
+
+/**
+ * 匹配 query 参数形式的城市参数：city / q / cityName / city_name，
+ * 值可为百分号编码（如 q=%E5%8C%97%E4%BA%AC），分隔符兼容 = 与编码 %3D。
+ * 替代原先仅认字面 "city="/"q=" 的 contains 判断（无法命中 cityName 等别名，且可能误伤路径段）。
+ */
+private val CITY_QUERY_PARAM =
+    Regex("""[?&](?:city|q|cityname|city_name)(?:=|%3D)[^&#]*""", RegexOption.IGNORE_CASE)
+
+private fun hasCityQuery(url: String): Boolean = CITY_QUERY_PARAM.containsMatchIn(url)
+
 @Composable
 private fun JsonDataRenderer(widget: WebViewWidget) {
-    val jsonUrl = widget.jsonUrl
+    // host 只做一次重写：天气接口交给 WeatherWidget.normalizeLegacyUrl 统一处理（避免两套 host 重写叠加），
+    // 非天气 JSON 接口在 release 下由 resolveThemeJsonUrl 按单一 host 常量 AuthApi.BASE_URL 重写。
+    val rawJsonUrl = widget.jsonUrl
+    val jsonUrl = if (rawJsonUrl.isWeatherApiUrl()) rawJsonUrl else resolveThemeJsonUrl(rawJsonUrl)
     var data by remember { mutableStateOf<Any?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
-    val refreshSec = widget.refreshInterval
+    // 已登录时用 App 的 accessToken 覆盖主题里的占位请求头，实现 JWT 鉴权
+    val appContext = LocalContext.current.applicationContext
+    val dataStore = remember { DataStoreManager(appContext) }
+    val config by dataStore.config.collectAsStateWithLifecycle(initialValue = StoredConfig())
+    // 用户设置的天气刷新间隔（秒）；>0 覆盖主题 refreshInterval
+    val refreshSec = if (config.weatherRefreshSeconds > 0) config.weatherRefreshSeconds else widget.refreshInterval
 
-    LaunchedEffect(jsonUrl) {
+    var effectiveUrl by remember { mutableStateOf<String?>(null) }  // null = 定位解析中
+    var showLocationHint by remember { mutableStateOf(false) }
+    var locationStatus by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    // 解析最终请求 URL：前提是已授权定位。定位成功用经纬度替换 city/q，失败则城市兜底。可重复调用（手动重新定位）。
+    suspend fun resolveLocation() {
+        if (!hasCityQuery(jsonUrl)) {
+            effectiveUrl = jsonUrl
+            return
+        }
+        locationStatus = "📍 定位中…"
+        val loc = LocationUtil.getLastLocation(appContext)
+        if (loc != null) {
+            effectiveUrl = LocationUtil.replaceCityWithCoordinates(jsonUrl, loc.first, loc.second)
+            Log.d("WeatherJWT", "定位成功，URL=${LocationUtil.replaceCityWithCoordinates(jsonUrl, loc.first, loc.second)}")
+            locationStatus = null
+            return
+        }
+        Log.w("WeatherJWT", "已授权但定位获取失败，回退城市")
+        val fallback = config.fallbackCity.trim()
+        effectiveUrl = if (fallback.isNotEmpty()) {
+            LocationUtil.replaceCityWithAnotherCity(jsonUrl, fallback)
+        } else {
+            jsonUrl
+        }
+        showLocationHint = true
+        locationStatus = if (fallback.isNotEmpty()) {
+            "⚠️ 定位失败，已使用 $fallback，点击重试"
+        } else {
+            "⚠️ 定位失败，已使用默认城市，点击重试"
+        }
+    }
+
+    // 定位权限请求（用户授权后自动定位，拒绝后回退城市 + 提示）
+    val locationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            showLocationHint = false
+            scope.launch { resolveLocation() }
+        } else {
+            Log.w("WeatherJWT", "用户拒绝定位权限，回退城市")
+            val fallback = config.fallbackCity.trim()
+            effectiveUrl = if (fallback.isNotEmpty()) {
+                LocationUtil.replaceCityWithAnotherCity(jsonUrl, fallback)
+            } else {
+                jsonUrl
+            }
+            showLocationHint = true
+            locationStatus = if (fallback.isNotEmpty()) {
+                "未开启定位，使用 $fallback，点击重试"
+            } else {
+                "未开启定位，使用默认城市，点击重试"
+            }
+        }
+    }
+
+    // ① 首次解析 URL：已授权 → 直接定位；未授权 → 自动请求权限（系统弹窗）
+    LaunchedEffect(Unit) {
+        if (!hasCityQuery(jsonUrl)) {
+            effectiveUrl = jsonUrl
+            return@LaunchedEffect
+        }
+        if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_COARSE_LOCATION)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            resolveLocation()
+        } else {
+            Log.w("WeatherJWT", "未授予定位权限，自动请求")
+            locationStatus = "📍 正在请求定位权限…"
+            locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+    }
+
+    // ② 加载 / 定时刷新（基于 effectiveUrl，定位授权后自动重新触发）
+    LaunchedEffect(effectiveUrl, refreshSec) {
+        val url = effectiveUrl ?: return@LaunchedEffect  // 定位解析中，等待
+
+        // 缓存键含 widget.id：按主题/控件隔离，避免跨主题串数据（load() 内部引用，须提前声明）
+        val cacheKey = "${widget.id}|$url"
+
         suspend fun load() {
             loading = true
             error = null
             try {
-                val text = GenericHttpService.requestText(jsonUrl, "GET", emptyMap(), null)
-                data = parseJson(text)
-                JsonDataCache.put(jsonUrl, data)
+                // 无登录：不主动注入 Authorization（登录已移除），统一走 X-API-Key 鉴权。
+                // 主题里的 Authorization: Bearer <token> 占位符剔除（与云端同一鉴权方案）。
+                // 同时渲染 ${apiKey} 占位符（从全局配置读取）
+                val globalApiKey = appContext
+                    .getSharedPreferences("ilinkcat_prefs", Context.MODE_PRIVATE)
+                    .getString("weather_api_key", "") ?: ""
+                // 天气接口 URL 归一化：debug 保留局域网（本地联调），release 统一云端
+                val normalized = WeatherWidget.normalizeLegacyUrl(url, config.fallbackCity)
+                // 渲染 URL 中的 ${city} / ${apiKey} 占位符
+                val resolvedUrl = normalized
+                    .replace("\${city}", config.fallbackCity.ifBlank { "北京" })
+                    .replace("\${apiKey}", globalApiKey)
+                // 渲染 headers 中的 ${apiKey} / ${token} 占位符；剔除旧版 Bearer 鉴权头（占位符无意义）
+                val headers = widget.headers
+                    .filterKeys { !it.equals("Authorization", ignoreCase = true) }
+                    .mapValues { (_, v) -> v.replace("\${apiKey}", globalApiKey) }
+                    .toMutableMap()
+                // 自动注入 X-API-Key：使用天气 API 且全局 Key 已配置但 headers 未设置时
+                // （debug/release 同一鉴权方案，局域网与云端都走 X-API-Key）
+                val isWeatherApi = resolvedUrl.isWeatherApiUrl()
+                if (globalApiKey.isNotBlank() &&
+                    !headers.containsKey("X-API-Key") &&
+                    isWeatherApi
+                ) {
+                    headers["X-API-Key"] = globalApiKey
+                }
+                // 天气接口但未配置 Key：不发请求（避免 401），提示去设置页填写
+                if (isWeatherApi && globalApiKey.isBlank() && !headers.containsKey("X-API-Key")) {
+                    Log.w("WeatherJWT", "天气接口未配置 Key，跳过请求")
+                    if (data != null) {
+                        Toast.makeText(appContext, "未配置天气密钥，请在设置中填写", Toast.LENGTH_SHORT).show()
+                    } else {
+                        data = null
+                        error = "未配置天气密钥，请在设置中填写天气 Key"
+                    }
+                    return
+                }
+                Log.d("WeatherJWT", "请求 $resolvedUrl  headers=$headers")
+                val text = GenericHttpService.requestText(
+                    resolvedUrl, "GET", headers, null,
+                    allowHttpError = true
+                )
+                val parsed = parseJson(text)
+                if (parsed is JSONObject) {
+                    val code = parsed.optInt("code", 200)
+                    if (code != 200) {
+                        val errMsg = parsed.optString("message", "错误代码: $code")
+                        if (data != null) {
+                            // 配额用尽等业务错误：保留最后一次成功数据，仅 toast 提示，不清空
+                            Log.w("WeatherJWT", "刷新失败，保留上次数据: $errMsg")
+                            Toast.makeText(appContext, errMsg, Toast.LENGTH_SHORT).show()
+                        } else {
+                            // 首次加载即失败（无历史数据）→ 显示错误页
+                            data = null
+                            error = errMsg
+                        }
+                        return
+                    }
+                    val inner = parsed.optJSONObject("data")
+                    data = inner ?: parsed
+                } else {
+                    data = parsed
+                }
+                JsonDataCache.put(cacheKey, data)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // 组件退出 / 刷新键变化时协程被取消：必须重抛，避免被下方兜底 catch 吞掉，
+                // 导致刷新计时循环（while(isActive)）无法干净退出
+                throw e
             } catch (e: Exception) {
                 error = e.message
             } finally {
                 loading = false
             }
         }
-        // 命中缓存且未超过刷新周期 → 直接展示，避免翻页/重挂载重复请求
+
         val ttlMs = if (refreshSec > 0) refreshSec * 1000L else 3600_000L
-        JsonDataCache.get(jsonUrl, ttlMs)?.let { data = it }
+        JsonDataCache.get(cacheKey, ttlMs)?.let { data = it }
         if (data == null) load()
         if (refreshSec > 0) {
             while (isActive) {
@@ -143,6 +361,14 @@ private fun JsonDataRenderer(widget: WebViewWidget) {
         return
     }
 
+    // 定位解析中 → 等待，不加载
+    if (effectiveUrl == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("📍 定位中…", fontSize = 14.sp, color = Color.Gray)
+        }
+        return
+    }
+
     when {
         loading && data == null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("⏳", fontSize = 24.sp)
@@ -151,9 +377,49 @@ private fun JsonDataRenderer(widget: WebViewWidget) {
             Text("❌ $error", fontSize = 11.sp, color = Color(0xFFFF6B6B))
         }
         data == null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("无数据", fontSize = 12.sp, color = Color.Gray)
+            if (showLocationHint) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable { locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) }
+                        .padding(16.dp)
+                ) {
+                    Text("📍", fontSize = 20.sp)
+                    Text("点击授权定位以获取本地天气", fontSize = 12.sp, color = Color(0xFF666666))
+                }
+            } else {
+                Text("无数据", fontSize = 12.sp, color = Color.Gray)
+            }
         }
-        else -> JsonContent(data!!, widget)
+        else -> Box(modifier = Modifier.fillMaxSize()) {
+            JsonContent(data!!, widget)
+            if (showLocationHint) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .clickable { locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) }
+                        .background(Color(0xBBFFFFFF), RoundedCornerShape(0.dp, 0.dp, 8.dp, 8.dp))
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Text("📍 使用当前位置", fontSize = 11.sp, color = Color(0xFF2196F3))
+                }
+            }
+            // 底部定位状态 / 重新定位条（可点击重新定位）
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(Color(0x66000000))
+                    .clickable { scope.launch { resolveLocation() } }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = locationStatus ?: "📍 重新定位",
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+            }
+        }
     }
 }
 
@@ -284,7 +550,7 @@ private fun parseJson(text: String): Any? = try {
     }
 }
 
-// ─────────────────────────── 天气数据可视化 ───────────────────────────
+// 天气数据可视化
 
 private data class WeatherForecastDay(
     val date: String,
@@ -305,8 +571,8 @@ private data class WeatherData(
     val forecast: List<WeatherForecastDay>
 )
 
-/** wttr.in 使用的 Met Office 天气代码 → emoji */
-private val CODE_ICONS: Map<Int, String> = mapOf(
+/** wttr.in 使用的 Met Office 天气代码 → emoji（同包 WeatherWidgetRenderer 复用） */
+internal val CODE_ICONS: Map<Int, String> = mapOf(
     113 to "☀️", 116 to "⛅", 119 to "☁️", 122 to "☁️", 143 to "🌫️",
     176 to "🌦️", 179 to "🌨️", 182 to "🌧️", 185 to "🌧️", 200 to "⛈️",
     227 to "❄️", 230 to "❄️", 248 to "🌫️", 260 to "🌫️", 263 to "🌧️",
@@ -319,7 +585,7 @@ private val CODE_ICONS: Map<Int, String> = mapOf(
     389 to "⛈️", 392 to "⛈️", 395 to "❄️"
 )
 
-private fun weatherIconFor(code: Int?, desc: String): String {
+internal fun weatherIconFor(code: Int?, desc: String): String {
     if (code != null) {
         CODE_ICONS[code]?.let { return it }
     }
@@ -335,9 +601,13 @@ private fun weatherIconFor(code: Int?, desc: String): String {
     }
 }
 
-/** 从 [{ "value": "113" }] 结构提取天气代码 */
+/** 从任意 JSON 提取天气代码：兼容 wttr.in 的字符串/数字（"113" 或 113）与部分接口的 [{ "value": "113" }] 结构 */
 private fun weatherCodeOf(holder: Any?): Int? = when (holder) {
     is JSONArray -> holder.optJSONObject(0)?.optString("value")?.toIntOrNull()
+    is Int -> holder
+    is Long -> holder.toInt()
+    is Number -> holder.toInt()
+    is String -> holder.toIntOrNull()
     else -> null
 }
 
@@ -374,8 +644,10 @@ private fun extractWeather(data: Any?): WeatherData? {
             for (i in 0 until minOf(wArr.length(), 3)) {
                 val d = wArr.getJSONObject(i)
                 val hourly = d.optJSONArray("hourly")
-                // 取中午（第 7 个点）的天气代码作代表
-                val noon = hourly?.takeIf { it.length() > 6 }?.optJSONObject(6)
+                // 取中午的天气代码作代表：wttr.in j1 的 hourly 每 3 小时 1 点共 8 点
+                // （0=00:00 … 4=12:00 … 6=18:00），原 index 6 实为傍晚，导致与
+                // hourly[0]（00:00）等取值得到的图标不一致
+                val noon = hourly?.takeIf { it.length() > 4 }?.optJSONObject(4)
                 val noonCode = noon?.let {
                     weatherCodeOf(it.opt("weatherCode") ?: it.opt("weathercode"))
                 }

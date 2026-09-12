@@ -10,9 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * 发起任意 HTTP 请求的通用服务。
- * 支持 GET 与 POST，Headers 与 Body 均可自定义。
- * request() 返回 JSONObject；requestText() 返回原始响应文本（供 JSON 数据组件解析对象/数组）。
+ * 通用 HTTP 服务：GET/POST，Headers 与 Body 可自定义。
+ * request() 返回 JSONObject；requestText() 返回原始响应文本（供 JSON 数据组件解析）。
  */
 object GenericHttpService {
     private val client = OkHttpClient()
@@ -58,11 +57,13 @@ object GenericHttpService {
         url: String,
         method: String = "GET",
         headers: Map<String, String> = emptyMap(),
-        body: String? = null
+        body: String? = null,
+        allowHttpError: Boolean = false
     ): String = withContext(Dispatchers.IO) {
         val call = client.newCall(buildRequest(url, method, headers, body))
         val response = call.execute()
-        if (!response.isSuccessful) {
+        // 网关接口状态码不可靠（401/403 也可能是错误体）；allowHttpError=true 时非 2xx 也返回 body，由调用方解析
+        if (!response.isSuccessful && !allowHttpError) {
             throw IOException("HTTP ${response.code}")
         }
         response.body?.string() ?: throw IOException("Empty response body")

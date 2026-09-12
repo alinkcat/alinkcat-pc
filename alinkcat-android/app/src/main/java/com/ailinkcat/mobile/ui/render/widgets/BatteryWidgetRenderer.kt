@@ -60,18 +60,20 @@ fun BatteryWidgetRenderer(
     val lowColor = ColorParser.parse(widget.lowColor, ErrorRed)
     val lowThreshold = (widget.lowThreshold ?: 20).toFloat().coerceIn(0f, 100f)
 
-    val level = if (value != null) value.coerceIn(0f, 100f) else 0f
+    // 先滤 NaN/无穷再 clamp（coerceIn 会放过 NaN）；文本与图形共用同一值，显示与绘制一致
+    val displayValue = value?.takeIf { it.isFinite() }?.coerceIn(0f, 100f)
+    val level = displayValue ?: 0f
     val ratio by animateFloatAsState(
         targetValue = level / 100f,
         animationSpec = tween(durationMillis = 500),
         label = "battery"
     )
-    val color = if (value != null && level <= lowThreshold) lowColor else barColor
+    val color = if (displayValue != null && level <= lowThreshold) lowColor else barColor
 
     when (style) {
-        "number" -> NumberBattery(widget, value, temperature, color, showLevel, showCharging, showTemp)
-        "ring" -> RingBattery(widget, value, temperature, ratio, color, showLevel, showCharging, showTemp)
-        else -> BarBattery(widget, value, temperature, ratio, color, showLevel, showCharging, showTemp)
+        "number" -> NumberBattery(widget, displayValue, temperature, color, showLevel, showCharging, showTemp)
+        "ring" -> RingBattery(widget, displayValue, temperature, ratio, color, showLevel, showCharging, showTemp)
+        else -> BarBattery(widget, displayValue, temperature, ratio, color, showLevel, showCharging, showTemp)
     }
 }
 
@@ -127,7 +129,7 @@ private fun NumberBattery(
                 ) {
                     if (showCharging) {
                         Text(
-                            text = "🔋", // 🔋
+                            text = "🔋",
                             fontSize = adaptiveSubSize * 1.4f
                         )
                     }
@@ -313,12 +315,12 @@ private fun BarBattery(
 }
 
 private fun formatLevel(value: Float?): String {
-    if (value == null) return "--"
+    if (value == null || !value.isFinite()) return "--"
     return if (value % 1f == 0f) value.toInt().toString() else String.format("%.1f", value)
 }
 
 /** 温度数据暂未在 widgetData 中推送，预留参数；取值时从 widgetData 读取（未来扩展）。 */
 private fun formatTemp(widget: BatteryWidget, temp: Float?): String {
-    if (temp == null) return "--°C"
+    if (temp == null || !temp.isFinite()) return "--°C"
     return String.format("%.1f°C", temp)
 }

@@ -21,6 +21,7 @@ Thumbs.db
 *.aab
 *.ap_
 .gradle/
+.gradle-home/
 .kotlin/
 local.properties
 release/

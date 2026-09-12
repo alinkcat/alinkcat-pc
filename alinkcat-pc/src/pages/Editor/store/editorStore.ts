@@ -19,29 +19,29 @@ export function makeWidget(type: string, col: number, row: number): EditorWidget
     borderRadius: 6,
   };
   switch (type) {
-    case 'button': return { ...base, icon: '🔘', action: { type: 'keyboard', keys: [] } } as EditorWidget;
-    case 'gauge': return { ...base, dataSource: 'system.cpu.usage', unit: '%', gaugeStyle: 'ring', minValue: 0, maxValue: 100, ringColorLow: '#52c41a', ringColorMid: '#faad14', ringColorHigh: '#ff4d4f', ringWidth: 3 } as EditorWidget;
-    case 'snippet-list': return { ...base, snippets: [], backgroundColor: '#fff9e6', mode: 'note' } as EditorWidget;
-    case 'image': return { ...base, src: '', objectFit: 'cover' } as EditorWidget;
-    case 'text': return { ...base, content: '双击编辑文字', fontSize: 16, fontWeight: 'normal', color: '#333333', textAlign: 'left', backgroundColor: 'transparent', backgroundOpacity: 0, padding: 4, borderRadius: 0 } as EditorWidget;
-    case 'shape': return { ...base, shapeType: 'rect', fillType: 'solid', fillColor: '#d9d9d9', gradientStart: '#4F6EF7', gradientEnd: '#52c41a', gradientAngle: 90, borderColor: 'transparent', borderWidth: 0, borderRadius: 0, opacity: 100 } as EditorWidget;
-    case 'webview': return { ...base, url: '', showScrollbar: true, backgroundColor: '#ffffff', displayMode: 'webpage', rssUrl: '', jsonUrl: '', refreshInterval: 0, titleField: 'title', descField: 'description', timeField: 'pubDate', linkField: 'link', preset: 'none', bilibiliRoomId: '', city: '', apiKey: '', unit: 'c', refreshHours: 1, requestMethod: 'GET', requestUrl: '', requestHeaders: {}, extraParams: {}, responseMapping: {} } as EditorWidget;
-    case 'media-control': return { ...base, label: '音乐控制', displayMode: 'always', showCover: true, showProgress: true } as EditorWidget;
-    case 'system-monitor': return { ...base, label: '系统监控', showCPU: true, showMemory: true, showDisk: true, showNetwork: true, refreshInterval: 2 } as EditorWidget;
+    case 'button': return { ...base, icon: '🔘', action: { type: 'keyboard', keys: [] } } as unknown as EditorWidget;
+    case 'gauge': return { ...base, dataSource: 'system.cpu.usage', unit: '%', gaugeStyle: 'ring', minValue: 0, maxValue: 100, ringColorLow: '#52c41a', ringColorMid: '#faad14', ringColorHigh: '#ff4d4f', ringWidth: 3 } as unknown as EditorWidget;
+    case 'snippet-list': return { ...base, snippets: [], backgroundColor: '#fff9e6', mode: 'note' } as unknown as EditorWidget;
+    case 'image': return { ...base, src: '', objectFit: 'cover' } as unknown as EditorWidget;
+    case 'text': return { ...base, content: '双击编辑文字', fontSize: 16, fontWeight: 'normal', color: '#333333', textAlign: 'left', backgroundColor: 'transparent', backgroundOpacity: 0, padding: 4, borderRadius: 0 } as unknown as EditorWidget;
+    case 'shape': return { ...base, shapeType: 'rect', fillType: 'solid', fillColor: '#d9d9d9', gradientStart: '#4F6EF7', gradientEnd: '#52c41a', gradientAngle: 90, borderColor: 'transparent', borderWidth: 0, borderRadius: 0, opacity: 100 } as unknown as EditorWidget;
+    case 'webview': return { ...base, url: '', showScrollbar: true, backgroundColor: '#ffffff', displayMode: 'webpage', rssUrl: '', jsonUrl: '', refreshInterval: 0, titleField: 'title', descField: 'description', timeField: 'pubDate', linkField: 'link', headers: {}, preset: 'none', bilibiliRoomId: '', city: '', apiKey: '', unit: 'c', refreshHours: 1, requestMethod: 'GET', requestUrl: '', requestHeaders: {}, extraParams: {}, responseMapping: {} } as unknown as EditorWidget;
+    case 'media-control': return { ...base, label: '音乐控制', displayMode: 'always', showCover: true, showProgress: true } as unknown as EditorWidget;
+    case 'system-monitor': return { ...base, label: '系统监控', showCPU: true, showMemory: true, showDisk: true, showNetwork: true, refreshInterval: 2 } as unknown as EditorWidget;
     case 'quick-action': return { ...base, label: '快捷面板', columns: 2, rows: 2, cells: [
       { type: 'launcher', name: '计算器', path: 'calc' },
       { type: 'launcher', name: '记事本', path: 'notepad' },
       { type: 'snippet', title: '欢迎语', snippets: [{ id: 's1', label: '您好', content: '您好，欢迎咨询！' }] },
       { type: 'snippet', title: '结束语', snippets: [{ id: 's2', label: '感谢', content: '感谢您的咨询！' }] },
-    ] } as EditorWidget;
-    case 'launcher': return { ...base, label: '应用启动', name: '计算器', path: 'calc', icon: '📱' } as EditorWidget;
-    case 'clock': return { ...base, label: '时钟', format24h: true, showSeconds: true, showAmpm: true, showWeekday: false, clockDisplay: 'digital' } as EditorWidget;
-    case 'date': return { ...base, label: '日期', dateFormat: 'YYYY年MM月DD日 星期X', showLunar: true } as EditorWidget;
-    case 'calendar': return { ...base, label: '日历', viewMode: 'month', highlightToday: true, gridW: 2, gridH: 3 } as EditorWidget;
-    case 'card': return { ...base, label: '', cardTitle: '', cardDesc: '卡片描述', cardImage: '', cardImagePosition: 'top', cardTags: [], cardFooter: '' } as EditorWidget;
-    case 'battery': return { ...base, label: '电池', batteryStyle: 'bar', showLevel: true, showCharging: true, showTemp: false, barColor: '#52c41a', lowColor: '#ff4d4f', lowThreshold: 20, dataSource: 'system.battery.level' } as EditorWidget;
-    case 'weather': return { ...base, type: 'weather', label: '天气', url: '', showScrollbar: true, backgroundColor: '#ffffff', displayMode: 'webpage', rssUrl: '', jsonUrl: '', refreshInterval: 0, titleField: 'title', descField: 'description', timeField: 'pubDate', linkField: 'link', preset: 'weather', bilibiliRoomId: '', city: '', apiKey: '', unit: 'c', refreshHours: 1, requestMethod: 'GET', requestUrl: 'https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric', requestHeaders: {}, extraParams: {}, responseMapping: { city: 'name', temp: 'main.temp', condition: 'weather[0].main', description: 'weather[0].description', icon: 'weather[0].icon', humidity: 'main.humidity', wind_speed: 'wind.speed', feels_like: 'main.feels_like', forecast: 'list' } } as EditorWidget;
-    default: return base as EditorWidget;
+    ] } as unknown as EditorWidget;
+    case 'launcher': return { ...base, label: '应用启动', name: '计算器', path: 'calc', icon: '📱' } as unknown as EditorWidget;
+    case 'clock': return { ...base, label: '时钟', format24h: true, showSeconds: true, showAmpm: true, showWeekday: false, clockDisplay: 'digital' } as unknown as EditorWidget;
+    case 'date': return { ...base, label: '日期', dateFormat: 'YYYY年MM月DD日 星期X', showLunar: true } as unknown as EditorWidget;
+    case 'calendar': return { ...base, label: '日历', viewMode: 'month', highlightToday: true, gridW: 2, gridH: 3 } as unknown as EditorWidget;
+    case 'card': return { ...base, label: '', cardTitle: '', cardDesc: '卡片描述', cardImage: '', cardImagePosition: 'top', cardTags: [], cardFooter: '' } as unknown as EditorWidget;
+    case 'battery': return { ...base, label: '电池', batteryStyle: 'bar', showLevel: true, showCharging: true, showTemp: false, barColor: '#52c41a', lowColor: '#ff4d4f', lowThreshold: 20, dataSource: 'system.battery.level' } as unknown as EditorWidget;
+    case 'weather': return { ...base, type: 'weather', label: '天气', url: '', showScrollbar: true, backgroundColor: '#ffffff', displayMode: 'webpage', rssUrl: '', jsonUrl: '', refreshInterval: 0, titleField: 'title', descField: 'description', timeField: 'pubDate', linkField: 'link', preset: 'weather', bilibiliRoomId: '', city: '', apiKey: '', unit: 'c', refreshHours: 1, requestMethod: 'GET', requestUrl: 'https://top.atqx.cn/api/public/weather?q=${city}&f=wttr', requestHeaders: {}, extraParams: {}, responseMapping: { city: 'nearest_area[0].areaName[0].value', temp: 'current_condition[0].temp_C', condition: 'current_condition[0].weatherDesc[0].value', description: 'current_condition[0].weatherDesc[0].value', icon: 'current_condition[0].weatherCode', humidity: 'current_condition[0].humidity', wind_speed: 'current_condition[0].windspeedKmph', feels_like: 'current_condition[0].FeelsLikeC', forecast: 'weather' } } as unknown as EditorWidget;
+    default: return base as unknown as EditorWidget;
   }
 }
 
@@ -64,7 +64,10 @@ export function themeToEditor(t: ThemeMeta): EditorTheme {
       columns: p.layout.columns ?? 4, rows: p.layout.rows ?? 6,
       backgroundColor: (p.layout as unknown as Record<string, unknown>).backgroundColor as string | undefined,
       backgroundImage: (p.layout as unknown as Record<string, unknown>).backgroundImage as string | undefined,
-      backgroundMode: (p.layout as unknown as Record<string, unknown>).backgroundMode as EditorPage['backgroundMode'],
+      // 传输层 'tile' → 编辑器 'repeat'，两边语义一致（平铺）
+      backgroundMode: ((p.layout as unknown as Record<string, unknown>).backgroundMode === 'tile'
+        ? 'repeat'
+        : (p.layout as unknown as Record<string, unknown>).backgroundMode) as EditorPage['backgroundMode'],
       backgroundOpacity: (p.layout as unknown as Record<string, unknown>).backgroundOpacity as number | undefined,
       widgets: p.widgets.map(w => ({
         id: w.id, type: w.type, label: w.label,
@@ -93,7 +96,8 @@ export function editorToThemeMeta(t: EditorTheme): ThemeMeta {
         columns: p.columns, rows: p.rows,
         backgroundColor: p.backgroundColor,
         backgroundImage: p.backgroundImage,
-        backgroundMode: p.backgroundMode,
+        // 编辑器用 'repeat'，传输/Mobile 层用 'tile'：导出时归一化，保证手机端可识别
+        backgroundMode: (p.backgroundMode === 'repeat' ? 'tile' : p.backgroundMode) as PageDefinition['layout']['backgroundMode'],
         backgroundOpacity: p.backgroundOpacity,
       } as PageDefinition['layout'],
       widgets: p.widgets as unknown as WidgetDefinition[],
@@ -188,7 +192,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   replaceTheme: (t) => {
     const themeId = t.id;
-    set({ theme: t, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false });
+    // 整包替换后：清空选择，并把活动页钳制到有效范围（AI 整页生成可能页面数更少，
+    // 若保留旧的 activePageIdx 越界会导致画布空白"看起来没生效"）
+    const activePageIdx = Math.min(
+      Math.max(t.pages.length - 1, 0),
+      Math.max(get().activePageIdx, 0),
+    );
+    set({
+      theme: t, activePageIdx, selectedWidgetId: null,
+      undoStack: [], redoStack: [], canUndo: false, canRedo: false,
+    });
     get().loadVersionHistory(themeId);
   },
   setThemeName: (name) => set(s => ({ theme: { ...s.theme, name } })),
@@ -202,7 +215,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   setActivePage: (idx) => set({ activePageIdx: idx, selectedWidgetId: null }),
   selectWidget: (id) => set({ selectedWidgetId: id }),
-  toggleOrientation: () => set(s => ({ orientation: s.orientation === 'portrait' ? 'landscape' : 'portrait' })),
+  toggleOrientation: () => set(s => {
+    const next: 'portrait' | 'landscape' = s.orientation === 'portrait' ? 'landscape' : 'portrait';
+    // 方向同时写入 theme.orientation，确保保存/导出/ＡＩ set_orientation 都能持久化
+    return { orientation: next, theme: { ...s.theme, orientation: next } };
+  }),
   setZoom: (z) => set({ zoom: Math.min(150, Math.max(50, z)) }),
   setSaving: (v) => set({ saving: v }),
   setExporting: (v) => set({ exporting: v }),

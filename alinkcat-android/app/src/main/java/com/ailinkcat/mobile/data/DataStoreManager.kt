@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ailinkcat.mobile.data.model.StoredConfig
@@ -12,9 +13,7 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "ailinkcat_config")
 
-/**
- * 本地配置持久化：使用 DataStore 保存 IP、端口、配对码及上次连接记录。
- */
+/** 本地配置持久化：DataStore 保存 IP、端口、配对码及上次连接记录。 */
 class DataStoreManager(private val context: Context) {
 
     private object Keys {
@@ -24,6 +23,8 @@ class DataStoreManager(private val context: Context) {
         val DEVICE_NAME = stringPreferencesKey("device_name")
         val LAST_IP = stringPreferencesKey("last_connected_ip")
         val LAST_PORT = stringPreferencesKey("last_connected_port")
+        val WEATHER_REFRESH_SECONDS = intPreferencesKey("weather_refresh_seconds")
+        val FALLBACK_CITY = stringPreferencesKey("fallback_city")
     }
 
     val config: Flow<StoredConfig> = context.dataStore.data.map { prefs ->
@@ -33,7 +34,9 @@ class DataStoreManager(private val context: Context) {
             pairCode = prefs[Keys.PAIR_CODE] ?: "",
             deviceName = prefs[Keys.DEVICE_NAME] ?: "My Android",
             lastConnectedIp = prefs[Keys.LAST_IP] ?: "",
-            lastConnectedPort = prefs[Keys.LAST_PORT] ?: ""
+            lastConnectedPort = prefs[Keys.LAST_PORT] ?: "",
+            weatherRefreshSeconds = prefs[Keys.WEATHER_REFRESH_SECONDS] ?: 0,
+            fallbackCity = prefs[Keys.FALLBACK_CITY] ?: ""
         )
     }
 
@@ -55,6 +58,20 @@ class DataStoreManager(private val context: Context) {
     suspend fun saveDeviceName(name: String) {
         context.dataStore.edit { prefs ->
             prefs[Keys.DEVICE_NAME] = name
+        }
+    }
+
+    /** 天气组件刷新间隔（秒），0 表示跟随主题默认。 */
+    suspend fun saveWeatherRefreshSeconds(seconds: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.WEATHER_REFRESH_SECONDS] = seconds
+        }
+    }
+
+    /** 定位失败兜底城市名，空表示跟随主题默认。 */
+    suspend fun saveFallbackCity(city: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.FALLBACK_CITY] = city
         }
     }
 

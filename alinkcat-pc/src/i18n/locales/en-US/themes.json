@@ -52,6 +52,10 @@
   "downloadedAt": "Downloaded at {{date}}",
   "pages": "{{count}} pages",
   "refresh": "Refresh",
+  "refreshSuccess": "Theme list refreshed",
+  "confirmOverwriteTitle": "Overwrite Theme",
+  "confirmOverwriteContent": "A theme named \"{{name}}\" already exists. Overwrite it?",
+  "confirmOverwrite": "Overwrite",
   "templates": {
     "title": "Start from a Template",
     "subtitle": "Choose a template to get started quickly, or start with a blank theme",

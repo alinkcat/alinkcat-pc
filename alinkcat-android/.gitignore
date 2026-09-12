@@ -1,5 +1,6 @@
 *.iml
 .gradle
+.kotlin
 /local.properties
 /.idea/caches
 /.idea/libraries
@@ -13,3 +14,14 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# 签名与密钥：禁止提交
+*.keystore
+*.jks
+*.p12
+key.properties
+
+# 本地临时产物
+/compile_output.txt
+*.log
+*.hprof

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -44,52 +45,58 @@ fun GridLayout(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         // 横竖屏使用不同间距：竖屏空间有限，缩小间距让单元格更大
         val spacing: Dp = if (isLandscape) 8.dp else 5.dp
+        val safeColumns = columns.coerceAtLeast(1)
 
-        // 先计算每个控件的实际网格位置（自动填充 + 显式定位）
-        var autoRow = 0
-        var autoCol = 0
+        // 先算好每个控件的网格位置（自动填充 + 显式定位）
+        // remember 缓存：widgetData 高频推送重组时跳过网格重算
         data class Positioned(val row: Int, val col: Int, val widget: Widget)
 
-        val positioned = widgets.map { widget ->
-            val pos = widget.layout
-            if (pos.gridRow != null && pos.gridCol != null) {
-                Positioned(pos.gridRow, pos.gridCol, widget)
-            } else {
-                val colSpan = (pos.colSpan ?: 1).coerceAtLeast(1)
-                if (autoCol + colSpan > columns) {
-                    autoRow++
-                    autoCol = 0
+        val positioned = remember(widgets, columns) {
+            var autoRow = 0
+            var autoCol = 0
+            widgets.map { widget ->
+                val pos = widget.layout
+                if (pos.gridRow != null && pos.gridCol != null) {
+                    // 显式定位：钳制到网格范围内
+                    val gc = pos.gridCol.coerceIn(0, safeColumns - 1)
+                    val gr = pos.gridRow.coerceAtLeast(0)
+                    Positioned(gr, gc, widget)
+                } else {
+                    val colSpan = (pos.colSpan ?: 1).coerceIn(1, safeColumns)
+                    if (autoCol + colSpan > safeColumns) {
+                        autoRow++
+                        autoCol = 0
+                    }
+                    val result = Positioned(autoRow, autoCol, widget)
+                    autoCol += colSpan
+                    if (autoCol >= safeColumns) {
+                        autoRow++
+                        autoCol = 0
+                    }
+                    result
                 }
-                val result = Positioned(autoRow, autoCol, widget)
-                autoCol += colSpan
-                if (autoCol >= columns) {
-                    autoRow++
-                    autoCol = 0
-                }
-                result
             }
         }
 
-        val computedRows = rows ?: positioned.maxOfOrNull { p ->
+        val computedRows = (rows ?: positioned.maxOfOrNull { p ->
             p.row + (p.widget.layout.rowSpan ?: 1).coerceAtLeast(1)
-        }?.coerceAtLeast(1) ?: 1
+        }?.coerceAtLeast(1) ?: 1).coerceIn(1, 64)
 
-        // 分别计算原始单元格宽高（占满可用空间）
-        val rawCellWidth = (maxWidth - spacing * (columns + 1)) / columns
+        // 单元格宽高占满可用空间；不足时钳制非负
+        val rawCellWidth = ((maxWidth - spacing * (safeColumns + 1)) / safeColumns).coerceAtLeast(1.dp)
         val rawCellHeight = if (computedRows > 0) {
-            (maxHeight - spacing * (computedRows + 1)) / computedRows
+            ((maxHeight - spacing * (computedRows + 1)) / computedRows).coerceAtLeast(1.dp)
         } else {
             maxHeight
         }
 
-        // 竖屏强制统一单元格尺寸，避免 4x6 网格在竖屏上严重变形；
-        // 横屏保持原始宽矮比例（贴近设计基准意图）。
+        // 竖屏统一单元格尺寸防变形；横屏保持原始比例
         val useUniformCell = !isLandscape
 
         val cellWidth: Dp
         val cellHeight: Dp
         if (useUniformCell) {
-            val uniform = minOf(rawCellWidth, rawCellHeight)
+            val uniform = minOf(rawCellWidth, rawCellHeight).coerceAtLeast(1.dp)
             cellWidth = uniform
             cellHeight = uniform
         } else {
@@ -97,16 +104,15 @@ fun GridLayout(
             cellHeight = rawCellHeight
         }
 
-        // 网格整体尺寸（含四周间距），用于在剩余空间居中：
-        // 竖屏时水平铺满、垂直居中；横屏时接近铺满。
-        val gridWidth = cellWidth * columns + spacing * (columns + 1)
+        // 网格整体尺寸（含间距），剩余空间居中
+        val gridWidth = cellWidth * safeColumns + spacing * (safeColumns + 1)
         val gridHeight = cellHeight * computedRows + spacing * (computedRows + 1)
         val gridStartX = ((maxWidth - gridWidth) / 2f).coerceAtLeast(0.dp)
         val gridStartY = ((maxHeight - gridHeight) / 2f).coerceAtLeast(0.dp)
 
         positioned.forEach { (gridRow, gridCol, widget) ->
             val rowSpan = (widget.layout.rowSpan ?: 1).coerceAtLeast(1)
-            val colSpan = (widget.layout.colSpan ?: 1).coerceAtLeast(1)
+            val colSpan = (widget.layout.colSpan ?: 1).coerceIn(1, safeColumns)
             val gc = gridCol.toFloat()
             val gr = gridRow.toFloat()
             val cs = colSpan.toFloat()

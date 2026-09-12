@@ -78,14 +78,19 @@ fun ConfigScreen(
     var ip by remember { mutableStateOf(config.ip) }
     var port by remember { mutableStateOf(config.port) }
     var pairCode by remember { mutableStateOf(config.pairCode) }
+    // 仅首次加载时填充表单，避免连接成功后 config 更新覆盖正在编辑的内容
+    var formInitialized by remember { mutableStateOf(false) }
 
     LaunchedEffect(config) {
-        ip = config.ip
-        port = config.port
-        if (pairCode.isBlank()) pairCode = config.pairCode
+        if (!formInitialized) {
+            ip = config.ip
+            port = config.port
+            if (pairCode.isBlank()) pairCode = config.pairCode
+            formInitialized = true
+        }
     }
 
-    // 扫码页返回结果 -> 解析并填充表单
+    // 扫码结果解析后填充表单
     LaunchedEffect(pendingScan) {
         val content = pendingScan ?: return@LaunchedEffect
         applyScanContent(content)?.let { (newIp, newPort, newCode) ->
@@ -103,7 +108,7 @@ fun ConfigScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 连接状态卡片
+        // 连接状态
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -140,7 +145,7 @@ fun ConfigScreen(
             }
         }
 
-        // 配置表单卡片
+        // 配置表单
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -231,7 +236,6 @@ fun ConfigScreen(
             }
         }
 
-        // 连接按钮
         Button(
             onClick = { viewModel.connect(ip.trim(), port.trim(), pairCode.trim()) },
             enabled = state.status != ConnectionStatus.Connecting,
@@ -252,7 +256,7 @@ fun ConfigScreen(
             }
         }
 
-        // 断开连接（仅已连接时显示）
+        // 断开连接
         if (state.status == ConnectionStatus.Connected) {
             OutlinedButton(
                 onClick = { viewModel.disconnect() },
@@ -353,7 +357,7 @@ fun applyScanContent(content: String): Triple<String, String, String>? {
     }
 
     if (!jsonParsed) {
-        // 键值对形式（JSON / query string 均可覆盖）
+        // 非 JSON 形式：正则提取
         Regex("\\d{1,3}(\\.\\d{1,3}){3}").find(content)?.let { newIp = it.value }
 
         Regex("\"? (?:port|pairCode|pair_code)\"?\\s*[:=]\\s*\"?([0-9A-Za-z.-]+)\"?", RegexOption.IGNORE_CASE)
@@ -392,5 +396,25 @@ fun applyScanContent(content: String): Triple<String, String, String>? {
     }
 
     newIp ?: return null
-    return Triple(newIp, newPort ?: "9527", newCode ?: "")
+    // 注入防护：填充前统一校验
+    // IP 必须为合法 IPv4，防 http://evil.com 之类注入 ws://$ip:$port
+    if (!isValidIpv4(newIp)) return null
+    // port 为 1-65535 数字，缺省 9527
+    val portInt = (newPort ?: "9527").toIntOrNull()
+    if (portInt == null || portInt !in 1..65535) return null
+    // pairCode 缺省允许为空；提供时必须为 4 位数字
+    val code = newCode ?: ""
+    if (code.isNotEmpty() && !(code.length == 4 && code.all { it.isDigit() })) return null
+    return Triple(newIp, portInt.toString(), code)
+}
+
+/** 严格 IPv4 校验：每段 0-255，四段点分。 */
+fun isValidIpv4(ip: String?): Boolean {
+    if (ip.isNullOrBlank()) return false
+    val segments = ip.split('.')
+    if (segments.size != 4) return false
+    return segments.all { seg ->
+        seg.isNotEmpty() && seg.length <= 3 && seg.all { it.isDigit() } &&
+            seg.toInt() in 0..255 && (seg.length == 1 || !seg.startsWith("0"))
+    }
 }

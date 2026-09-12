@@ -62,21 +62,20 @@ fun StickyNoteWidgetRenderer(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // 标题
-            if (widget.label.isNotBlank()) {
-                Text(
-                    text = widget.label,
-                    color = textColor,
-                    fontSize = adaptiveTitleSize,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                HorizontalDivider(
-                    color = textColor.copy(alpha = 0.2f),
-                    thickness = 1.dp
-                )
-            }
+            Text(
+                text = widget.label,
+                color = textColor,
+                fontSize = adaptiveTitleSize,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(textColor.copy(alpha = 0.2f))
+            )
 
             // 便签条目
             widget.notes.forEach { note ->

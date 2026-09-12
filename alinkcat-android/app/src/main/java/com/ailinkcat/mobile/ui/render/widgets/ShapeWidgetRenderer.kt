@@ -20,7 +20,8 @@ import com.ailinkcat.mobile.utils.ColorParser
 import kotlin.math.min
 
 /**
- * 形状控件：矩�?/ 圆角矩形 / 圆形 / 三角�?/ 蝱形，支挝纯�?渝坘填充与杝边�? */
+ * 形状控件：矩形 / 圆角矩形 / 圆形 / 三角形 / 菱形，支持纯色、渐变填充与描边。
+ */
 @Composable
 fun ShapeWidgetRenderer(widget: ShapeWidget) {
     val fill = ColorParser.parse(widget.fillColor, Color.Transparent)
@@ -37,14 +38,16 @@ fun ShapeWidgetRenderer(widget: ShapeWidget) {
         val strokeWidth = (widget.strokeWidth ?: 0).dp.toPx()
         val stroke = if (strokeWidth > 0f) Stroke(width = strokeWidth) else null
 
-        drawShape(brush, shapeType, stroke ?: Fill)
+        // 填充用 Fill 样式，描边在其上叠加绘制（Stroke 样式填充会变空心描边）
+        val borderRadiusPx = (widget.borderRadius ?: 12).dp.toPx()
+        drawShape(brush, shapeType, Fill, borderRadiusPx)
         if (stroke != null) {
-            drawShape(SolidColor(strokeColor), shapeType, stroke)
+            drawShape(SolidColor(strokeColor), shapeType, stroke, borderRadiusPx)
         }
     }
 }
 
-private fun DrawScope.drawShape(brush: Brush, shapeType: String?, style: DrawStyle) {
+private fun DrawScope.drawShape(brush: Brush, shapeType: String?, style: DrawStyle, borderRadiusPx: Float) {
     val w = size.width
     val h = size.height
     when (shapeType?.lowercase()) {
@@ -54,11 +57,12 @@ private fun DrawScope.drawShape(brush: Brush, shapeType: String?, style: DrawSty
         }
 
         "rounded" -> {
+            // 圆角从 properties.borderRadius 读取（模型层补充该字段），缺省 12dp
             drawRoundRect(
                 brush,
                 topLeft = Offset.Zero,
                 size = size,
-                cornerRadius = CornerRadius(12.dp.toPx()),
+                cornerRadius = CornerRadius(borderRadiusPx),
                 style = style
             )
         }
@@ -90,7 +94,7 @@ private fun DrawScope.drawShape(brush: Brush, shapeType: String?, style: DrawSty
             )
         }
 
-        // ????
+        // 默认矩形
         else -> drawRect(brush, style = style)
     }
 }

@@ -12,6 +12,8 @@ export const themeApi = {
     apiFetch<ApiResponse<PageResult<ThemeItem>>>(`/api/theme/list${qs((params || {}) as Record<string, unknown>)}`),
   detail: (id: number) =>
     apiFetch<ApiResponse<ThemeItem>>(`/api/theme/${id}`),
+  screenshots: (id: number) =>
+    apiFetch<ApiResponse<string[]>>(`/api/theme/${id}/screenshots`),
   download: (id: number) =>
     apiFetch<ApiResponse<void>>(`/api/theme/${id}/download`, { method: 'POST' }),
   my: (params?: ThemeListParams) =>

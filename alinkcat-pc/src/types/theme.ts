@@ -1,6 +1,6 @@
 export interface WidgetDefinition {
   id: string;
-  type: 'button' | 'gauge' | 'battery' | 'snippet-list' | 'image' | 'icon' | 'text' | 'shape' | 'webview' | 'weather' | 'media-control' | 'system-monitor' | 'quick-action' | 'launcher' | 'clock' | 'date' | 'calendar';
+  type: 'button' | 'gauge' | 'battery' | 'snippet-list' | 'image' | 'icon' | 'text' | 'shape' | 'webview' | 'weather' | 'media-control' | 'system-monitor' | 'quick-action' | 'launcher' | 'clock' | 'date' | 'calendar' | 'card';
   label: string;
   icon?: string;
   action?: string;
@@ -123,6 +123,10 @@ export interface AppSettings {
   data_interval: number;
   auto_start: boolean;
   log_level: 'ERROR' | 'WARN' | 'INFO' | 'DEBUG';
+  /** 是否定时轮询本地服务状态（get_server_status / get_connections） */
+  status_polling: boolean;
+  /** 状态轮询频率（秒） */
+  status_polling_interval: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -130,4 +134,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   data_interval: 1000,
   auto_start: false,
   log_level: 'INFO',
+  status_polling: false,
+  status_polling_interval: 3,
 };

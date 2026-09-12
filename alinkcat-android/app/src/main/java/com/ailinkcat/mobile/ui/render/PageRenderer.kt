@@ -60,18 +60,28 @@ fun PageRenderer(
     val bgMode = page.backgroundMode ?: "cover"
     val isTile = bgMode == "tile" || bgMode == "repeat"
 
-    // 背景图本地文件路径：files/themes/{themeId}/{backgroundImage}
-    val bgFile = remember(themeId, page.backgroundImage) {
-        page.backgroundImage?.takeIf { it.isNotBlank() && !it.startsWith("data:") }?.let {
-            File(themeDir, "$themeId/$it")
+    // 背景图路径规范化：拒绝绝对路径与 .. 穿越（主题包输入不可信，防止越界读文件）
+    val bgImagePath = remember(themeId, page.backgroundImage) {
+        page.backgroundImage?.takeIf { it.isNotBlank() && !it.startsWith("data:") }?.let { raw ->
+            val normalized = raw.replace('\\', '/')
+            if (normalized.startsWith("/") || normalized.split('/').any { it == ".." }) {
+                null
+            } else {
+                normalized
+            }
         }
+    }
+    val bgFile = remember(themeId, bgImagePath) {
+        bgImagePath?.let { File(themeDir, "$themeId/$it") }
     }
 
     // tile 模式需要原始位图做 BitmapShader
-    val bgBitmap by produceState<Bitmap?>(initialValue = null, themeId, page.backgroundImage, isTile) {
+    val bgBitmap by produceState<Bitmap?>(initialValue = null, themeId, bgImagePath, isTile) {
         value = if (isTile) {
             withContext(Dispatchers.IO) {
-                ImageLoader.loadBitmap(themeDir, themeId, page.backgroundImage)
+                if (bgImagePath != null) {
+                    ImageLoader.loadBitmap(themeDir, themeId, bgImagePath)
+                } else null
             }
         } else null
     }
@@ -85,14 +95,14 @@ fun PageRenderer(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // ── 背景底色（位于图片之下，避免遮住图片） ──────────
+        // 背景底色
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(bgColor.copy(alpha = bgColor.alpha * bgOpacity))
         )
 
-        // ── 背景图（非 tile：Coil 加载） ───────────────────
+        // 背景图（非 tile 用 Coil）
         if (!isTile && bgFile != null && bgFile.exists()) {
             val scale = when (bgMode) {
                 "contain" -> ContentScale.Fit
@@ -108,7 +118,7 @@ fun PageRenderer(
             )
         }
 
-        // ── 背景图（tile 平铺） ────────────────────────────
+        // 背景图（tile 平铺）
         if (tileBrush != null) {
             Box(
                 modifier = Modifier
@@ -117,7 +127,7 @@ fun PageRenderer(
             )
         }
 
-        // ── 控件层（预留安全区域，避免被刘海/挖孔遮挡） ──────
+        // 控件层（避开刘海/挖孔安全区）
         Box(
             modifier = Modifier
                 .fillMaxSize()

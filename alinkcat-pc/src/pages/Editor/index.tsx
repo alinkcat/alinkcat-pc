@@ -101,7 +101,6 @@ export default function Editor() {
   const setZoom = useEditorStore(s => s.setZoom);
   const setSaving = useEditorStore(s => s.setSaving);
   const setExporting = useEditorStore(s => s.setExporting);
-  const addPage = useEditorStore(s => s.addPage);
   const addPageFromTemplate = useEditorStore(s => s.addPageFromTemplate);
   const addWidgetAt = useEditorStore(s => s.addWidgetAt);
   const undo = useEditorStore(s => s.undo);

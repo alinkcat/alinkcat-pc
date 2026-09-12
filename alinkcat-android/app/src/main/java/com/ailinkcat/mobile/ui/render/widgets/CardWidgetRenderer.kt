@@ -35,7 +35,7 @@ import java.io.File
 
 /**
  * 信息卡片控件：整合文本（标题/描述）+ 配图 + 标签 + 底部辅助文字。
- * 图片位置支持 top / left / right，Use Coil for image loading.
+ * 图片位置支持 top / left / right，使用 Coil 加载。
  * 图片路径解析：data: URI 直接使用，否则相对于 themeDir/themeId 目录。
  * 适配移动端：自适应容器尺寸，文字溢出省略号，标签药丸样式。
  */

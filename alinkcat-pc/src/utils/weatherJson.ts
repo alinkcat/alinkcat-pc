@@ -69,7 +69,13 @@ function codeOf(holder: unknown): number | null {
 /** 从任意 JSON 中提取天气数据；非天气结构返回 null */
 export function extractWeather(data: unknown): WeatherExtracted | null {
   if (!data || typeof data !== 'object') return null;
-  const obj = data as Record<string, unknown>;
+  let obj = data as Record<string, unknown>;
+  // 兼容后端网关包装：{ code, message, data: {...} }
+  // 若顶层带 data 对象（wttr.in j1 / OWM 结构在内层），剥壳后继续识别
+  const wrapped = obj.data;
+  if (wrapped && typeof wrapped === 'object' && !Array.isArray(wrapped)) {
+    obj = wrapped as Record<string, unknown>;
+  }
 
   // ── wttr.in j1 格式 ──────────────────────────────
   const ccArr = obj.current_condition;
@@ -82,8 +88,8 @@ export function extractWeather(data: unknown): WeatherExtracted | null {
     const forecast: WeatherForecastDay[] = weatherArr.slice(0, 3).map(d => {
       const day = d as Record<string, unknown>;
       const hourly = Array.isArray(day.hourly) ? (day.hourly as unknown[]) : [];
-      // 取中午（第 7 个点）的天气代码作代表
-      const noonCode = codeOf((hourly[6] as Record<string, unknown>)?.weatherCode ?? (hourly[6] as Record<string, unknown>)?.weathercode);
+      // 取中午（12:00）的天气代码作代表：wttr.in 3 小时一个点，index 4 = 12:00（0=00,1=03,2=06,3=09,4=12）
+      const noonCode = codeOf((hourly[4] as Record<string, unknown>)?.weatherCode ?? (hourly[4] as Record<string, unknown>)?.weathercode);
       return {
         date: String(day.date || ''),
         max: num(day.maxtempC ?? day.tempMaxC),

@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,8 +53,19 @@ fun CalendarWidgetRenderer(
     val background = ColorParser.parse(widget.backgroundColor, Color(0xFF1A1A2E))
     val textColor = ColorParser.parse(widget.textColor, Color.White)
 
-    val today = remember { LocalDate.now() }
-    val currentMonth = remember { YearMonth.from(today) }
+    // 午夜 ticker：跨天自动刷新「今天」高亮与月份标题
+    var today by remember { mutableStateOf(LocalDate.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = java.time.LocalDateTime.now()
+            val nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay()
+            kotlinx.coroutines.delay(
+                java.time.Duration.between(now, nextMidnight).toMillis().coerceAtLeast(1_000L)
+            )
+            today = LocalDate.now()
+        }
+    }
+    val currentMonth = YearMonth.from(today)
     val monthLabel = currentMonth.format(DateTimeFormatter.ofPattern("yyyy M", Locale.getDefault()))
 
     BoxWithConstraints(
@@ -67,14 +79,13 @@ fun CalendarWidgetRenderer(
         val headerSize = (cw * 0.055f).coerceIn(10f, 14f).sp
         val dateSize = (cw * 0.05f).coerceIn(9f, 13f).sp
 
-        // 内容超高时允许纵向滚动，避免日期被裁剪（与 PC 端 overflow:auto 行为一致）
+        // 内容超高时纵向滚动（对齐 PC 端 overflow:auto）
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            // 月份标题
             Text(
                 text = monthLabel,
                 color = textColor,

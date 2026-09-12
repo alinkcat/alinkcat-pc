@@ -48,8 +48,10 @@ fun GaugeWidgetRenderer(
 ) {
     val min = (widget.min ?: 0).toFloat()
     val max = (widget.max ?: 100).toFloat()
-    val rawRatio = if (value != null && max > min) {
-        ((value - min) / (max - min)).coerceIn(0f, 1f)
+    // 先滤 NaN/无穷再 clamp（coerceIn 会放过 NaN）；文本与图形共用同一值
+    val displayValue = value?.takeIf { it.isFinite() }?.coerceIn(min, max)
+    val rawRatio = if (displayValue != null && max > min) {
+        ((displayValue - min) / (max - min)).coerceIn(0f, 1f)
     } else {
         0f
     }
@@ -65,9 +67,9 @@ fun GaugeWidgetRenderer(
     }
 
     when (widget.displayStyle ?: "ring") {
-        "number" -> NumberGauge(widget, value, color)
-        "bar" -> BarGauge(widget, value, ratio, color)
-        else -> RingGauge(widget, value, ratio, color)
+        "number" -> NumberGauge(widget, displayValue, color)
+        "bar" -> BarGauge(widget, displayValue, ratio, color)
+        else -> RingGauge(widget, displayValue, ratio, color)
     }
 }
 
@@ -88,7 +90,7 @@ private fun RingGauge(widget: GaugeWidget, value: Float?, ratio: Float, color: C
             Canvas(modifier = Modifier.aspectRatio(1f).fillMaxSize()) {
                 val thickness = (widget.ringThickness ?: 14).dp.toPx()
                 val halfStroke = thickness / 2f
-                // 圆心 = 画布中心，半径 = min(w,h)/2 - halfStroke，确保圆不超出边界
+                // 圆心居中，半径留出描边宽度，圆不超出边界
                 val cx = size.width / 2f
                 val cy = size.height / 2f
                 val radius = min(cx, cy) - halfStroke - 2.dp.toPx()
@@ -223,7 +225,7 @@ private fun BarGauge(widget: GaugeWidget, value: Float?, ratio: Float, color: Co
 }
 
 private fun formatValue(value: Float?, unit: String?): String {
-    if (value == null) return "--"
+    if (value == null || !value.isFinite()) return "--"
     val text = if (value % 1f == 0f) value.toInt().toString() else String.format("%.1f", value)
     return if (unit.isNullOrBlank()) text else "$text $unit"
 }

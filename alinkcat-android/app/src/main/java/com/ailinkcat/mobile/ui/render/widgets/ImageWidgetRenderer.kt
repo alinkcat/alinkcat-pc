@@ -30,8 +30,9 @@ fun ImageWidgetRenderer(
     onClick: (Action) -> Unit = {}
 ) {
     val model = remember(widget.imagePath) {
-        widget.imagePath?.takeIf { it.isNotBlank() && !it.startsWith("data:") }?.let {
-            File(baseDir, it)
+        widget.imagePath?.takeIf { it.isNotBlank() }?.let { path ->
+            // data: URI 直接交给 Coil 解码（与 CardWidgetRenderer 行为一致），否则视为主题目录内文件
+            if (path.startsWith("data:")) path else File(baseDir, path)
         }
     }
 
