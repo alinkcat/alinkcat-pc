@@ -1,4 +1,4 @@
-import type { EditorTheme } from '../../pages/Editor/types';
+import type { EditorTheme } from '../pages/Editor/types';
 
 /**
  * 透明亚克力模板 - 竖屏

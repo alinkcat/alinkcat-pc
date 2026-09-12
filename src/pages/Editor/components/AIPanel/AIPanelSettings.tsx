@@ -4,6 +4,7 @@ import { Modal, Form, Input, Switch, InputNumber, Button, Space, Typography, Ale
 import { message } from '../../../../utils/message';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useAIStore } from '../../../../store/aiStore';
+import { isTauri, tauriInvoke } from '../../../../utils/tauri';
 
 const { Text } = Typography;
 
@@ -17,15 +18,20 @@ export default function AIPanelSettings() {
     try {
       const values = await form.validateFields();
       const models = values.models.split('\n').map((s: string) => s.trim()).filter(Boolean);
+      // defaultModel 必须落入已保存的模型列表，否则 Select 会出现不在 options 中的 value
+      const defaultModel = values.defaultModel && models.includes(values.defaultModel)
+        ? values.defaultModel
+        : (models[0] ?? model);
       updateConfig({
         apiUrl: values.apiUrl,
         apiKey: values.apiKey,
         models,
+        defaultModel,
         autoExecute: values.autoExecute,
         streamOutput: values.streamOutput,
-        maxTurns: values.maxTurns,
+        maxTurns: values.maxTurns ?? 20,
       });
-      setModel(models.includes(values.defaultModel) ? values.defaultModel : model);
+      setModel(defaultModel);
       message.success(t('editor.aiPanel.settingsSaved'));
       toggleSettings();
     } catch { /* validation */ }
@@ -38,12 +44,27 @@ export default function AIPanelSettings() {
     setFetching(true);
     try {
       const url = `${apiUrl.replace(/\/$/, '')}/models`;
-      const resp = await fetch(url, {
-        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
-      });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const json = await resp.json();
-      const ids: string[] = (json.data || []).map((m: { id: string }) => m.id).filter(Boolean);
+      const headers: Record<string, string> = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+
+      let ids: string[];
+      if (isTauri()) {
+        // Tauri 环境：走 Rust 后端转发，绕过 CORS（与系统设置页一致）
+        const result = await tauriInvoke<{ status: number; body: unknown }>('api_request', {
+          url,
+          method: 'GET',
+          headers,
+        });
+        if (result.status >= 400) throw new Error(`HTTP ${result.status}`);
+        const json = result.body as { data?: { id: string }[] };
+        ids = (json.data || []).map((m: { id: string }) => m.id).filter(Boolean);
+      } else {
+        // 浏览器环境（开发）：原生 fetch
+        const resp = await fetch(url, { headers });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const json = await resp.json();
+        ids = (json.data || []).map((m: { id: string }) => m.id).filter(Boolean);
+      }
+
       if (ids.length === 0) throw new Error(t('editor.aiPanel.fetchNoModels'));
       form.setFieldsValue({
         models: ids.join('\n'),
@@ -115,7 +136,7 @@ export default function AIPanelSettings() {
         <Form.Item name="streamOutput" label={t('editor.aiPanel.streamOutput')} valuePropName="checked">
           <Switch />
         </Form.Item>
-        <Form.Item name="maxTurns" label={t('editor.aiPanel.maxTurns')}>
+        <Form.Item name="maxTurns" label={t('editor.aiPanel.maxTurns')} rules={[{ required: true, message: t('editor.aiPanel.maxTurnsRequired') }]}>
           <InputNumber min={5} max={100} style={{ width: '100%' }} />
         </Form.Item>
       </Form>

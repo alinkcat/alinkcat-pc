@@ -13,6 +13,7 @@ pub mod theme_push_commands;
 pub mod upload_commands;
 pub mod webview_commands;
 pub mod generic_http;
+pub mod ai_chat_stream;
 
 use crate::action::executor;
 use crate::action::types::*;

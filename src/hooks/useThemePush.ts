@@ -3,7 +3,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { tauriInvoke } from '../utils/tauri';
 import { sendPushCancel } from './useWebSocket';
 import type { PushState, PushProgressEvent, PushResult } from '../types/push';
-import { INITIAL_PUSH_STATE, PUSH_CONFIG } from '../types/push';
+import { INITIAL_PUSH_STATE } from '../types/push';
 
 type StartOpts = {
   themeId: string;
@@ -86,8 +86,8 @@ export function useThemePush() {
       autoRetryTimer.current = setTimeout(() => {
         const cur = stateRef.current;
         if (cur.status !== 'retrying') return;
-        const startChunk = cur.resumeChunk > 0 ? cur.resumeChunk : 0;
-        doInvokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk, isAutoRetry: true });
+        // 手机端采用全量覆盖接收：自动重试一律从头重传（不做块级续传，保证数据一致）
+        doInvokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk: 0, isAutoRetry: true });
       }, AUTO_RETRY_DELAY);
     }
     return () => {
@@ -101,7 +101,7 @@ export function useThemePush() {
       themeId,
       deviceId,
       resumeChunk: startChunk,
-      status: isAutoRetry ? 'retrying' : (startChunk > 0 ? 'pushing' : 'awaiting_confirm'),
+      status: isAutoRetry ? 'retrying' : 'awaiting_confirm',
       stage: 'start',
       progress: 0,
       sentSize: 0,
@@ -116,7 +116,7 @@ export function useThemePush() {
       });
       setState((s) => ({
         ...s,
-        status: startChunk > 0 ? 'pushing' : 'awaiting_confirm',
+        status: 'awaiting_confirm',
         stage: 'start',
         totalSize: result.totalSize,
         totalChunks: result.totalChunks,
@@ -140,18 +140,21 @@ export function useThemePush() {
     for (let i = 0; i < deviceIds.length; i++) {
       const devId = deviceIds[i];
       // 为当前设备重置状态（保留 themeId）
-      setState((s) => ({ ...INITIAL_PUSH_STATE, autoRetryCount: 0, themeId, deviceId: devId }));
+      setState(() => ({ ...INITIAL_PUSH_STATE, autoRetryCount: 0, themeId, deviceId: devId }));
       // eslint-disable-next-line no-await-in-loop
       await doInvokePush({ themeId, deviceId: devId, startChunk: 0 });
     }
   }, [doInvokePush, clearAutoRetry]);
 
-  /** 断点续传：从上次中断的 chunk 继续 */
+  /**
+   * 断点续传（兼容保留）：手机端采用全量覆盖接收，续传即从头重传。
+   */
   const resumePush = useCallback(() => {
     clearAutoRetry();
     const cur = stateRef.current;
-    if (!cur.themeId || !cur.deviceId || cur.resumeChunk <= 0) return;
-    doInvokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk: cur.resumeChunk });
+    if (!cur.themeId || !cur.deviceId) return;
+    setState((s) => ({ ...s, autoRetryCount: 0 }));
+    doInvokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk: 0 });
   }, [doInvokePush, clearAutoRetry]);
 
   /** 重传：从头开始 */
@@ -182,7 +185,7 @@ export function useThemePush() {
 
   const reset = useCallback(() => {
     clearAutoRetry();
-    setState((s) => ({ ...INITIAL_PUSH_STATE, autoRetryCount: 0 }));
+    setState(() => ({ ...INITIAL_PUSH_STATE, autoRetryCount: 0 }));
   }, [clearAutoRetry]);
 
   return { state, startPush, resumePush, retryPush, cancelPush, cancelAutoRetry, reset };

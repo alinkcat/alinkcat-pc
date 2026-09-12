@@ -21,10 +21,10 @@ export interface WidgetBase {
   gridRow: number;
   gridW: number;
   gridH: number;
-  freeX: number;
-  freeY: number;
-  freeW: number;
-  freeH: number;
+  freeX?: number;
+  freeY?: number;
+  freeW?: number;
+  freeH?: number;
   zIndex?: number;
   borderRadius?: number;
   backgroundColor?: string;
@@ -133,6 +133,8 @@ interface WebViewWidget extends WidgetBase {
   rssUrl?: string;
   jsonUrl?: string;
   refreshInterval?: number;
+  /** 自定义请求头（如 Authorization: Bearer <token>，JWT 鉴权） */
+  headers?: Record<string, string>;
   titleField?: string;
   descField?: string;
   timeField?: string;

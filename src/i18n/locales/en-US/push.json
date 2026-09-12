@@ -13,6 +13,7 @@
     "retry": "Retry",
     "resume": "Resume",
     "close": "Close",
+    "selectAll": "Select All",
     "connected": "Connected",
     "needStart": "Please start the service and connect a device first",
     "interrupted": "Transfer interrupted ({{pct}}% sent). Resume?",

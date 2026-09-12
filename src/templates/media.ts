@@ -1,4 +1,4 @@
-import type { EditorTheme } from '../../pages/Editor/types';
+import type { EditorTheme } from '../pages/Editor/types';
 
 /**
  * 媒体控制模板 - 横屏

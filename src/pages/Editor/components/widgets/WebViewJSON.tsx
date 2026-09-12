@@ -36,7 +36,7 @@ function renderValue(data: unknown, cfg: {
   titleField: string; descField: string; timeField: string; linkField: string;
 }, t: (key: string, opts?: Record<string, unknown>) => string): React.ReactNode {
   if (Array.isArray(data)) {
-    if (data.length === 0) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('common.widgets.noData')} style={{ padding: 20 }} />;
+    if (data.length === 0) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('noData')} style={{ padding: 20 }} />;
 
     const first = data[0];
     if (first && typeof first === 'object') {
@@ -103,6 +103,7 @@ export default function WebViewJSON({ widget }: { widget: EditorWidget }) {
   const timeField = (v.timeField as string) || 'pubDate';
   const linkField = (v.linkField as string) || 'link';
   const refresh = (v.refreshInterval as number) || 0;
+  const headers = (v.headers as Record<string, string>) || {};
   const [data, setData] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -112,15 +113,33 @@ export default function WebViewJSON({ widget }: { widget: EditorWidget }) {
     setLoading(true);
     setError('');
     try {
-      const json = await tauriInvoke<unknown>('fetch_json', { url });
-      setCachedJson(url, json);
-      setData(json);
+      // generic_http 支持自定义 headers（JWT 鉴权），且不校验 HTTP 状态码，
+      // 401/403 等错误统一通过 body.code 判断（网关接口 HTTP 状态码不可靠）
+      const json = await tauriInvoke<unknown>('generic_http', {
+        url,
+        method: 'GET',
+        headers,
+        body: null,
+      });
+      const obj = json as Record<string, unknown> | null;
+      // 后端网关：code != 200 即错误（403 配额/429 频率/500 上游挂/401 未登录）
+      if (obj && typeof obj.code === 'number' && obj.code !== 200) {
+        setError(String(obj.message || `错误代码: ${obj.code}`));
+        setData(null);
+        return;
+      }
+      // 解包 { code, message, data: {...} } → 取内层天气结构
+      const inner = obj?.data && typeof obj.data === 'object' && !Array.isArray(obj.data)
+        ? obj.data
+        : json;
+      setCachedJson(url, inner);
+      setData(inner);
     } catch (e) {
       setError(String(e));
     } finally {
       setLoading(false);
     }
-  }, [url]);
+  }, [url, headers]);
 
   useEffect(() => {
     // 命中缓存且未超过刷新周期 → 直接展示，避免翻页/重挂载重复请求
@@ -171,7 +190,7 @@ function WeatherDashboard({ weather }: { weather: WeatherExtracted }) {
     <div className="cw-weather">
       <div className="cw-weather-main">
         <div className="cw-weather-city">
-          {weather.city || t('common.widgets.weather.title')} <span style={{ fontSize: 26 }}>{weather.icon}</span>
+          {weather.city || t('weather.title')} <span style={{ fontSize: 26 }}>{weather.icon}</span>
         </div>
         <div className="cw-weather-temp">
           {r(weather.temp) ?? '--'}<span className="cw-weather-unit">°C</span>

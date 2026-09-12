@@ -25,7 +25,7 @@ function CanvasWidget({ widget, page, canvasW, canvasH }: {
 
   const style: React.CSSProperties = isGrid
     ? { left: widget.gridCol * cellW, top: widget.gridRow * cellH, width: widget.gridW * cellW, height: widget.gridH * cellH, zIndex: widget.zIndex }
-    : { left: `${widget.freeX}%`, top: `${widget.freeY}%`, width: `${widget.freeW}%`, height: `${widget.freeH}%`, zIndex: widget.zIndex };
+    : { left: `${widget.freeX ?? 0}%`, top: `${widget.freeY ?? 0}%`, width: `${widget.freeW ?? 30}%`, height: `${widget.freeH ?? 15}%`, zIndex: widget.zIndex };
 
   return (
     <div className={`cw${isSelected ? ' cw-selected' : ''}`} style={style}
@@ -35,7 +35,7 @@ function CanvasWidget({ widget, page, canvasW, canvasH }: {
       {isSelected && <div className="cw-resize" onMouseDown={onResizeMouseDown} />}
       {isSelected && !isGrid && (
         <div className="cw-coords">
-          {Math.round(widget.freeX)}%, {Math.round(widget.freeY)}% · {Math.round(widget.freeW)}%×{Math.round(widget.freeH)}%
+          {Math.round(widget.freeX ?? 0)}%, {Math.round(widget.freeY ?? 0)}% · {Math.round(widget.freeW ?? 30)}%×{Math.round(widget.freeH ?? 15)}%
         </div>
       )}
     </div>
@@ -44,12 +44,21 @@ function CanvasWidget({ widget, page, canvasW, canvasH }: {
 
 function buildBgStyle(page: EditorPage): React.CSSProperties {
   const s: React.CSSProperties = {};
-  if (page.backgroundColor) s.backgroundColor = page.backgroundColor;
+  // backgroundColor 可能为纯色（#0a0e1a）或 CSS 渐变（linear-gradient(...)）：
+  // 渐变必须写入 background / background-image 属性，background-color 不接受 gradient 值
+  const bg = page.backgroundColor;
+  if (bg && /gradient\(/i.test(bg)) {
+    s.background = bg;
+  } else if (bg) {
+    s.backgroundColor = bg;
+  }
   if (page.backgroundImage) {
+    // 有图片时叠加在底色/渐变之上（渐变 + 图片并存：图片优先，保留底图视觉）
     s.backgroundImage = `url(${page.backgroundImage})`;
-    const m = page.backgroundMode || 'cover';
+    const m = (page.backgroundMode || 'cover') as string;
+    // 'tile' 是传输层/Mobile 使用的值（编辑器用 'repeat'），两者等价，都按平铺处理
     s.backgroundSize = m === 'cover' ? 'cover' : m === 'contain' ? 'contain' : m === 'stretch' ? '100% 100%' : 'auto';
-    s.backgroundRepeat = m === 'repeat' ? 'repeat' : 'no-repeat';
+    s.backgroundRepeat = (m === 'repeat' || m === 'tile') ? 'repeat' : 'no-repeat';
     s.backgroundPosition = 'center';
     s.opacity = (page.backgroundOpacity ?? 100) / 100;
   }
@@ -84,7 +93,7 @@ export default function PreviewArea() {
       <div className="preview-area">
         <PhoneFrame width={frameW} height={frameH} orientation={orientation}>
           <div ref={setNodeRef} className={`canvas${isOver ? ' canvas-over' : ''}`} onClick={handleCanvasClick}>
-            {page?.backgroundImage && <div className="canvas-bg" style={buildBgStyle(page)} />}
+            {(page?.backgroundColor || page?.backgroundImage) && <div className="canvas-bg" style={buildBgStyle(page)} />}
             {isFree ? <FreeGuideLines /> : <GridOverlay cellW={frameW / cols} cellH={canvasH / rows} />}
             {page?.widgets.map(w => (
               <CanvasWidget key={w.id} widget={w} page={page} canvasW={frameW} canvasH={canvasH} />

@@ -57,5 +57,22 @@
   "benefitsTimes": "{{count}} 次",
   "unlimited": "不限量",
   "outOfStock": "已售罄",
-  "stock": "库存 {{count}}"
+  "stock": "库存 {{count}}",
+  "weather_service": "天气服务",
+  "weather_key_active": "天气 Key 已生效",
+  "weather_daily_limit": "每日限额",
+  "weather_key": "Key",
+  "weather_android_hint": "将此 Key 填入 Android 客户端天气控件即可使用，无需自行注册第三方天气 API",
+  "weather_fallback_desc": "检测到您已申请过天气 Key，但当前状态接口暂不可用。请稍后刷新确认。",
+  "weather_apply_hint": "申请天气 Key",
+  "weather_apply_desc": "申请后你将获得一个天气 API Key，复制到 Android 客户端粘贴即可使用，无需登录。额度按会员等级固化，防止滥用",
+  "weather_apply": "申请 Key",
+  "weather_applied": "天气 Key 申请成功",
+  "weather_show_once_title": "Key 仅展示一次",
+  "weather_show_once_desc": "请立即复制并妥善保存到 Android 客户端。刷新页面后将无法再次查看完整 Key，遗失需重置",
+  "weather_saved": "我已保存",
+  "weather_reset": "重置 Key",
+  "weather_reset_title": "重置天气 Key？",
+  "weather_reset_desc": "重置后旧 Key 立即作废，Android 端需重新粘贴新 Key。确定继续？",
+  "weather_reset_success": "天气 Key 已重置，新 Key 仅展示一次"
 }

@@ -11,7 +11,14 @@
     "adminTickets": "Ticket Management",
     "loginRegister": "Login / Register",
     "logout": "Logout",
-    "loginTip": "Login/Register"
+    "loginTip": "Login/Register",
+    "member": "Membership",
+    "mycloud": "Cloud Backup",
+    "points": "Points",
+    "tickets": "Tickets",
+    "invite": "Invite",
+    "cloudServices": "Cloud Services",
+    "cloudLoginRequired": "Log in to use Cloud Services"
   },
   "header": {
     "switchLight": "Switch to Light Mode",

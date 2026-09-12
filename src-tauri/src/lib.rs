@@ -49,7 +49,10 @@ pub fn run() {
         .manage(MonitorState {
             scheduler: Mutex::new(MonitorScheduler::new(clients)),
         })
-        .manage(AckBusState { bus: ack_bus })
+        .manage(AckBusState {
+            bus: ack_bus,
+            push_tasks: std::sync::Mutex::new(std::collections::HashMap::new()),
+        })
         .setup(|app| {
             // 启动本地 OAuth 回调服务器（系统浏览器授权回调用）
             services::oauth_callback_server::init_oauth_callback_server();
@@ -158,6 +161,7 @@ pub fn run() {
             commands::webview_commands::fetch_bilibili_room,
             commands::webview_commands::fetch_weather,
             commands::generic_http::generic_http,
+            commands::ai_chat_stream::ai_chat_stream,
             // Launcher
             commands::launcher_commands::get_launchers,
             commands::launcher_commands::add_launcher,

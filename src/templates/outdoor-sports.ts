@@ -1,4 +1,4 @@
-import type { EditorTheme } from '../../pages/Editor/types';
+import type { EditorTheme } from '../pages/Editor/types';
 
 /**
  * 户外运动模板 - 竖屏

@@ -13,6 +13,7 @@
     "retry": "重传",
     "resume": "继续",
     "close": "关闭",
+    "selectAll": "全选",
     "connected": "已连接",
     "needStart": "请先启动服务并连接设备",
     "interrupted": "传输已中断（已传输 {{pct}}%），是否继续？",

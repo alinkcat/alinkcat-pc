@@ -1,4 +1,4 @@
-import type { EditorTheme } from '../../pages/Editor/types';
+import type { EditorTheme } from '../pages/Editor/types';
 
 /**
  * 自然风光模板 - 竖屏

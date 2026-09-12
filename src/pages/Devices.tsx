@@ -83,11 +83,19 @@ export default function Devices() {
     init();
   }, [loadDeviceData, fetchConnections, fetchLocalIp]);
 
+  // 页内轮询遵循设置（status_polling 开关 + 频率），关闭时只加载一次
   useEffect(() => {
+    let settings: { status_polling?: boolean; status_polling_interval?: number } = {};
+    try {
+      const raw = localStorage.getItem('ilinkcat_settings');
+      if (raw) settings = JSON.parse(raw);
+    } catch { /* ignore */ }
+    if (!settings.status_polling) return;
+    const intervalMs = Math.max(1, settings.status_polling_interval || 3) * 1000;
     const timer = setInterval(() => {
       loadDeviceData();
       fetchConnections();
-    }, 3000);
+    }, intervalMs);
     return () => clearInterval(timer);
   }, [loadDeviceData, fetchConnections]);
 

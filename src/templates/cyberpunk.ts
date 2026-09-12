@@ -1,4 +1,4 @@
-import type { EditorTheme } from '../../pages/Editor/types';
+import type { EditorTheme } from '../pages/Editor/types';
 
 /**
  * 赛博朋克风格监控模板 - 横屏

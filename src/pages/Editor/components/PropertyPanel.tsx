@@ -10,18 +10,20 @@ import { tauriInvoke } from '../../../utils/tauri';
 
 const { Text } = Typography;
 
-// ─── 天气组件：OpenWeatherMap 常用配置兜底 ─────────────────────────
-const OWM_URL = 'https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric';
+// ─── 天气组件：自建天气 API 默认配置兜底（免登录，X-API-Key 鉴权，Key 由 Android 端注入） ─
+// 后端接口规范：GET /api/public/weather?q=${city}&f=wttr（Android 定位时替换为 ?g=lng,lat&f=wttr）
+// 返回 wttr.in j1 格式（current_condition[].temp_C、weatherDesc 等），渲染逻辑不变
+const OWM_URL = 'https://top.atqx.cn/api/public/weather?q=${city}&f=wttr';
 const OWM_MAPPING: Record<string, string> = {
-  city: 'name',
-  temp: 'main.temp',
-  condition: 'weather[0].main',
-  description: 'weather[0].description',
-  icon: 'weather[0].icon',
-  humidity: 'main.humidity',
-  wind_speed: 'wind.speed',
-  feels_like: 'main.feels_like',
-  forecast: 'list',
+  city: 'nearest_area[0].areaName[0].value',
+  temp: 'current_condition[0].temp_C',
+  condition: 'current_condition[0].weatherDesc[0].value',
+  description: 'current_condition[0].weatherDesc[0].value',
+  icon: 'current_condition[0].weatherCode',
+  humidity: 'current_condition[0].humidity',
+  wind_speed: 'current_condition[0].windspeedKmph',
+  feels_like: 'current_condition[0].FeelsLikeC',
+  forecast: 'weather',
 };
 
 function ColorInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -51,36 +53,6 @@ function SnippetEditor({ value, onChange }: { value?: SnippetItem[]; onChange?: 
       ))}
       <Button size="small" type="dashed" icon={<PlusOutlined />} block
         onClick={() => onChange?.([...items, { id: `s-${Date.now()}`, label: '', content: '' }])}>{t('editor.propertyPanel.snippet.addItem')}</Button>
-    </div>
-  );
-}
-
-/** 键值对编辑器：用于请求头 / 附加参数 / 响应字段映射等配置 */
-function KeyValueEditor({ value, onChange, keyPlaceholder, valuePlaceholder, addLabel }: {
-  value?: Record<string, string>;
-  onChange?: (v: Record<string, string>) => void;
-  keyPlaceholder?: string;
-  valuePlaceholder?: string;
-  addLabel?: string;
-}) {
-  const entries = Object.entries(value || {});
-  const set = (next: [string, string][]) => {
-    const obj: Record<string, string> = {};
-    next.forEach(([k, val]) => { if (k) obj[k] = val; });
-    onChange?.(obj);
-  };
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-      {entries.map(([k, val], idx) => (
-        <div key={idx} style={{ display: 'flex', gap: 6 }}>
-          <Input size="small" value={k} placeholder={keyPlaceholder} style={{ flex: 1, minWidth: 0 }}
-            onChange={e => set(entries.map(([kk, vv], i) => i === idx ? [e.target.value, vv] : [kk, vv]))} />
-          <Input size="small" value={val} placeholder={valuePlaceholder} style={{ flex: 2, minWidth: 0 }}
-            onChange={e => set(entries.map(([kk, vv], i) => i === idx ? [kk, e.target.value] : [kk, vv]))} />
-          <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => set(entries.filter((_, i) => i !== idx))} />
-        </div>
-      ))}
-      <Button size="small" type="dashed" icon={<PlusOutlined />} block onClick={() => set([...entries, ['', '']])}>{addLabel}</Button>
     </div>
   );
 }
@@ -287,10 +259,10 @@ function WidgetProperties() {
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <Form.Item label={t('editor.propertyPanel.widget.freeX')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeX)} min={0} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeX', v ?? 0)} /></Form.Item>
-          <Form.Item label={t('editor.propertyPanel.widget.freeY')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeY)} min={0} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeY', v ?? 0)} /></Form.Item>
-          <Form.Item label={t('editor.propertyPanel.widget.freeW')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeW)} min={5} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeW', v ?? 30)} /></Form.Item>
-          <Form.Item label={t('editor.propertyPanel.widget.freeH')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeH)} min={5} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeH', v ?? 15)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.freeX')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeX ?? 0)} min={0} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeX', v ?? 0)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.freeY')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeY ?? 0)} min={0} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeY', v ?? 0)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.freeW')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeW ?? 30)} min={5} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeW', v ?? 30)} /></Form.Item>
+          <Form.Item label={t('editor.propertyPanel.widget.freeH')} style={{ marginBottom: 0, flex: 1 }}><InputNumber value={Math.round(widget.freeH ?? 15)} min={5} max={100} size="small" style={{ width: '100%' }} onChange={v => up('freeH', v ?? 15)} /></Form.Item>
         </div>
       )}
 
@@ -606,48 +578,14 @@ function WidgetProperties() {
 
         {(v.preset as string) === 'weather' && (<>
           <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-            <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.webview.requestSection')}</Text>
-          </div>
-
-          <Form.Item label={t('editor.propertyPanel.webview.requestUrl')}>
-            <Input value={(v.requestUrl as string) || ''} onChange={e => up('requestUrl', e.target.value)} placeholder={t('editor.propertyPanel.webview.requestUrlPlaceholder')} />
-          </Form.Item>
-
-          <Form.Item label={t('editor.propertyPanel.webview.requestMethod')}>
-            <Radio.Group value={(v.requestMethod as string) || 'GET'} onChange={e => up('requestMethod', e.target.value)}>
-              <Radio.Button value="GET">GET</Radio.Button>
-              <Radio.Button value="POST">POST</Radio.Button>
-            </Radio.Group>
-          </Form.Item>
-
-          <Form.Item label={t('editor.propertyPanel.webview.requestHeaders')}>
-            <KeyValueEditor value={(v.requestHeaders as Record<string, string>) || {}} onChange={val => up('requestHeaders', val)}
-              keyPlaceholder={t('editor.propertyPanel.webview.headerKeyPlaceholder')}
-              valuePlaceholder={t('editor.propertyPanel.webview.headerValuePlaceholder')}
-              addLabel={t('editor.propertyPanel.webview.addHeader')} />
-          </Form.Item>
-
-          {(v.requestMethod as string) === 'POST' && (
-            <Form.Item label={t('editor.propertyPanel.webview.requestBody')}>
-              <Input.TextArea rows={3} value={(v.requestBody as string) || ''} onChange={e => up('requestBody', e.target.value)} placeholder={t('editor.propertyPanel.webview.requestBodyPlaceholder')} />
-            </Form.Item>
-          )}
-
-          <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
             <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.webview.paramSection')}</Text>
           </div>
 
           <Form.Item label={t('editor.propertyPanel.webview.city')}>
             <Input value={(v.city as string) || ''} onChange={e => up('city', e.target.value)} placeholder={t('editor.propertyPanel.webview.cityPlaceholder')} />
           </Form.Item>
-          <Form.Item label={t('editor.propertyPanel.webview.apiKey')}>
+          <Form.Item label={t('editor.propertyPanel.webview.apiKey')} extra={t('editor.propertyPanel.webview.apiKeyHint')}>
             <Input.Password value={(v.apiKey as string) || ''} onChange={e => up('apiKey', e.target.value)} placeholder={t('editor.propertyPanel.webview.apiKeyPlaceholder')} />
-          </Form.Item>
-          <Form.Item label={t('editor.propertyPanel.webview.extraParams')}>
-            <KeyValueEditor value={(v.extraParams as Record<string, string>) || {}} onChange={val => up('extraParams', val)}
-              keyPlaceholder={t('editor.propertyPanel.webview.paramKeyPlaceholder')}
-              valuePlaceholder={t('editor.propertyPanel.webview.paramValuePlaceholder')}
-              addLabel={t('editor.propertyPanel.webview.addParam')} />
           </Form.Item>
           <Form.Item label={t('editor.propertyPanel.webview.tempUnit')}>
             <Radio.Group value={(v.unit as string) || 'c'} onChange={e => up('unit', e.target.value)}>
@@ -659,26 +597,6 @@ function WidgetProperties() {
             <InputNumber min={0} max={168} step={1} value={(v.refreshHours as number) ?? 1} style={{ width: '100%' }} suffix="h"
               onChange={val => up('refreshHours', val ?? 0)} />
           </Form.Item>
-
-          <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
-            <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.webview.mappingSection')}</Text>
-          </div>
-
-          <Button size="small" block style={{ marginBottom: 8 }} onClick={() => up('responseMapping', { ...OWM_MAPPING })}>
-            {t('editor.propertyPanel.webview.fillOwM')}
-          </Button>
-          <Form.Item style={{ marginBottom: 8 }}>
-            <KeyValueEditor value={(v.responseMapping as Record<string, string>) || {}} onChange={val => up('responseMapping', val)}
-              keyPlaceholder={t('editor.propertyPanel.webview.mappingKeyPlaceholder')}
-              valuePlaceholder={t('editor.propertyPanel.webview.mappingValuePlaceholder')}
-              addLabel={t('editor.propertyPanel.webview.addMapping')} />
-          </Form.Item>
-          <Text style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>
-            {t('editor.propertyPanel.webview.mappingHint')}
-          </Text>
-          <Text style={{ fontSize: 11, color: '#888', display: 'block' }}>
-            {t('editor.propertyPanel.webview.placeholderHint')}
-          </Text>
         </>)}
 
         {(v.preset as string) === 'none' && (<>
