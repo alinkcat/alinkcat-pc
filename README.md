@@ -200,7 +200,7 @@ alinkcat-pc/
 
 1. **云端服务端（Spring Boot）为独立私有仓库，不随本仓库开源**，也不在本仓库提供任何形式的服务端源码；
 2. **禁止以任何理由对云端服务端进行二次开发、逆向、破解、仿制或搭建"盗版云端"**——包括但不限于：复用/修改官方接口协议自行搭建中转、伪装官方服务、将客户端改造为指向非官方云端等行为；
-3. 客户端内「云服务」相关功能（注册、会员、云备份、市场、天气 Key 等）**仅可连接官方云端服务**（https://top.atqx.cn）；
+3. 客户端内「云服务」相关功能（注册、会员、云备份、市场、天气 Key 等）**仅可连接官方云端服务**（https://www.pynen.com）；
 4. 违反上述声明造成的账号封禁、数据丢失、法律风险等后果，由行为人自行承担。
 
 请尊重开发者的劳动成果，共同维护良好的开源生态。
@@ -221,6 +221,6 @@ alinkcat-pc/
 ---
 
 > 艾联猫 · ailinkcat
-> 官网：https://top.atqx.cn
+> 官网：https://www.pynen.com
 > PC 开源仓库：https://github.com/alinkcat/-alinkcat-pc
-> Android 端：https://github.com/alinkcat/-alinkcat-android（待建）
+> Android 端：暂不开源

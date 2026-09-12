@@ -69,7 +69,7 @@
 
 ### 下载
 
-前往 [GitHub Releases](https://github.com/mosder66/alinkcat/releases) 下载对应平台的安装包：
+前往 [GitHub Releases](https://github.com/alinkcat/-alinkcat-pc/releases) 下载对应平台的安装包：
 
 | 平台 | 文件 |
 |------|------|
@@ -120,6 +120,6 @@
 ---
 
 > 艾联猫 · ailinkcat  
-> 官网：https://top.atqx.cn  
-> 开源仓库：https://github.com/mosder66/alinkcat-pc  
-> 下载地址：https://github.com/mosder66/alinkcat/releases
+> 官网：https://www.pynen.com  
+> 开源仓库：https://github.com/alinkcat/-alinkcat-pc  
+> 下载地址：https://github.com/alinkcat/-alinkcat-pc/releases
