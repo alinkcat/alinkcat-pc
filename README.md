@@ -85,12 +85,15 @@
 ### 从源码构建
 
 ```bash
-# 前置要求：Node.js 20+、pnpm 11+、Rust stable、Tauri 2 所需系统依赖
-cd alinkcat-pc
+# 前置要求：Node.js 20+、pnpm 9+、Rust stable
+# macOS 需先安装 Xcode Command Line Tools：xcode-select --install
+# Windows 需 WebView2（Win10/11 一般自带）与 Microsoft C++ Build Tools
 pnpm install
 pnpm tauri dev     # 开发模式
 pnpm tauri build   # 打包
 ```
+
+> 仓库通过 `.gitattributes` 统一行尾为 LF，跨平台克隆开发不会出现 CRLF 警告或行尾漂移。
 
 ---
 
@@ -173,7 +176,6 @@ PC 端免去自行注册第三方天气服务：
 | 云端后端 | 独立 Spring Boot 服务（**不开源**，见下方声明） |
 
 ```
-alinkcat-pc/
 ├── src/               # React 前端
 │   ├── api/           # 云端 API 客户端
 │   ├── components/    # 通用组件
@@ -185,11 +187,13 @@ alinkcat-pc/
 │   └── utils/         # 工具
 ├── src-tauri/         # Rust 后端
 │   └── src/
+│       ├── action/    # 快捷操作执行器（键盘模拟 / 应用启动）
 │       ├── commands/  # Tauri 命令
-│       ├── services/  # 天气 / 媒体 / RSS / OAuth 等
+│       ├── monitor/   # 硬件监控采集（CPU / 内存 / 磁盘 / 网络）
+│       ├── services/  # 天气 / 媒体 / 启动器 / RSS / OAuth 等
 │       ├── websocket/ # 局域网推送服务
 │       └── theme/     # 主题包读写与打包
-└── docs/              # 设计文档
+└── public/            # 静态资源
 ```
 
 ---
