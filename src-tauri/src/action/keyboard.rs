@@ -22,7 +22,10 @@ fn parse_key(name: &str) -> Option<Key> {
         "pageup" => Some(Key::PageUp),
         "pagedown" => Some(Key::PageDown),
         "capslock" => Some(Key::CapsLock),
+        #[cfg(target_os = "windows")]
         "insert" => Some(Key::Insert),
+        #[cfg(not(target_os = "windows"))]
+        "insert" => None, // macOS/Linux 的 enigo 无 Insert 键
         "f1" => Some(Key::F1),
         "f2" => Some(Key::F2),
         "f3" => Some(Key::F3),
