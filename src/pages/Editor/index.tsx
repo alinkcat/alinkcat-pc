@@ -1,0 +1,672 @@
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
+import { Button, Space, Modal, Row, Col, Card, Slider, App, List, Empty, Tag, Tour, Input, Dropdown } from 'antd';
+import { ArrowLeftOutlined, SaveOutlined, ExportOutlined, MobileOutlined, TabletOutlined, FolderOutlined, UndoOutlined, RedoOutlined, HistoryOutlined, QuestionCircleOutlined, DownOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
+import { tauriInvoke } from '../../utils/tauri';
+import ThemeFileManager from '../../components/ThemeFileManager';
+import { useEditorStore, editorToThemeMeta, nextFree } from './store/editorStore';
+import { usePanelResize } from './hooks/useResize';
+import { generateThemeCover, generateDefaultCover } from '../../utils/coverGenerator';
+import { migrateImagesToAssets } from '../../utils/coverHelper';
+import { resolveThemeImages } from '../../utils/assetHelper';
+import { getTemplateById, cloneTemplate } from '../../templates';
+import type { ThemeMeta, ThemeVersion } from '../../types/theme';
+import type { EditorWidget } from './types';
+import ControlLibrary from './components/ControlLibrary';
+import PreviewArea from './components/PreviewArea';
+import PropertyPanel from './components/PropertyPanel';
+import PageTabs from './components/PageTabs';
+import AIPanel from './components/AIPanel';
+import { useAIStore } from '../../store/aiStore';
+import { PAGE_TEMPLATES, clonePageTemplate } from '../../templates/page-templates';
+import { useAutoSave, getDraft, clearDraft } from '../../hooks/useAutoSave';
+import type { DraftPayload } from '../../hooks/useAutoSave';
+
+const LIB_LABELS: Record<string, string> = {
+  'lib-button': 'editor.controlLibrary.button', 'lib-gauge': 'editor.controlLibrary.gauge',
+  'lib-snippet-list': 'editor.controlLibrary.snippet-list', 'lib-text': 'editor.controlLibrary.text', 'lib-shape': 'editor.controlLibrary.shape', 'lib-system-monitor': 'editor.controlLibrary.system-monitor', 'lib-media-control': 'editor.controlLibrary.media-control', 'lib-quick-action': 'editor.controlLibrary.quick-action', 'lib-launcher': 'editor.controlLibrary.launcher', 'lib-webview': 'editor.controlLibrary.webview', 'lib-image': 'editor.controlLibrary.image',
+};
+
+// page template picker（replaces the old AddPageModal）
+const CATEGORY_EMOJI: Record<string, string> = {
+  blank: '📄', monitor: '📊', clock: '🕐', weather: '⛅', media: '🎵',
+};
+
+function PageTemplateModal({ open, onSelect, onCancel }: {
+  open: boolean; onSelect: (page: import('../../templates/page-templates').PageTemplateDef) => void; onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const categories = useMemo(() => {
+    const map = new Map<string, typeof PAGE_TEMPLATES>();
+    for (const pt of PAGE_TEMPLATES) {
+      const cat = pt.category;
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(pt);
+    }
+    return Array.from(map.entries());
+  }, []);
+  return (
+    <Modal title={t('editor.addPageModal.title')} open={open} onCancel={onCancel} footer={null} width={600} destroyOnHidden>
+      {categories.map(([cat, list]) => (
+        <div key={cat} style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 13, color: '#888' }}>
+            {CATEGORY_EMOJI[cat] || '📦'} {t(`themes.templates.category.${cat}`)}
+          </div>
+          <Row gutter={[8, 8]}>
+            {list.map((pt) => (
+              <Col key={pt.id} xs={12} sm={8}>
+                <Card
+                  hoverable size="small"
+                  onClick={() => { onSelect(pt); onCancel(); }}
+                  style={{ textAlign: 'center', cursor: 'pointer' }}
+                >
+                  <div style={{ fontSize: 24, marginBottom: 4 }}>{CATEGORY_EMOJI[pt.category] || '📄'}</div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{pt.label}</div>
+                  <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{pt.description}</div>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+      ))}
+    </Modal>
+  );
+}
+
+export default function Editor() {
+  const { t } = useTranslation();
+  const { message } = App.useApp();
+  const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const isNew = !id || id === 'new';
+  const templateId = searchParams.get('template');
+
+  const theme = useEditorStore(s => s.theme);
+  const orientation = useEditorStore(s => s.orientation);
+  const zoom = useEditorStore(s => s.zoom);
+  const saving = useEditorStore(s => s.saving);
+  const exporting = useEditorStore(s => s.exporting);
+  const versionHistory = useEditorStore(s => s.versionHistory);
+  const currentVersionIdx = useEditorStore(s => s.currentVersionIdx);
+  const canUndo = useEditorStore(s => s.canUndo);
+  const canRedo = useEditorStore(s => s.canRedo);
+  const loadTheme = useEditorStore(s => s.loadTheme);
+  const replaceTheme = useEditorStore(s => s.replaceTheme);
+  const initNewTheme = useEditorStore(s => s.initNewTheme);
+  const setThemeName = useEditorStore(s => s.setThemeName);
+  const toggleOrientation = useEditorStore(s => s.toggleOrientation);
+  const setZoom = useEditorStore(s => s.setZoom);
+  const setSaving = useEditorStore(s => s.setSaving);
+  const setExporting = useEditorStore(s => s.setExporting);
+  const addPageFromTemplate = useEditorStore(s => s.addPageFromTemplate);
+  const addWidgetAt = useEditorStore(s => s.addWidgetAt);
+  const undo = useEditorStore(s => s.undo);
+  const redo = useEditorStore(s => s.redo);
+  const saveVersion = useEditorStore(s => s.saveVersion);
+  const rollbackToVersion = useEditorStore(s => s.rollbackToVersion);
+  const loadVersionHistory = useEditorStore(s => s.loadVersionHistory);
+  const initAITheme = useAIStore((s) => s.initTheme);
+  const [addPageOpen, setAddPageOpen] = useState(false);
+  const [fileMgrOpen, setFileMgrOpen] = useState(false);
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [draftModal, setDraftModal] = useState<DraftPayload | null>(null);
+  const [editorGuideOpen, setEditorGuideOpen] = useState(false);
+  const mousePosRef = useRef({ x: 0, y: 0 });
+  const copiedWidgetRef = useRef<EditorWidget | null>(null);
+  const guideRefLeftPanel = useRef<HTMLDivElement>(null);
+  const guideRefCanvas = useRef<HTMLDivElement>(null);
+  const guideRefRightPanel = useRef<HTMLDivElement>(null);
+  const guideRefAIPanel = useRef<HTMLDivElement>(null);
+
+  const EDITOR_GUIDE_KEY = 'ilinkcat_editor_guide_done';
+
+  // enable draft auto-save
+  useAutoSave();
+
+  const leftPanel = usePanelResize(110, 'editor-left-w', 80, 200);
+  const rightPanel = usePanelResize(260, 'editor-right-w', 200, 400);
+
+  useEffect(() => {
+    // check if a local draft needs recovery
+    const draft = getDraft();
+
+    if (isNew) {
+      if (draft) {
+        // draft exists，prompt for recovery
+        setDraftModal(draft);
+        return;
+      }
+      if (templateId) {
+        const tpl = getTemplateById(templateId);
+        if (tpl) {
+          const cloned = cloneTemplate(tpl);
+          // generate a new id to avoid conflicts
+          cloned.id = `theme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+          replaceTheme(cloned);
+        } else {
+          initNewTheme();
+        }
+      } else {
+        initNewTheme();
+      }
+    } else if (id) {
+      tauriInvoke<ThemeMeta>('load_theme', { id })
+        .then(async (meta) => {
+          // resolve relative image paths to data URLs，so background/widget images render correctly
+          const resolved = await resolveThemeImages(meta);
+          loadTheme(resolved);
+          // load this theme's AI chat history
+          initAITheme(id);
+          // after theme loads，also prompt for draft recovery if any
+          if (draft) {
+            setDraftModal(draft);
+          }
+        })
+        .catch(e => message.error(String(e)));
+    }
+    // note: deps intentionally exclude draft, since this only runs once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isNew, templateId, loadTheme, initNewTheme, initAITheme]);
+
+  // first-run editor guide
+  useEffect(() => {
+    if (isNew && !draftModal) {
+      const done = localStorage.getItem(EDITOR_GUIDE_KEY);
+      if (!done) {
+        // delayed show，ensure DOM is fully rendered
+        const timer = setTimeout(() => setEditorGuideOpen(true), 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isNew, draftModal]);
+
+  const handleOpenEditorGuide = () => {
+    localStorage.removeItem(EDITOR_GUIDE_KEY);
+    setEditorGuideOpen(true);
+  };
+
+  // global keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const editor = useEditorStore.getState();
+      // check if focus is in an input，avoid accidental triggers
+      const tag = (e.target as HTMLElement).tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement).isContentEditable;
+
+      // ── global shortcuts（not blocked by inputs） ──
+      // Ctrl+Z undo
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        if (editor.canUndo) {
+          editor.undo();
+          e.preventDefault();
+        }
+        return;
+      }
+      // Ctrl+Y or Ctrl+Shift+Z redo
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
+        if (editor.canRedo) {
+          editor.redo();
+          e.preventDefault();
+        }
+        return;
+      }
+
+      // shortcuts below only work outside inputs
+      if (isInput) return;
+
+      // Delete / Backspace delete selected widget
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (editor.selectedWidgetId) {
+          editor.removeWidget(editor.selectedWidgetId);
+          e.preventDefault();
+        }
+        return;
+      }
+
+      // Escape deselect
+      if (e.key === 'Escape') {
+        if (editor.selectedWidgetId) {
+          editor.selectWidget(null);
+          e.preventDefault();
+        }
+        return;
+      }
+
+      // Ctrl+C copy selected widget
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        if (editor.selectedWidgetId) {
+          const pg = editor.theme.pages[editor.activePageIdx];
+          const widget = pg?.widgets.find(w => w.id === editor.selectedWidgetId);
+          if (widget) {
+            copiedWidgetRef.current = { ...widget, id: '' };
+            e.preventDefault();
+          }
+        }
+        return;
+      }
+
+      // Ctrl+V paste widget
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        if (copiedWidgetRef.current) {
+          const pg = editor.theme.pages[editor.activePageIdx];
+          if (pg) {
+            const newWidget = { ...copiedWidgetRef.current, id: `w-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}` };
+            // in free mode, place near the cursor，in grid mode, place in the next slot
+            if (pg.layoutMode === 'free') {
+              const offset = 2;
+              newWidget.freeX = Math.min(90, (newWidget.freeX ?? 10) + offset);
+              newWidget.freeY = Math.min(90, (newWidget.freeY ?? 10) + offset);
+            } else {
+              const [c, r] = nextFree(pg.widgets, pg.columns, pg.rows);
+              newWidget.gridCol = c;
+              newWidget.gridRow = r;
+            }
+            editor.addWidget(newWidget.type);
+            // sync the new widget's props（except id and type）
+            const newId = editor.selectedWidgetId;
+            if (newId) {
+              const values: Record<string, unknown> = {};
+              for (const [k, v] of Object.entries(newWidget)) {
+                if (k === 'id' || k === 'type') continue;
+                values[k] = v;
+              }
+              editor.updateWidget(newId, values);
+            }
+            e.preventDefault();
+          }
+        }
+        return;
+      }
+
+      // Ctrl+D duplicate the selected widget
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        if (editor.selectedWidgetId) {
+          const pg = editor.theme.pages[editor.activePageIdx];
+          const widget = pg?.widgets.find(w => w.id === editor.selectedWidgetId);
+          if (widget) {
+            editor.addWidget(widget.type);
+            const newId = editor.selectedWidgetId;
+            if (newId) {
+              const values: Record<string, unknown> = {};
+              const offset = 3;
+              for (const [k, v] of Object.entries(widget)) {
+                if (k === 'id' || k === 'type') continue;
+                if (k === 'freeX') { values[k] = Math.min(90, (v as number) + offset); continue; }
+                if (k === 'freeY') { values[k] = Math.min(90, (v as number) + offset); continue; }
+                values[k] = v;
+              }
+              editor.updateWidget(newId, values);
+            }
+            e.preventDefault();
+          }
+        }
+        return;
+      }
+
+      // nudge with arrow keys（free mode only）
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        if (editor.selectedWidgetId) {
+          const pg = editor.theme.pages[editor.activePageIdx];
+          if (pg?.layoutMode !== 'free') return;
+          const widget = pg.widgets.find(w => w.id === editor.selectedWidgetId);
+          if (!widget) return;
+          const step = e.shiftKey ? 10 : 1;
+          let dx = 0, dy = 0;
+          switch (e.key) {
+            case 'ArrowUp': dy = -step; break;
+            case 'ArrowDown': dy = step; break;
+            case 'ArrowLeft': dx = -step; break;
+            case 'ArrowRight': dx = step; break;
+          }
+          editor.moveWidgetFree(editor.selectedWidgetId, Math.max(0, Math.min(100, (widget.freeX ?? 0) + dx)), Math.max(0, Math.min(100, (widget.freeY ?? 0) + dy)));
+          e.preventDefault();
+        }
+        return;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { mousePosRef.current = { x: e.clientX, y: e.clientY }; };
+    document.addEventListener('mousemove', h);
+    return () => document.removeEventListener('mousemove', h);
+  }, []);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  const handleDragStart = (e: DragStartEvent) => setActiveId(e.active.id as string);
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = e;
+    if (!over) return;
+    const aid = active.id as string;
+    if (!aid.startsWith('lib-')) return;
+    const type = aid.replace('lib-', '');
+    const el = document.querySelector('.canvas') as HTMLElement | null;
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const st = useEditorStore.getState();
+      const pg = st.theme.pages[st.activePageIdx];
+      if (pg) {
+        const cols = pg.columns, rows = pg.rows;
+        const cw = rect.width / cols, ch = rect.height / rows;
+        const col = Math.max(0, Math.min(cols - 1, Math.floor((mousePosRef.current.x - rect.left) / cw)));
+        const row = Math.max(0, Math.min(rows - 1, Math.floor((mousePosRef.current.y - rect.top) / ch)));
+        addWidgetAt(type, col, row);
+        return;
+      }
+    }
+    addWidgetAt(type, 0, 0);
+  };
+
+  const handleSave = useCallback(async () => {
+    if (!theme.id) return message.warning(t('editor.messages.needThemeId'));
+    if (!theme.name) return message.warning(t('editor.messages.needThemeName'));
+    setSaving(true);
+    try {
+      // migrate base64 images to the assets/ directory，replace references with relative paths
+      const themeMeta = await migrateImagesToAssets(editorToThemeMeta(theme));
+      // generate cover image（fallback to a default placeholder cover on failure）
+      let coverData: string | null = null;
+      try {
+        coverData = themeMeta.pages.length > 0
+          ? await generateThemeCover(themeMeta)
+          : await generateDefaultCover(themeMeta.name);
+      } catch {
+        coverData = null;
+      }
+      await tauriInvoke('save_theme', { theme: themeMeta, coverPath: null, coverData });
+      // on save success，clear the local draft
+      clearDraft();
+      // save a version history snapshot
+      saveVersion();
+      message.success(t('editor.messages.saved'));
+    } catch (e) { message.error(String(e)); }
+    finally { setSaving(false); }
+  }, [theme, setSaving]);
+
+  // Ctrl+S / Cmd+S save
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleSave]);
+
+  const handleExport = async () => {
+    try {
+      await handleSave();
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const path = await save({
+        defaultPath: `${theme.name || theme.id}_${theme.version || '1.0.0'}.alc`,
+        filters: [{ name: t('editor.toolbar.alcFilter'), extensions: ['alc'] }],
+      });
+      if (!path) return;
+      setExporting(true);
+      try {
+        await tauriInvoke('export_theme', { id: theme.id, outputPath: path });
+        message.success(t('editor.messages.exported'));
+      } finally {
+        setExporting(false);
+      }
+    } catch (e) { message.error(String(e)); }
+  };
+
+  const handleSaveAsNew = async () => {
+    // save as：generate a new id，save as a new theme，does not overwrite the current one
+    if (!theme.name) return message.warning(t('editor.messages.needThemeName'));
+    setSaving(true);
+    try {
+      const newId = `theme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+      const newTheme = { ...theme, id: newId };
+      const themeMeta = await migrateImagesToAssets(editorToThemeMeta(newTheme));
+      let coverData: string | null = null;
+      try {
+        coverData = themeMeta.pages.length > 0
+          ? await generateThemeCover(themeMeta)
+          : await generateDefaultCover(themeMeta.name);
+      } catch { coverData = null; }
+      await tauriInvoke('save_theme', { theme: themeMeta, coverPath: null, coverData });
+      clearDraft();
+      message.success(t('editor.messages.savedAsNew'));
+      // navigate to the new theme
+      navigate(`/themes/edit/${newId}`);
+    } catch (e) { message.error(String(e)); }
+    finally { setSaving(false); }
+  };
+
+  const saveMenuItems = [
+    { key: 'save', label: t('editor.toolbar.save'), icon: <SaveOutlined /> },
+    { key: 'saveAsNew', label: t('editor.toolbar.saveAsNew'), icon: <SaveOutlined /> },
+  ];
+
+  const handleSaveDropdown = ({ key }: { key: string }) => {
+    if (key === 'save') handleSave();
+    else if (key === 'saveAsNew') handleSaveAsNew();
+  };
+
+  const totalWidgets = theme.pages.reduce((s, p) => s + p.widgets.length, 0);
+
+  return (
+    <div className="editor-root">
+      <div className="editor-toolbar">
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/themes')}>{t('editor.toolbar.back')}</Button>
+        <Input
+          size="small"
+          value={theme.name}
+          onChange={(e) => setThemeName(e.target.value)}
+          placeholder={t('editor.toolbar.newTheme')}
+          style={{ width: 180, fontSize: 14 }}
+        />
+        <Space>
+          <Button size="small" icon={<UndoOutlined />} disabled={!canUndo} onClick={undo} title={t('editor.toolbar.undo')} />
+          <Button size="small" icon={<RedoOutlined />} disabled={!canRedo} onClick={redo} title={t('editor.toolbar.redo')} />
+          <Button size="small" icon={orientation === 'portrait' ? <MobileOutlined /> : <TabletOutlined />} onClick={toggleOrientation}>
+            {orientation === 'portrait' ? t('editor.toolbar.portrait') : t('editor.toolbar.landscape')}
+          </Button>
+          <Slider min={50} max={150} value={zoom} onChange={setZoom} style={{ width: 100 }} tooltip={{ formatter: v => `${v}%` }} />
+          <Button icon={<ExportOutlined />} loading={exporting} onClick={handleExport} disabled={!theme.id}>{t('editor.toolbar.export')}</Button>
+          <Button icon={<FolderOutlined />} onClick={() => setFileMgrOpen(true)} disabled={!theme.id}>{t('editor.toolbar.file')}</Button>
+          <Button icon={<HistoryOutlined />} onClick={() => { loadVersionHistory(theme.id); setVersionHistoryOpen(true); }} disabled={!theme.id} title={t('editor.versionHistory.title')} />
+          <Space.Compact>
+            <Button type="primary" loading={saving} onClick={handleSave}>{t('editor.toolbar.save')}</Button>
+            <Dropdown menu={{ items: saveMenuItems, onClick: handleSaveDropdown }}>
+              <Button type="primary" icon={<DownOutlined />} />
+            </Dropdown>
+          </Space.Compact>
+          <Button size="small" icon={<QuestionCircleOutlined />} onClick={handleOpenEditorGuide} title={t('onboarding.tutorial')} />
+        </Space>
+      </div>
+
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="editor-body">
+          <div ref={guideRefLeftPanel} style={{ width: leftPanel.width, flexShrink: 0, overflow: 'hidden' }}><ControlLibrary /></div>
+          <div className="editor-divider" onMouseDown={leftPanel.onMouseDown} />
+          <div ref={guideRefCanvas} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}><PreviewArea /></div>
+          <div className="editor-divider" onMouseDown={rightPanel.onRightMouseDown} />
+          <div ref={guideRefRightPanel} style={{ width: rightPanel.width, flexShrink: 0, overflow: 'hidden' }}>
+            <PropertyPanel onAddPage={() => setAddPageOpen(true)} />
+          </div>
+        </div>
+        <DragOverlay dropAnimation={null}>
+          {activeId && LIB_LABELS[activeId] && <div className="drag-preview">{t(LIB_LABELS[activeId])}</div>}
+        </DragOverlay>
+      </DndContext>
+
+      <div ref={guideRefAIPanel}><AIPanel /></div>
+      <PageTabs onAddPage={() => setAddPageOpen(true)} />
+      <div className="editor-statusbar">
+        <span>{t('editor.statusbar.widgets', { count: totalWidgets })}</span>
+        <span>{t('editor.statusbar.pages', { count: theme.pages.length })}</span>
+        <span>{orientation === 'portrait' ? t('editor.statusbar.portrait') : t('editor.statusbar.landscape')}</span>
+      </div>
+
+      <PageTemplateModal open={addPageOpen} onSelect={(pt) => { addPageFromTemplate(clonePageTemplate(pt.page)); setAddPageOpen(false); }} onCancel={() => setAddPageOpen(false)} />
+      <ThemeFileManager themeId={theme.id} open={fileMgrOpen} onClose={() => setFileMgrOpen(false)} />
+      {/* draft recovery modal */}
+      <Modal
+        title={t('editor.messages.draftRecoverTitle')}
+        open={!!draftModal}
+        onCancel={() => {
+          clearDraft();
+          setDraftModal(null);
+          if (isNew) {
+            if (templateId) {
+              const tpl = getTemplateById(templateId);
+              if (tpl) {
+                const cloned = cloneTemplate(tpl);
+                cloned.id = `theme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+                replaceTheme(cloned);
+              } else {
+                initNewTheme();
+              }
+            } else {
+              initNewTheme();
+            }
+          }
+        }}
+        footer={[
+          <Button key="discard" onClick={() => {
+            clearDraft();
+            setDraftModal(null);
+            if (isNew) {
+              if (templateId) {
+                const tpl = getTemplateById(templateId);
+                if (tpl) {
+                  const cloned = cloneTemplate(tpl);
+                  cloned.id = `theme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+                  replaceTheme(cloned);
+                } else {
+                  initNewTheme();
+                }
+              } else {
+                initNewTheme();
+              }
+            }
+          }}>
+            {t('editor.messages.draftDiscard')}
+          </Button>,
+          <Button key="recover" type="primary" onClick={() => {
+            const draft = draftModal;
+            if (draft) {
+              replaceTheme(draft.theme);
+              useEditorStore.getState().setActivePage(draft.activePageIdx);
+              useEditorStore.getState().setZoom(draft.zoom);
+              if (draft.orientation !== useEditorStore.getState().orientation) {
+                useEditorStore.getState().toggleOrientation();
+              }
+            }
+            clearDraft();
+            setDraftModal(null);
+          }}>
+            {t('editor.messages.draftRecover')}
+          </Button>,
+        ]}
+      >
+        <p>{isNew ? t('editor.messages.draftRecoverNew') : t('editor.messages.draftRecoverExisting')}</p>
+      </Modal>
+      {/* version history modal */}
+      <Modal
+        title={t('editor.versionHistory.title')}
+        open={versionHistoryOpen}
+        onCancel={() => setVersionHistoryOpen(false)}
+        footer={null}
+        width={560}
+      >
+        {versionHistory.length === 0 ? (
+          <Empty description={t('editor.versionHistory.noHistory')} />
+        ) : (
+          <List
+            dataSource={[...versionHistory].reverse()}
+            renderItem={(ver: ThemeVersion, i: number) => {
+              const realIdx = versionHistory.length - 1 - i;
+              const isCurrent = realIdx === currentVersionIdx;
+              return (
+                <List.Item
+                  actions={[
+                    !isCurrent ? (
+                      <Button
+                        size="small"
+                        danger
+                        onClick={() => {
+                          Modal.confirm({
+                            title: t('editor.versionHistory.rollback'),
+                            content: t('editor.versionHistory.confirmRollback'),
+                            onOk: () => {
+                              rollbackToVersion(realIdx);
+                              setVersionHistoryOpen(false);
+                            },
+                          });
+                        }}
+                      >
+                        {t('editor.versionHistory.rollback')}
+                      </Button>
+                    ) : (
+                      <Tag color="blue">{t('editor.versionHistory.current')}</Tag>
+                    ),
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={
+                      <span>
+                        v{ver.version}
+                        {isCurrent && <Tag color="blue" style={{ marginLeft: 8 }}>{t('editor.versionHistory.current')}</Tag>}
+                      </span>
+                    }
+                    description={
+                      <div>
+                        <div style={{ fontSize: 12, color: '#999' }}>{new Date(ver.timestamp).toLocaleString()}</div>
+                        {ver.changelog && <div style={{ marginTop: 4 }}>{ver.changelog}</div>}
+                      </div>
+                    }
+                  />
+                </List.Item>
+              );
+            }}
+          />
+        )}
+      </Modal>
+      {/* editor guide Tour */}
+      <Tour
+        open={editorGuideOpen}
+        onClose={() => {
+          localStorage.setItem(EDITOR_GUIDE_KEY, '1');
+          setEditorGuideOpen(false);
+        }}
+        steps={[
+          {
+            title: t('onboarding.editorGuide.leftPanelTitle'),
+            description: t('onboarding.editorGuide.leftPanel'),
+            target: () => guideRefLeftPanel.current!,
+          },
+          {
+            title: t('onboarding.editorGuide.canvasTitle'),
+            description: t('onboarding.editorGuide.canvas'),
+            target: () => guideRefCanvas.current!,
+          },
+          {
+            title: t('onboarding.editorGuide.rightPanelTitle'),
+            description: t('onboarding.editorGuide.rightPanel'),
+            target: () => guideRefRightPanel.current!,
+          },
+          {
+            title: t('onboarding.editorGuide.aiPanelTitle'),
+            description: t('onboarding.editorGuide.aiPanel'),
+            target: () => guideRefAIPanel.current!,
+          },
+        ]}
+      />
+    </div>
+  );
+}

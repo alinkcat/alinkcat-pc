@@ -1,0 +1,41 @@
+{
+  "dialog": {
+    "title": "推送到手机",
+    "device": "目标设备",
+    "noDevice": "无可用设备",
+    "theme": "主题包",
+    "progress": "推送进度",
+    "sent": "已发送",
+    "speed": "速度",
+    "status": "状态",
+    "start": "开始推送",
+    "cancel": "取消",
+    "retry": "重传",
+    "resume": "继续",
+    "close": "关闭",
+    "selectAll": "全选",
+    "connected": "已连接",
+    "needStart": "请先启动服务并连接设备",
+    "interrupted": "传输已中断（已传输 {{pct}}%），是否继续？",
+    "resumeHint": "可点击继续从中断处继续，或重传从头开始",
+    "unknownDevice": "未知设备",
+    "unknownError": "未知错误",
+    "eta": "预计剩余",
+    "etaSeconds": "{{s}}秒",
+    "etaMinutes": "{{m}}分{{s}}秒",
+    "autoRetry": "自动重试中 ({{n}}/{{max}})...",
+    "cancelAutoRetry": "取消自动重试",
+    "doNotRetry": "不再重试"
+  },
+  "status": {
+    "packing": "正在打包...",
+    "awaiting_confirm": "等待手机确认...",
+    "connecting": "连接中...",
+    "pushing": "正在推送...",
+    "completed": "推送完成",
+    "failed": "推送失败",
+    "cancelled": "已取消",
+    "idle": "准备中",
+    "retrying": "自动重试中..."
+  }
+}

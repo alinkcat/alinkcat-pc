@@ -1,0 +1,35 @@
+{
+  "sidebar": {
+    "themes": "Theme Management",
+    "devices": "Device Management",
+    "snippets": "Quick Input",
+    "market": "Theme Market",
+    "profile": "Profile",
+    "settings": "Settings",
+    "admin": "Admin Dashboard",
+    "adminThemes": "Theme Review",
+    "adminTickets": "Ticket Management",
+    "loginRegister": "Login / Register",
+    "logout": "Logout",
+    "loginTip": "Login/Register",
+    "member": "Membership",
+    "mycloud": "Cloud Backup",
+    "points": "Points",
+    "tickets": "Tickets",
+    "invite": "Invite",
+    "cloudServices": "Cloud Services",
+    "cloudLoginRequired": "Log in to use Cloud Services"
+  },
+  "header": {
+    "switchLight": "Switch to Light Mode",
+    "switchDark": "Switch to Dark Mode",
+    "notifications": "Notifications",
+    "settings": "Settings"
+  },
+  "footer": {
+    "running": "Service Running",
+    "stopped": "Service Stopped",
+    "port": "Port",
+    "devices": "Devices"
+  }
+}

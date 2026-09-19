@@ -1,0 +1,93 @@
+{
+  "id": "control-center",
+  "name": "Control Center",
+  "version": "1.0.0",
+  "author": "ailinkcat",
+  "description": "Quick controls for common operations",
+  "pages": [
+    {
+      "id": "media",
+      "label": "Media",
+      "layout": { "type": "grid", "columns": 3, "rows": 2 },
+      "widgets": [
+        {
+          "type": "button",
+          "id": "play-pause",
+          "label": "Play/Pause",
+          "icon": "▶️",
+          "action": { "type": "keyboard", "keys": ["Space"] }
+        },
+        {
+          "type": "button",
+          "id": "next-track",
+          "label": "Next",
+          "icon": "⏭️",
+          "action": { "type": "keyboard", "keys": ["ArrowRight"] }
+        },
+        {
+          "type": "button",
+          "id": "prev-track",
+          "label": "Previous",
+          "icon": "⏮️",
+          "action": { "type": "keyboard", "keys": ["ArrowLeft"] }
+        },
+        {
+          "type": "button",
+          "id": "volume-up",
+          "label": "Volume+",
+          "icon": "🔊",
+          "action": { "type": "keyboard", "keys": ["AudioVolumeUp"] }
+        },
+        {
+          "type": "button",
+          "id": "volume-down",
+          "label": "Volume-",
+          "icon": "🔉",
+          "action": { "type": "keyboard", "keys": ["AudioVolumeDown"] }
+        },
+        {
+          "type": "button",
+          "id": "mute",
+          "label": "Mute",
+          "icon": "🔇",
+          "action": { "type": "keyboard", "keys": ["AudioMute"] }
+        }
+      ]
+    },
+    {
+      "id": "apps",
+      "label": "Apps",
+      "layout": { "type": "grid", "columns": 2, "rows": 3 },
+      "widgets": [
+        {
+          "type": "button",
+          "id": "open-browser",
+          "label": "Browser",
+          "icon": "🌐",
+          "action": { "type": "url", "url": "https://www.google.com" }
+        },
+        {
+          "type": "button",
+          "id": "open-calc",
+          "label": "Calculator",
+          "icon": "🧮",
+          "action": { "type": "open", "path": "calc" }
+        },
+        {
+          "type": "button",
+          "id": "open-notepad",
+          "label": "Notepad",
+          "icon": "📝",
+          "action": { "type": "open", "path": "notepad" }
+        },
+        {
+          "type": "button",
+          "id": "open-explorer",
+          "label": "File Manager",
+          "icon": "📁",
+          "action": { "type": "open", "path": "explorer" }
+        }
+      ]
+    }
+  ]
+}

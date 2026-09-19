@@ -1,0 +1,64 @@
+{
+  "title": "管理后台",
+  "subtitle": "审核主题、管理工单、查看统计数据",
+  "noPermission": "无管理员权限",
+  "stats": {
+    "userCount": "用户总数",
+    "themeCount": "主题包总数",
+    "pendingReview": "待审核",
+    "openTickets": "未处理工单",
+    "totalDownloads": "总下载量"
+  },
+  "review": {
+    "title": "主题审核",
+    "modalTitle": "审核主题包",
+    "approve": "通过",
+    "reject": "驳回",
+    "approved": "已通过",
+    "rejected": "已驳回",
+    "commentPlaceholder": "审核意见（选填）",
+    "action": "审核",
+    "nameLabel": "名称：",
+    "authorLabel": "作者：",
+    "descLabel": "描述：",
+    "columns": {
+      "id": "ID",
+      "name": "名称",
+      "author": "作者",
+      "category": "分类",
+      "submitTime": "提交时间",
+      "status": "状态",
+      "action": "操作"
+    },
+    "status": {
+      "pending": "待审核",
+      "approved": "已通过",
+      "rejected": "已驳回"
+    }
+  },
+  "tickets": {
+    "title": "工单管理",
+    "modalTitle": "回复工单",
+    "reply": "回复",
+    "replySuccess": "回复成功",
+    "replyPlaceholder": "输入回复内容...",
+    "other": "其他",
+    "titleLabel": "标题：",
+    "contentLabel": "内容：",
+    "columns": {
+      "id": "ID",
+      "title": "标题",
+      "user": "用户",
+      "category": "类型",
+      "status": "状态",
+      "createdAt": "创建时间",
+      "action": "操作"
+    },
+    "status": {
+      "pending": "待处理",
+      "processing": "处理中",
+      "replied": "已回复",
+      "closed": "已关闭"
+    }
+  }
+}

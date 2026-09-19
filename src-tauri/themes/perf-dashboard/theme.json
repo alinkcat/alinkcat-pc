@@ -1,0 +1,40 @@
+{
+  "id": "perf-dashboard",
+  "name": "Performance Dashboard",
+  "version": "1.0.0",
+  "author": "ailinkcat",
+  "description": "Real-time PC performance monitoring",
+  "pages": [
+    {
+      "id": "monitor",
+      "label": "Performance",
+      "layout": { "type": "grid", "columns": 2, "rows": 2 },
+      "widgets": [
+        {
+          "type": "gauge",
+          "id": "cpu-gauge",
+          "label": "CPU",
+          "dataSource": "system.cpu.usage"
+        },
+        {
+          "type": "gauge",
+          "id": "memory-gauge",
+          "label": "Memory",
+          "dataSource": "system.memory.usage"
+        },
+        {
+          "type": "gauge",
+          "id": "disk-gauge",
+          "label": "Disk",
+          "dataSource": "system.disk.usage"
+        },
+        {
+          "type": "gauge",
+          "id": "uptime-gauge",
+          "label": "Uptime",
+          "dataSource": "system.uptime"
+        }
+      ]
+    }
+  ]
+}
