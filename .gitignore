@@ -25,4 +25,4 @@ Thumbs.db
 
 # Temp
 src-tauri/icons/android/
-src-tauri/icons/ios/
+src-tauri/icons/ios/.dsh-worktrees/

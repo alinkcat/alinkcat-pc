@@ -19,7 +19,7 @@ import { SaveOutlined, RobotOutlined, ReloadOutlined, BugOutlined, UploadOutline
 import { useTranslation } from 'react-i18next';
 import { useAIStore } from '../store/aiStore';
 import { useI18nStore } from '../i18n/useI18nStore';
-import { exportEncryptedLogs } from '../utils/errorExport';
+import { exportLogs } from '../utils/errorExport';
 import { getLogs } from '../utils/logger';
 import { devConfig, config as appConfig } from '../config';
 import { getDeveloperPassword } from '../utils/md5';
@@ -175,7 +175,7 @@ export default function Settings() {
 
   const handleExportLogs = async () => {
     try {
-      await exportEncryptedLogs();
+      await exportLogs();
       message.success(t('settings.logs_exported'));
     } catch (e) {
       message.info(String(e instanceof Error ? e.message : e));
