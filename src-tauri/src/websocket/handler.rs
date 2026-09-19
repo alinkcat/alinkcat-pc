@@ -35,6 +35,8 @@ pub async fn dispatch(
         .unwrap();
     }
 
+    println!("[WebSocket] dispatch: method='{}' from client={}", req.method, client_id);
+
     let resp = match req.method.as_str() {
         "action.execute" => handle_action_execute(&req, client_id, clients).await,
         "monitor.subscribe" => handle_monitor_subscribe(&req, client_id, monitor, true).await,
@@ -48,7 +50,10 @@ pub async fn dispatch(
         "theme.leave" => handle_theme_leave(&req, client_id, monitor).await,
         "launcher.open" => handle_launcher_open(&req).await,
         "snippet.inject" => handle_snippet_inject(&req).await,
-        _ => JsonRpcResponse::error(-32601, "Method not found", req.id),
+        _ => {
+            println!("[WebSocket] ⚠ unknown method '{}' from {}", req.method, client_id);
+            JsonRpcResponse::error(-32601, "Method not found", req.id)
+        }
     };
 
     serde_json::to_string(&resp).unwrap()

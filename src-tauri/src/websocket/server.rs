@@ -400,7 +400,7 @@ async fn handle_connection(
         if let Some(sched) = crate::services::media_scheduler::global_media_scheduler() {
             sched.lock().await.remove_client(&old_id);
         }
-        println!("[Monitor] client {} duplicate connection kicked, cleaned up its push tasks", old_id);
+        println!("[WebSocket] DUPLICATE: new device '{}' kicked old client {}", params.device_name, old_id);
         WebSocketServer::push_log(
             &logs,
             format!("device {} duplicate connection, old connection closed", params.device_name),
@@ -441,49 +441,67 @@ async fn handle_connection(
         &logs,
         format!("device {} (v{}) connected, from {}", params.device_name, params.app_version, peer),
     );
-    println!("[WebSocket] Client {} paired from {}", client_id, peer);
+    println!("[WebSocket] Client {} paired from {} (deviceName='{}')", client_id, peer, params.device_name);
 
     // ── Phase 2: Bidirectional message pump ──
 
     let cid_recv = client_id.clone();
+    let cid_send = client_id.clone();
     let clients_recv = clients.clone();
     let mon_recv = monitor.clone();
 
     let mut send_task = tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
             if ws_tx.send(Message::Text(msg.into())).await.is_err() {
+                println!("[WebSocket] send_task broke for {}", cid_send);
                 break;
             }
         }
+        println!("[WebSocket] send_task ended for {}", cid_send);
     });
 
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = ws_rx.next().await {
-            if let Message::Text(text) = msg {
-                // First parse as a response (push acknowledgment); consume it if it matches AckBus, otherwise dispatch normally
-                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
-                    let has_method = v.get("method").is_some();
-                    let id_num = v.get("id").and_then(|i| i.as_u64());
-                    if !has_method {
-                        if let Some(id) = id_num {
-                            if ack_bus.resolve(id, v.clone()) {
-                                continue;
+            match msg {
+                Message::Text(text) => {
+                    // First parse as a response (push acknowledgment); consume it if it matches AckBus, otherwise dispatch normally
+                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
+                        let has_method = v.get("method").is_some();
+                        let id_num = v.get("id").and_then(|i| i.as_u64());
+                        if !has_method {
+                            if let Some(id) = id_num {
+                                if ack_bus.resolve(id, v.clone()) {
+                                    continue;
+                                }
                             }
                         }
                     }
+                    let resp = handler::dispatch(&text, &cid_recv, &clients_recv, &mon_recv).await;
+                    let map = clients_recv.lock().await;
+                    if let Some(client) = map.get(&cid_recv) {
+                        let _ = client.sender.send(resp);
+                    }
                 }
-                let resp = handler::dispatch(&text, &cid_recv, &clients_recv, &mon_recv).await;
-                let map = clients_recv.lock().await;
-                if let Some(client) = map.get(&cid_recv) {
-                    let _ = client.sender.send(resp);
+                Message::Close(_) => {
+                    println!("[WebSocket] {} sent Close frame", cid_recv);
+                    break;
                 }
+                Message::Ping(_) | Message::Pong(_) => {}
+                _ => {}
             }
         }
+        println!("[WebSocket] recv_task ended for {} (ws_rx stream closed)", cid_recv);
     });
 
     tokio::select! {
-        _ = &mut send_task => recv_task.abort(),
-        _ = &mut recv_task => send_task.abort(),
+        _ = &mut send_task => {
+            println!("[WebSocket] {} disconnected (send side ended)", client_id);
+            recv_task.abort();
+        }
+        _ = &mut recv_task => {
+            println!("[WebSocket] {} disconnected (recv side ended)", client_id);
+            send_task.abort();
+        }
     }
 
     // ── Phase 3: Cleanup ──
