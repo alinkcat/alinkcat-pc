@@ -346,8 +346,10 @@ async fn handle_connection(
     };
 
     if req.method != "handshake" {
-        let err = JsonRpcResponse::error(-32601, "Method not found: expected handshake", req.id);
+        let msg = format!("Method not found: expected handshake, got '{}'", req.method);
+        let err = JsonRpcResponse::error(-32601, &msg, req.id);
         let _ = ws_tx.send(Message::Text(serde_json::to_string(&err)?.into())).await;
+        WebSocketServer::push_log(&logs, format!("{} rejected: {}", peer, msg));
         return Ok(());
     }
 
@@ -440,6 +442,24 @@ async fn handle_connection(
         format!("device {} (v{}) connected, from {}", params.device_name, params.app_version, peer),
     );
     println!("[WebSocket] Client {} paired from {}", client_id, peer);
+
+    // Auto-subscribe to monitor + media so data flows immediately.
+    // The phone may not send theme.enter / monitor.subscribe reliably on reconnect.
+    if let Some(mon) = &monitor {
+        let mut m = mon.lock().await;
+        m.subscribe(
+            &client_id,
+            ["cpu", "memory", "network", "disk", "uptime", "battery"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        );
+        m.start();
+    }
+    if let Some(sched) = crate::services::media_scheduler::global_media_scheduler() {
+        let mut s = sched.lock().await;
+        s.subscribe(&client_id, vec!["media".into()]);
+    }
 
     // ── Phase 2: Bidirectional message pump ──
 
