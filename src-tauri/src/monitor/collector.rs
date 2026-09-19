@@ -54,6 +54,13 @@ impl Collector {
             snap.uptime = self.collect_uptime();
         }
 
+        eprintln!(
+            "[Collector] cpu={:?} mem={:?} net={:?} disk={:?} batt={:?} up={:?}",
+            snap.cpu, snap.memory,
+            snap.network.as_ref().map(|n| (n.upload, n.download)),
+            snap.disk, snap.battery, snap.uptime
+        );
+
         snap
     }
 
@@ -149,15 +156,20 @@ impl Collector {
         }
         unsafe {
             let host = mach_host_self();
+            if host == 0 {
+                eprintln!("[Collector] mach_host_self() returned 0");
+                return None;
+            }
             let mut info = host_cpu_load_info { cpu_ticks: [0; 4] };
             let mut count = HOST_CPU_LOAD_INFO_COUNT;
-            if host_statistics(
+            let kr = host_statistics(
                 host,
                 HOST_CPU_LOAD_INFO,
                 info.cpu_ticks.as_mut_ptr(),
                 &mut count,
-            ) != 0
-            {
+            );
+            if kr != 0 {
+                eprintln!("[Collector] host_statistics(HOST_CPU_LOAD_INFO) failed: kr={}", kr);
                 return None;
             }
             let user = info.cpu_ticks[0] as u64;
@@ -268,15 +280,20 @@ impl Collector {
         }
         unsafe {
             let host = mach_host_self();
+            if host == 0 {
+                eprintln!("[Collector] mach_host_self() returned 0 (memory)");
+                return None;
+            }
             let mut stats = mem::zeroed::<vm_statistics64>();
             let mut count = mem::size_of::<vm_statistics64>() as u32 / 4;
-            if host_statistics64(
+            let kr = host_statistics64(
                 host,
                 HOST_VM_INFO64,
                 &mut stats as *mut _ as *mut u32,
                 &mut count,
-            ) != 0
-            {
+            );
+            if kr != 0 {
+                eprintln!("[Collector] host_statistics64(HOST_VM_INFO64) failed: kr={}, count={}", kr, count);
                 return None;
             }
             let mut total_mem: u64 = 0;

@@ -49,16 +49,18 @@ impl MonitorScheduler {
 
         let mut collector = Collector::new();
 
-let handle = tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             let mut ticker = tokio::time::interval(interval);
             ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             let mut first = true;
+            let mut tick_n: u32 = 0;
 
             loop {
                 tokio::select! {
                     _ = &mut stop_rx => break,
                     _ = ticker.tick() => {},
                 }
+                tick_n += 1;
 
                 let snapshot = {
                     let map = clients.lock().await;
@@ -104,15 +106,21 @@ let handle = tokio::spawn(async move {
 
                 let map = clients.lock().await;
                 let subs = subscriptions.lock().unwrap();
+                let sub_count = subs.len();
+                let client_count = map.len();
+                let mut pushed = 0;
                 for (client_id, client) in map.iter() {
                     if subs.contains_key(client_id) {
-                        let _ = client.sender.send(payload.clone());
+                        if client.sender.send(payload.clone()).is_ok() {
+                            pushed += 1;
+                        }
                     }
                 }
-
-                if let Some(cpu) = snapshot.cpu {
-                    println!("[Monitor] Pushing monitor.update -> CPU: {:.1}%, Memory: {:.1}%", cpu, snapshot.memory.unwrap_or(0.0));
-                }
+                eprintln!(
+                    "[Monitor] tick={} clients={} subs={} pushed={} cpu={:?} mem={:?} batt={:?}",
+                    tick_n, client_count, sub_count, pushed,
+                    snapshot.cpu, snapshot.memory, snapshot.battery.as_ref().map(|b| b.level)
+                );
             }
         });
 
