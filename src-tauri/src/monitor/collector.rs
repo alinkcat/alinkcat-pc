@@ -314,9 +314,16 @@ impl Collector {
             }
             let page_size: u64 = 4096;
             // free + inactive + speculative are reclaimable on macOS
-            let available = (stats._free_count + stats._inactive_count
-                + stats._speculative_count) as u64 * page_size;
-            Some(((total_mem - available) as f64 / total_mem as f64 * 100.0).clamp(0.0, 100.0))
+            let free_pages = stats._free_count as u64;
+            let inactive_pages = stats._inactive_count as u64;
+            let spec_pages = stats._speculative_count as u64;
+            let available = (free_pages + inactive_pages + spec_pages) * page_size;
+            eprintln!(
+                "[Collector] mem: free={} inactive={} spec={} pages, available={}B / total={}B",
+                free_pages, inactive_pages, spec_pages, available, total_mem
+            );
+            let used = total_mem.saturating_sub(available);
+            Some((used as f64 / total_mem as f64 * 100.0).clamp(0.0, 100.0))
         }
     }
 
