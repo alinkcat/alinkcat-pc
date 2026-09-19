@@ -49,7 +49,9 @@ pub async fn dispatch(
         "theme.enter" => handle_theme_enter(&req, client_id, monitor, clients).await,
         "theme.leave" => handle_theme_leave(&req, client_id, monitor).await,
         "launcher.open" => handle_launcher_open(&req).await,
+        "launcher.list" => handle_launcher_list(&req).await,
         "snippet.inject" => handle_snippet_inject(&req).await,
+        "snippet.list" => handle_snippet_list(&req).await,
         _ => {
             println!("[WebSocket] ⚠ unknown method '{}' from {}", req.method, client_id);
             JsonRpcResponse::error(-32601, "Method not found", req.id)
@@ -265,4 +267,30 @@ async fn handle_snippet_inject(req: &JsonRpcRequest) -> JsonRpcResponse {
         Ok(()) => JsonRpcResponse::success(serde_json::json!({"status": "ok", "length": text.len()}), req.id.clone()),
         Err(e) => JsonRpcResponse::error(-32000, &e, req.id.clone()),
     }
+}
+
+/// Return the list of registered launchers so the Android client can display them.
+async fn handle_launcher_list(req: &JsonRpcRequest) -> JsonRpcResponse {
+    let items = launcher_service::list();
+    let list = items
+        .iter()
+        .map(|i| serde_json::json!({ "id": &i.id, "name": &i.name, "path": &i.path }))
+        .collect::<Vec<_>>();
+    JsonRpcResponse::success(serde_json::json!({ "items": list }), req.id.clone())
+}
+
+/// Return the list of saved snippets. Currently reads from ~/.ilinkcat/snippets.json.
+async fn handle_snippet_list(req: &JsonRpcRequest) -> JsonRpcResponse {
+    let path = dirs::home_dir()
+        .map(|h| h.join(".ilinkcat").join("snippets.json"))
+        .unwrap_or_default();
+    let items: Vec<serde_json::Value> = if path.exists() {
+        std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|s| serde_json::from_str::<Vec<serde_json::Value>>(&s).ok())
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
+    JsonRpcResponse::success(serde_json::json!({ "items": items }), req.id.clone())
 }
