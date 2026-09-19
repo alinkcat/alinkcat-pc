@@ -89,6 +89,8 @@ impl MonitorScheduler {
                     .map(|n| format!("{:.1} KB/s", n.download))
                     .unwrap_or_default();
 
+                let battery_level = snapshot.battery.as_ref().map(|b| b.level);
+
                 let msg = serde_json::json!({
                     "jsonrpc": "2.0",
                     "method": "monitor.update",
@@ -99,7 +101,7 @@ impl MonitorScheduler {
                         "upload": upload,
                         "download": download,
                         "uptime": snapshot.uptime,
-                        "battery": snapshot.battery
+                        "battery": battery_level
                     }
                 });
                 let payload = serde_json::to_string(&msg).unwrap_or_default();

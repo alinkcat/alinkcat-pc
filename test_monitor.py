@@ -271,8 +271,12 @@ def main():
             batt = p.get("battery")
 
             batt_str = ""
-            if batt:
-                batt_str = f" | batt: {batt.get('level', '?')}% chg={batt.get('charging', '?')}"
+            if batt is not None:
+                if isinstance(batt, dict):
+                    batt_str = (f" | batt: {batt.get('level', '?')}%"
+                                f" chg={batt.get('charging', '?')}")
+                else:
+                    batt_str = f" | batt: {batt}%"
 
             nulls = []
             if cpu is None: nulls.append("cpu")

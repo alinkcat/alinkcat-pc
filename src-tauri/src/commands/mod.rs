@@ -99,21 +99,39 @@ pub async fn regenerate_pairing_code(state: State<'_, WsServerState>) -> Result<
 
 /// Get all non-loopback IPv4 LAN addresses (for the mobile connection QR code).
 #[tauri::command]
-pub fn get_local_ip() -> Vec<String> {    let mut ips = Vec::new();
+pub fn get_local_ip() -> Vec<String> {
+    let mut ips = Vec::new();
     if let Ok(list) = local_ip_address::list_afinet_netifas() {
         for (name, ip) in list {
             if ip.is_loopback() {
                 continue;
             }
             if let std::net::IpAddr::V4(v4) = ip {
-                if name.to_lowercase().contains("lo") {
+                let n = name.to_lowercase();
+                // Filter virtual interfaces that cause wrong IPs on macOS:
+                // bridge (Docker/Parallels), utun (VPN/iCloud), awdl/llw (AirDrop),
+                // veth/docker (containers), tap (VMs)
+                if n.contains("lo")
+                    || n.contains("bridge")
+                    || n.contains("utun")
+                    || n.contains("awdl")
+                    || n.contains("llw")
+                    || n.contains("veth")
+                    || n.contains("docker")
+                    || n.contains("tap")
+                {
+                    continue;
+                }
+                // Filter link-local addresses (169.254.x.x)
+                let oct = v4.octets();
+                if oct[0] == 169 && oct[1] == 254 {
                     continue;
                 }
                 ips.push(v4.to_string());
             }
         }
     }
-    // Fall back to UDP socket detection if enumeration fails.
+    // Fall back to UDP socket detection — finds the actual routable LAN IP.
     if ips.is_empty() {
         if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0") {
             if socket.connect("8.8.8.8:80").is_ok() {
