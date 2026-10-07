@@ -1,0 +1,15 @@
+{
+  "assets": [
+    {
+      "file": "background.png",
+      "url": "https://example.com/assets/background.png",
+      "dest": "themes\\example-theme\\assets",
+      "minSize": 50000
+    },
+    {
+      "file": "icon-cpu.svg",
+      "url": "https://example.com/icons/cpu.svg",
+      "dest": "themes\\example-theme\\icons"
+    }
+  ]
+}
