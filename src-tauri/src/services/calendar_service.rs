@@ -1,12 +1,12 @@
 use chrono::{Datelike, NaiveDate};
 use serde::Serialize;
 
-/// 轻量农历（阴历）转换：支持 1900-2100 年，无需外部依赖。
+/// lightweight lunar calendar conversion, 1900-2100, no external deps
 ///
-/// 数据表编码（每个 u32 表示一年）：
-///   bit 0-3   ：闰月编号（0 表示无闰月）
-///   bit 16    ：闰月是否为大月（30 天），否则 29 天
-///   bit 15-3  ：第 1~12 月是否为大月（30 天），否则 29 天
+/// table encoding, one u32 per year:
+///   bits 0-3 : leap month number (0 = no leap month)
+///   bit 16   : leap month is a long month (30 days), else 29
+///   bits 3-15: months 1-12 long (30 days), else 29
 const LUNAR_INFO: [u32; 201] = [
     // 1900-1999
     0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
@@ -45,23 +45,23 @@ const DAY_NAMES: [&str; 30] = [
     "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十",
 ];
 
-/// 农历日期信息（可直接序列化供前端渲染）。
+/// lunar date info, serializes directly for the frontend
 #[derive(Debug, Clone, Serialize)]
 pub struct LunarInfo {
-    /// 公历日期 "YYYY-MM-DD"
+    /// gregorian date "YYYY-MM-DD"
     pub solar: String,
-    /// 干支纪年，如 "丙午"
+    /// ganzhi year, e.g. "丙午"
     #[serde(rename = "lunarYear")]
     pub lunar_year: String,
-    /// 农历月，如 "六月"，闰月为 "闰六月"
+    /// lunar month, e.g. "六月"; leap month is "闰六月"
     #[serde(rename = "lunarMonth")]
     pub lunar_month: String,
-    /// 农历日，如 "廿二"
+    /// lunar day, e.g. "廿二"
     #[serde(rename = "lunarDay")]
     pub lunar_day: String,
-    /// 完整农历字符串，如 "丙午年 闰六月廿二"
+    /// full lunar string, e.g. "丙午年 闰六月廿二"
     pub lunar: String,
-    /// 是否为闰月
+    /// leap month or not
     #[serde(rename = "isLeap")]
     pub is_leap: bool,
 }
@@ -117,7 +117,7 @@ fn ganzhi_year(year: u32) -> String {
     format!("{}{}", gan, zhi)
 }
 
-/// 公历 → 农历（支持 1900-2100）。
+/// gregorian -> lunar (1900-2100)
 fn solar_to_lunar(date: NaiveDate) -> Option<LunarComputed> {
     let base = NaiveDate::from_ymd_opt(1900, 1, 31)?;
     let mut offset = date.signed_duration_since(base).num_days();
@@ -168,7 +168,7 @@ fn solar_to_lunar(date: NaiveDate) -> Option<LunarComputed> {
     Some(LunarComputed { year, month, day: (offset + 1) as u32, is_leap })
 }
 
-/// 获取指定公历日期的农历信息；未传日期时默认使用今天。
+/// lunar info for a gregorian date; defaults to today
 pub fn get_lunar_info(date: Option<NaiveDate>) -> Result<LunarInfo, String> {
     let date = date.unwrap_or_else(|| chrono::Local::now().date_naive());
     let c = solar_to_lunar(date).ok_or_else(|| {
@@ -193,7 +193,7 @@ pub fn get_lunar_info(date: Option<NaiveDate>) -> Result<LunarInfo, String> {
     })
 }
 
-/// 公历日期对应的星期名称，如 "星期一"。
+/// weekday name for a gregorian date, e.g. "星期一"
 pub fn weekday_name(date: NaiveDate) -> &'static str {
     match date.weekday() {
         chrono::Weekday::Mon => "星期一",
@@ -220,16 +220,16 @@ mod tests {
 
     #[test]
     fn known_dates() {
-        assert_lunar(2024, 2, 10, "甲辰", "正月", "初一"); // 2024 春节
-        assert_lunar(2023, 1, 22, "癸卯", "正月", "初一"); // 2023 春节
-        assert_lunar(2000, 2, 5, "庚辰", "正月", "初一"); // 2000 春节
-        assert_lunar(1949, 10, 1, "己丑", "八月", "初十"); // 开国大典
-        assert_lunar(2023, 9, 29, "癸卯", "八月", "十五"); // 2023 中秋
+        assert_lunar(2024, 2, 10, "甲辰", "正月", "初一"); // 2024 CNY
+        assert_lunar(2023, 1, 22, "癸卯", "正月", "初一"); // 2023 CNY
+        assert_lunar(2000, 2, 5, "庚辰", "正月", "初一"); // 2000 CNY
+        assert_lunar(1949, 10, 1, "己丑", "八月", "初十"); // PRC founding day
+        assert_lunar(2023, 9, 29, "癸卯", "八月", "十五"); // 2023 mid-autumn
     }
 
     #[test]
     fn leap_month() {
-        // 2023 年闰二月，公历 2023-03-23 ≈ 农历闰二月初二
+        // 2023 has a leap 2nd month: gregorian 2023-03-23 ≈ lunar leap-2nd-month day 2
         let date = NaiveDate::from_ymd_opt(2023, 3, 23).unwrap();
         let info = get_lunar_info(Some(date)).unwrap();
         assert_eq!(info.lunar_month, "闰二月");

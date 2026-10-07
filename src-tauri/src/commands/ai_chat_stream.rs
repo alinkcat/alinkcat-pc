@@ -1,5 +1,5 @@
-// WebView 里 fetch 第三方 AI 会被 CORS 拦，这里在 Rust 侧 POST 并用
-// Tauri 事件把 SSE 增量推给前端（ai-chunk / ai-done / ai-error）。
+// webview fetch to third-party AI gets blocked by CORS, so POST from rust and
+// stream SSE deltas to the frontend via tauri events (ai-chunk / ai-done / ai-error)
 use std::collections::HashMap;
 
 use futures_util::StreamExt;
@@ -13,7 +13,7 @@ pub async fn ai_chat_stream(
     body: String,
 ) -> Result<(), String> {
     let client = reqwest::Client::builder()
-        // 防止上游 AI 服务无响应导致命令悬挂：连接 + 请求 + 单次读超时。
+        // don't let the command hang if the upstream AI stops responding
         .connect_timeout(std::time::Duration::from_secs(15))
         .timeout(std::time::Duration::from_secs(60))
         .build()
@@ -57,7 +57,7 @@ pub async fn ai_chat_stream(
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| e.to_string())?;
         buf.push_str(&String::from_utf8_lossy(&chunk));
-        // 按行解析 SSE；跨 chunk 边界的行留在 buf 里继续拼
+        // parse SSE line by line; lines crossing a chunk boundary stay in buf
         while let Some(pos) = buf.find('\n') {
             let line = buf[..pos].trim().to_string();
             buf = buf[pos + 1..].to_string();

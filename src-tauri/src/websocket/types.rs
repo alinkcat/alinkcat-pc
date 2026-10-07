@@ -1,10 +1,14 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-// ─── 握手错误码 ──────────────────────────────────────────────
+// ─── handshake error codes ──────────────────────────────────
 pub const ERR_INVALID_PAIRING_CODE: i32 = -32001;
 pub const ERR_HANDSHAKE_TIMEOUT: i32 = -32002;
 pub const ERR_DUPLICATE_CONNECTION: i32 = -32003;
+/// temporarily banned after too many pairing failures
+pub const ERR_RATE_LIMITED: i32 = -32004;
+/// device count over the plan limit (free plan allows one)
+pub const ERR_DEVICE_LIMIT: i32 = -32005;
 
 // ─── Client Info ────────────────────────────────────────────
 
@@ -17,7 +21,7 @@ pub struct ClientInfo {
     pub connected_at: DateTime<Utc>,
 }
 
-// ─── 服务状态 / 连接日志 ────────────────────────────────────
+// ─── server status / connection logs ────────────────────────
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ServerStatus {
@@ -63,9 +67,9 @@ pub struct JsonRpcError {
 }
 
 // ─── Handshake ──────────────────────────────────────────────
-// 手机端 -> PC 端：method = "handshake"，params 携带配对码
-// PC 端 -> 手机端：result { status, serverVersion, serverName, deviceId, themeList }
-//                  或 error { code: -32001/-32002/-32003, message }
+// phone -> PC: method = "handshake", params carry the pairing code
+// PC -> phone: result { status, serverVersion, serverName, deviceId, themeList }
+//              or error { code: -32001/-32002/-32003, message }
 
 #[derive(Debug, Deserialize)]
 pub struct HandshakeParams {

@@ -13,7 +13,7 @@ static INIT: AtomicBool = AtomicBool::new(false);
 static GLOBAL_CLIENTS: OnceLock<Arc<Mutex<HashMap<String, ClientHandle>>>> = OnceLock::new();
 static GLOBAL_SCHED: OnceLock<Arc<Mutex<MediaScheduler>>> = OnceLock::new();
 
-/// 初始化全局 MediaScheduler（在 lib.rs 中同步调用）。
+/// init the global MediaScheduler (called from lib.rs at startup)
 pub fn init_global_media_scheduler(clients: Arc<Mutex<HashMap<String, ClientHandle>>>) {
     let sched = Arc::new(Mutex::new(MediaScheduler::new(clients.clone())));
     let _ = GLOBAL_CLIENTS.set(clients);
@@ -29,7 +29,7 @@ pub fn global_media_scheduler() -> Option<Arc<Mutex<MediaScheduler>>> {
     }
 }
 
-/// 上次推送的关键字段快照，用于变化检测。
+/// snapshot of the last push's key fields, for change detection
 #[derive(Clone, PartialEq)]
 struct MediaSnapshot {
     title: String,
@@ -49,7 +49,7 @@ impl From<&MediaInfo> for MediaSnapshot {
 
 pub struct MediaScheduler {
     clients: Arc<Mutex<HashMap<String, ClientHandle>>>,
-    /// 客户端级订阅表：client_id -> 已订阅的来源集合。
+    /// per-client subscriptions: client_id -> set of subscribed sources
     subscriptions: Arc<StdMutex<HashMap<String, HashSet<String>>>>,
     running: bool,
     task_handle: Option<JoinHandle<()>>,
@@ -67,7 +67,7 @@ impl MediaScheduler {
         }
     }
 
-    /// 客户端订阅媒体推送；若调度器未运行则立即启动。
+    /// subscribe a client; starts the scheduler if it isn't running
     pub fn subscribe(&mut self, client_id: &str, sources: Vec<String>) {
         if !self.running {
             self.start();
@@ -79,7 +79,7 @@ impl MediaScheduler {
         }
     }
 
-    /// 客户端取消订阅；若再无订阅者则自动停止调度器。
+    /// unsubscribe a client; auto-stops the scheduler when no subscribers remain
     pub fn unsubscribe(&mut self, client_id: &str, sources: Vec<String>) {
         let mut subs = self.subscriptions.lock().unwrap();
         if let Some(entry) = subs.get_mut(client_id) {
@@ -96,7 +96,7 @@ impl MediaScheduler {
         }
     }
 
-    /// 连接断开时清理该客户端的订阅；若无订阅者则自动停止调度器，防止孤儿任务空转。
+    /// clean up a disconnected client's subscriptions; stops the scheduler if empty so nothing idles
     pub fn remove_client(&mut self, client_id: &str) {
         let mut subs = self.subscriptions.lock().unwrap();
         subs.remove(client_id);
@@ -141,7 +141,7 @@ impl MediaScheduler {
 
                 let snap = MediaSnapshot::from(&info);
                 if last.as_ref() == Some(&snap) {
-                    continue; // 无变化，跳过推送（服务层已打印抓取日志）
+                    continue; // no change, skip push (the service layer already logged the fetch)
                 }
                 last = Some(snap);
 
@@ -161,7 +161,7 @@ impl MediaScheduler {
                 });
                 let payload = serde_json::to_string(&msg).unwrap_or_default();
 
-                // 仅向已订阅该来源的客户端推送
+                // only push to clients subscribed to this source
                 let map = clients.lock().await;
                 let subs = subscriptions.lock().unwrap();
                 let mut recipients = 0usize;

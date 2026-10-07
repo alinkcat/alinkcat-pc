@@ -7,7 +7,7 @@ static CALLBACK_RESULT: OnceLock<Arc<Mutex<Option<OAuthResult>>>> = OnceLock::ne
 static CALLBACK_ERROR: OnceLock<Arc<Mutex<Option<String>>>> = OnceLock::new();
 static TASK_HANDLE: OnceLock<tauri::async_runtime::JoinHandle<()>> = OnceLock::new();
 
-/// OAuth 回调捕获的结果。
+/// result captured from an OAuth callback
 #[derive(Clone)]
 pub struct OAuthResult {
     pub token: String,
@@ -15,7 +15,7 @@ pub struct OAuthResult {
     pub username: String,
 }
 
-/// 初始化本地 OAuth 回调服务器（在 lib.rs 中调用一次）。
+/// start the local OAuth callback server (called once from lib.rs)
 pub fn init_oauth_callback_server() {
     if INIT.swap(true, Ordering::SeqCst) {
         return;
@@ -98,7 +98,7 @@ pub fn init_oauth_callback_server() {
     let _ = TASK_HANDLE.set(handle);
 }
 
-/// 从原始 HTTP 请求中解析 query 参数。
+/// parse a query param out of a raw HTTP request
 fn extract_query_param(request: &str, name: &str) -> Option<String> {
     let first_line = request.lines().next().unwrap_or("");
     let path = first_line.split_whitespace().nth(1).unwrap_or("");
@@ -114,7 +114,7 @@ fn extract_query_param(request: &str, name: &str) -> Option<String> {
     None
 }
 
-/// 阻塞等待并返回 OAuth 回调中的 token（timeout 秒超时）。
+/// block until the OAuth token arrives, or time out
 pub fn wait_for_token(timeout_secs: u64) -> Result<OAuthResult, String> {
     let result = CALLBACK_RESULT.get().ok_or("回调服务器未初始化")?;
 
@@ -133,7 +133,7 @@ pub fn wait_for_token(timeout_secs: u64) -> Result<OAuthResult, String> {
     }
 }
 
-/// 清空已捕获的 token（下次登录重新等待）。
+/// clear the captured token (next login waits again)
 pub fn reset_token() {
     if let Some(result) = CALLBACK_RESULT.get() {
         let mut guard = result.lock().unwrap();
@@ -145,7 +145,7 @@ pub fn reset_token() {
     }
 }
 
-/// 非阻塞轮询：返回 { "token", "refreshToken", "username" } 或 { "error" } 或 null。
+/// non-blocking poll: { "token", "refreshToken", "username" } or { "error" } or null
 pub fn poll_token() -> Result<serde_json::Value, String> {
     if let Some(err) = CALLBACK_ERROR.get() {
         if let Some(msg) = err.lock().unwrap().as_ref() {

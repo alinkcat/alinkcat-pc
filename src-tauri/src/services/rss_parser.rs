@@ -10,7 +10,7 @@ pub struct RssItem {
     pub author: Option<String>,
 }
 
-/// 解析 RSS 2.0 / Atom 订阅源文本，返回标准化的文章列表。
+/// parse an RSS 2.0 / Atom feed into normalized items
 pub fn parse_rss(content: &str) -> Result<Vec<RssItem>, String> {
     let channel = rss::Channel::read_from(content.as_bytes())
         .map_err(|e| format!("RSS 解析失败: {}", e))?;

@@ -54,17 +54,21 @@ pub fn run() {
             push_tasks: std::sync::Mutex::new(std::collections::HashMap::new()),
         })
         .setup(|app| {
-            // 启动本地 OAuth 回调服务器（系统浏览器授权回调用）
+            // local OAuth callback server for the system browser auth flow
             services::oauth_callback_server::init_oauth_callback_server();
 
-            // 应用启动时自动启动 WebSocket 服务
+            {
+                let state = app.state::<WsServerState>();
+                let mut server = state.server.blocking_lock();
+                server.set_app_handle(app.handle().clone());
+            }
             let server = app.state::<WsServerState>().server.clone();
             tauri::async_runtime::spawn(async move {
                 let mut server = server.lock().await;
                 let _ = server.start().await;
             });
 
-            // 系统托盘（关闭窗口时最小化到托盘）
+            // system tray (closing the window minimizes to tray)
             let show = MenuItemBuilder::with_id("show", "显示主界面").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "退出应用").build(app)?;
             let menu = MenuBuilder::new(app)
@@ -92,7 +96,7 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // 阻止关闭，改为隐藏到托盘
+                // block the close, hide to tray instead
                 api.prevent_close();
                 let _ = window.hide();
             }
@@ -104,7 +108,7 @@ pub fn run() {
             commands::stop_server,
             commands::get_connections,
             commands::broadcast,
-            // 诊断
+            // diagnostics
             commands::get_server_status,
             commands::get_connection_logs,
             commands::get_pairing_code,
@@ -112,6 +116,8 @@ pub fn run() {
             commands::get_local_ip,
             // Theme
             commands::scan_themes,
+            commands::get_custom_themes_dir,
+            commands::set_custom_themes_dir,
             commands::load_theme,
             commands::activate_theme,
             commands::get_active_theme,
@@ -133,13 +139,6 @@ pub fn run() {
             commands::save_icon,
             commands::get_image,
             commands::delete_image,
-            // Upload
-            commands::upload_commands::get_upload_records,
-            commands::upload_commands::get_upload_status,
-            commands::upload_commands::calculate_file_hash,
-            commands::upload_commands::submit_theme_for_review,
-            commands::upload_commands::update_upload_status,
-            commands::upload_commands::delete_upload_record,
             // Theme Push
             commands::theme_push_commands::pack_theme_data,
             commands::theme_push_commands::push_theme_to_device,
@@ -171,6 +170,7 @@ pub fn run() {
             commands::launcher_commands::extract_app_icon,
             // Snippet
             commands::snippet_commands::inject_snippet,
+            commands::snippet_commands::sync_snippets,
             // Calendar / Lunar
             commands::calendar_commands::get_lunar_info,
             commands::calendar_commands::get_calendar_widget_data,

@@ -28,7 +28,7 @@ pub async fn generic_http(
     }
 
     if let Some(b) = body {
-        // 不加 Content-Type 的话部分服务直接 415
+        // some services 415 without a Content-Type
         if method == "POST" {
             request = request.header("Content-Type", "application/json");
         }

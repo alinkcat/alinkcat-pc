@@ -34,5 +34,23 @@ pub struct BatteryInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitorSubscribeParams {
+    /// defaults to an empty list (phone sends empty params on unsubscribe)
+    #[serde(default)]
     pub sources: Vec<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// phone unsubscribes with empty params {}, must not get -32602 back
+    #[test]
+    fn unsubscribe_with_empty_params_is_accepted() {
+        let params: MonitorSubscribeParams = serde_json::from_str("{}").expect("empty params");
+        assert!(params.sources.is_empty());
+
+        let params: MonitorSubscribeParams =
+            serde_json::from_str(r#"{"sources":["cpu"]}"#).expect("sources param");
+        assert_eq!(params.sources, vec!["cpu".to_string()]);
+    }
 }

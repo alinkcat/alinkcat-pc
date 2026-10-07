@@ -60,7 +60,7 @@ pub fn open(id: &str) -> Result<(), String> {
     launch(&item.path)
 }
 
-/// 按路径直接启动应用（不依赖已注册的启动项）
+/// launch an app by path directly (no registered launcher entry needed)
 pub fn launch_path(path: &str) -> Result<(), String> {
     launch(path)
 }

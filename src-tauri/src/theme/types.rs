@@ -18,6 +18,9 @@ pub struct ThemeMeta {
     pub market_id: Option<String>,
     #[serde(default)]
     pub downloaded_at: Option<String>,
+    /// portrait / landscape; kept on save, the phone uses it for orientation
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orientation: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +83,9 @@ pub struct AppConfig {
     pub command_whitelist: Vec<String>,
     #[serde(default)]
     pub deleted_builtin_themes: Vec<String>,
+    /// extra theme scan root configured by the user in Settings (highest priority)
+    #[serde(default)]
+    pub custom_themes_dir: Option<String>,
 }
 
 impl Default for AppConfig {
@@ -88,6 +94,50 @@ impl Default for AppConfig {
             active_theme_id: None,
             command_whitelist: Vec::new(),
             deleted_builtin_themes: Vec::new(),
+            custom_themes_dir: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const META_JSON: &str = r#"{
+        "id": "t1",
+        "name": "Test",
+        "version": "1.0.0",
+        "author": "a",
+        "pages": [],
+        "source": "local",
+        "orientation": "portrait"
+    }"#;
+
+    /// orientation must not get dropped on save
+    #[test]
+    fn orientation_survives_deserialize_serialize() {
+        let meta: ThemeMeta = serde_json::from_str(META_JSON).expect("parse meta");
+        assert_eq!(meta.orientation.as_deref(), Some("portrait"));
+
+        let out = serde_json::to_value(&meta).expect("serialize meta");
+        assert_eq!(out.get("orientation").and_then(|v| v.as_str()), Some("portrait"));
+    }
+
+    /// packs without orientation must not serialize a null
+    #[test]
+    fn missing_orientation_is_absent_not_null() {
+        let json = r#"{
+            "id": "t1",
+            "name": "Test",
+            "version": "1.0.0",
+            "author": "a",
+            "pages": [],
+            "source": "local"
+        }"#;
+        let meta: ThemeMeta = serde_json::from_str(json).expect("parse meta without orientation");
+        assert!(meta.orientation.is_none());
+
+        let out = serde_json::to_value(&meta).expect("serialize meta");
+        assert!(out.get("orientation").is_none());
     }
 }

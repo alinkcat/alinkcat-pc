@@ -8,8 +8,8 @@ struct AckBusInner {
     pending: HashMap<u64, oneshot::Sender<serde_json::Value>>,
 }
 
-/// 推送请求 ID → 等待手机端确认的 oneshot 通道。
-/// 连接接收循环收到响应时，若 ID 匹配则 resolve，否则走正常 JSON-RPC 分发。
+/// push request id -> oneshot waiting for the phone's ack
+/// the connection recv loop resolves matching ids, everything else goes through normal JSON-RPC dispatch
 #[derive(Clone, Default)]
 pub struct AckBus(Arc<Mutex<AckBusInner>>);
 
@@ -24,7 +24,7 @@ impl AckBus {
         rx
     }
 
-    /// 返回是否成功消费了一个等待中的请求 ID。
+    /// true if a pending request id was consumed
     pub fn resolve(&self, id: u64, value: serde_json::Value) -> bool {
         if let Some(tx) = self.0.lock().unwrap().pending.remove(&id) {
             let _ = tx.send(value);

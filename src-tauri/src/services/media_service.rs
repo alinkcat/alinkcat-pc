@@ -30,12 +30,12 @@ pub async fn execute_media_action(action: &str, volume_level: Option<f64>) -> Re
     #[cfg(not(target_os = "windows"))] { let _ = (action, volume_level); Err("非 Windows 环境不支持媒体控制".into()) }
 }
 
-// ─── Windows SMTC 部分 ──────────────────────────────────────
+// ─── Windows SMTC ──────────────────────────────────────────
 
 #[cfg(target_os = "windows")]
 use windows::Media::Control::GlobalSystemMediaTransportControlsSession;
 
-/// 枚举所有可用的 SMTC 会话（QQ音乐可能注册为独立会话而非当前会话）。
+/// enumerate all SMTC sessions (QQ Music can register as its own session, not the current one)
 #[cfg(target_os = "windows")]
 fn get_sessions() -> Vec<GlobalSystemMediaTransportControlsSession> {
     use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
@@ -57,7 +57,7 @@ fn get_sessions() -> Vec<GlobalSystemMediaTransportControlsSession> {
             }
         }
     }
-    // 兜底：当前会话
+    // fall back to the current session
     if let Ok(s) = manager.GetCurrentSession() {
         let cur_id = session_title(&s).unwrap_or_default();
         if cur_id.is_empty() || !sessions.iter().any(|x| session_title(x).as_deref() == Some(&cur_id)) {
@@ -67,19 +67,19 @@ fn get_sessions() -> Vec<GlobalSystemMediaTransportControlsSession> {
     sessions
 }
 
-/// 提取单个会话的 title（去重用）。
+/// session title, for dedup
 #[cfg(target_os = "windows")]
 fn session_title(s: &GlobalSystemMediaTransportControlsSession) -> Option<String> {
     s.TryGetMediaPropertiesAsync().ok()?.get().ok()?.Title().ok().map(|t| t.to_string())
 }
 
-/// 提取单个会话的 AppUserModelId（用于日志中标识来源，如 QQMusic.exe / 网易云）。
+/// session AppUserModelId, identifies the source in logs (QQMusic.exe and friends)
 #[cfg(target_os = "windows")]
 fn session_app_id(s: &GlobalSystemMediaTransportControlsSession) -> String {
     s.SourceAppUserModelId().map(|s| s.to_string()).unwrap_or_default()
 }
 
-/// 从单个 SMTC 会话解析完整的 MediaInfo。
+/// parse a full MediaInfo from a single SMTC session
 #[cfg(target_os = "windows")]
 fn parse_session(session: &GlobalSystemMediaTransportControlsSession) -> Option<MediaInfo> {
     let props = session.TryGetMediaPropertiesAsync().ok()?.get().ok()?;
@@ -96,9 +96,9 @@ fn parse_session(session: &GlobalSystemMediaTransportControlsSession) -> Option<
     Some(MediaInfo { title, artist, album, is_playing, position, duration, thumbnail: None, display_mode: "always".into() })
 }
 
-// ─── 窗口标题兜底（QQ音乐等不注册 SMTC 的播放器） ──────────────
+// ─── window title fallback (players without SMTC, e.g. QQ Music) ──────────────
 
-/// 已知的音乐播放器进程名（可扩展）。
+/// known music player process names (extend as needed)
 #[cfg(target_os = "windows")]
 const PLAYER_PROCESS_NAMES: &[&str] = &[
     "QQMusic.exe",
@@ -107,7 +107,7 @@ const PLAYER_PROCESS_NAMES: &[&str] = &[
     "MusicUI.exe",
 ];
 
-/// 播放器窗口标题常见后缀，如 "歌名 - 歌手 - QQ音乐"。
+/// common player window title suffix, like "song - artist - QQ音乐"
 #[cfg(target_os = "windows")]
 fn player_suffix_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
@@ -117,14 +117,14 @@ fn player_suffix_regex() -> &'static Regex {
     })
 }
 
-/// "歌名 - 歌手" 切分正则。
+/// "song - artist" splitter regex
 #[cfg(target_os = "windows")]
 fn title_artist_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"^\s*(?P<title>.+?)\s*-\s*(?P<artist>.+?)\s*$").expect("invalid title-artist regex"))
 }
 
-/// 从 QQ音乐等播放器窗口标题解析出 title/artist，状态固定为播放中。
+/// parse title/artist out of player window titles (QQ Music etc); always reports playing
 #[cfg(target_os = "windows")]
 fn parse_window_title() -> Option<MediaInfo> {
     let raw = find_music_window_title()?;
@@ -136,7 +136,7 @@ fn parse_window_title() -> Option<MediaInfo> {
         Some(c) => (c["title"].trim().to_string(), c["artist"].trim().to_string()),
         None => (clean, String::new()),
     };
-    // 空闲时 QQ音乐 窗口标题只有 "QQ音乐"，视为未在播放。
+    // idle QQ Music window title is just "QQ音乐", treat as not playing
     if title.is_empty()
         || title.eq_ignore_ascii_case("QQ音乐")
         || title.eq_ignore_ascii_case("QQ Music")
@@ -150,8 +150,8 @@ fn parse_window_title() -> Option<MediaInfo> {
     })
 }
 
-/// 枚举系统中已知播放器进程的主窗口标题。
-/// 通过 Toolhelp 快照查找进程 PID，再用 EnumWindows 找到属于该进程的可见主窗口。
+/// find the main window title of known player processes:
+/// Toolhelp snapshot to get PIDs, then EnumWindows for a visible window owned by one
 #[cfg(target_os = "windows")]
 fn find_music_window_title() -> Option<String> {
     use windows::Win32::Foundation::{CloseHandle, BOOL, HWND, LPARAM};
@@ -162,7 +162,6 @@ fn find_music_window_title() -> Option<String> {
         EnumWindows, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
     };
 
-    // 先定位已知播放器进程 PID
     let mut pids: Vec<u32> = Vec::new();
     unsafe {
         let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else { return None };
@@ -184,7 +183,6 @@ fn find_music_window_title() -> Option<String> {
         return None;
     }
 
-    // 再枚举顶层窗口，取第一个属于播放器进程且可见的窗口标题
     struct WindowCtx {
         pids: Vec<u32>,
         title: Option<String>,
@@ -201,7 +199,7 @@ fn find_music_window_title() -> Option<String> {
                 let title = String::from_utf16_lossy(&buf[..len as usize]).trim().to_string();
                 if !title.is_empty() {
                     ctx.title = Some(title);
-                    return BOOL(0); // 停止枚举
+                    return BOOL(0); // stop enumerating
                 }
             }
         }
@@ -216,11 +214,10 @@ fn find_music_window_title() -> Option<String> {
     ctx.title
 }
 
-// ─── 主入口：SMTC → 窗口标题兜底 → 未在播放 ──────────────
+// ─── main entry: SMTC -> window title fallback -> not playing ──────────────
 
 #[cfg(target_os = "windows")]
 fn get_media_info_windows() -> Result<MediaInfo, String> {
-    // SMTC 会话枚举
     let sessions = get_sessions();
     for session in &sessions {
         if let Some(info) = parse_session(session) {
@@ -239,7 +236,7 @@ fn get_media_info_windows() -> Result<MediaInfo, String> {
     }
     println!("[MediaDebug] SMTC 未捕获到有效媒体会话（共 {} 个会话），尝试窗口标题兜底…", sessions.len());
 
-    // 窗口标题兜底（QQ音乐等不注册 SMTC 的播放器）
+    // window title fallback (players that don't register SMTC)
     if let Some(info) = parse_window_title() {
         println!(
             "[MediaDebug] 成功抓取！来源: 窗口标题兜底({}), 状态: 播放, 歌手: {}, 歌名: {}",
@@ -251,7 +248,7 @@ fn get_media_info_windows() -> Result<MediaInfo, String> {
     }
     println!("[MediaDebug] 窗口标题兜底失败：未找到 {}(QQMusic.exe 等) 的活动窗口标题", PLAYER_PROCESS_NAMES.join("/"));
 
-    // 都没有就按"未在播放"处理
+    // nothing anywhere -> report as not playing
     println!("[MediaDebug] 未检测到活跃的媒体会话，当前无可用音视频源。");
     Ok(MediaInfo {
         title: "未在播放".into(), artist: String::new(), album: String::new(),
@@ -259,7 +256,7 @@ fn get_media_info_windows() -> Result<MediaInfo, String> {
     })
 }
 
-// ─── 媒体控制 ─────────────────────────────────────────────
+// ─── media control ─────────────────────────────────────────
 
 #[cfg(target_os = "windows")]
 fn execute_media_action_windows(action: &str, volume_level: Option<f64>) -> Result<(), String> {
@@ -291,42 +288,48 @@ fn execute_media_action_windows(action: &str, volume_level: Option<f64>) -> Resu
         "volume_down" => simulate_media_key(0xAE),
         "volume_mute" => simulate_media_key(0xAD),
         "volume_set" => {
-            let level = volume_level.unwrap_or(0.5).clamp(0.0, 1.0);
+            // phone sends 0-100, older callers may send 0-1 — accept both scales
+            let raw = volume_level.unwrap_or(50.0);
+            let level = (if raw > 1.0 { raw / 100.0 } else { raw }).clamp(0.0, 1.0);
             set_system_volume(level)
         }
         _ => Err(format!("不支持的媒体操作: {}", action)),
     }
 }
 
-// ─── 音量控制（PowerShell + winmm.dll） ─────────────────────
+// ─── volume control (Core Audio master endpoint) ─────────────────
+// NOTE: the legacy waveOutSetVolume only touches the calling process's
+// audio session on Vista+ — the system volume everyone hears lives on
+// the default render endpoint, so go through IAudioEndpointVolume.
 
 #[cfg(target_os = "windows")]
 fn set_system_volume(level: f64) -> Result<(), String> {
-    let raw = (level * 65535.0) as u32;
-    let script = format!(
-        "Add-Type -TypeDefinition @\"\n\
-using System.Runtime.InteropServices;\n\
-public class Audio {{\n\
-    [DllImport(\"winmm.dll\")]\n\
-    public static extern int waveOutSetVolume(int hwo, int dwVolume);\n\
-}}\n\
-\"@\n\
-[Audio]::waveOutSetVolume(-1, {})",
-        raw
-    );
-    let output = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-        .output()
-        .map_err(|e| format!("PowerShell 执行失败: {}", e))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("设置音量失败: {}", stderr));
+    use windows::Win32::Media::Audio::{eMultimedia, eRender, Endpoints::IAudioEndpointVolume, MMDeviceEnumerator};
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED};
+
+    unsafe {
+        // the handler thread may already have COM in another apartment; both work here
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let enumerator: windows::Win32::Media::Audio::IMMDeviceEnumerator =
+            CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
+                .map_err(|e| format!("audio enumerator: {e}"))?;
+        let device = enumerator
+            .GetDefaultAudioEndpoint(eRender, eMultimedia)
+            .map_err(|e| format!("default audio device: {e}"))?;
+        let endpoint: IAudioEndpointVolume = device
+            .Activate(CLSCTX_ALL, None)
+            .map_err(|e| format!("audio endpoint: {e}"))?;
+        endpoint
+            .SetMasterVolumeLevelScalar(level as f32, std::ptr::null())
+            .map_err(|e| format!("set volume: {e}"))?;
+        let readback: f32 = endpoint.GetMasterVolumeLevelScalar().unwrap_or(-1.0);
+        println!("[Media] volume wrote {:.2}, endpoint readback {:.2}", level, readback);
     }
     println!("[Media] Volume set to {}%", (level * 100.0).round());
     Ok(())
 }
 
-// ─── 模拟多媒体键 ──────────────────────────────────────────
+// ─── simulated media keys ──────────────────────────────────
 
 #[cfg(target_os = "windows")]
 fn simulate_media_key(vk: u16) -> Result<(), String> {
