@@ -11,7 +11,7 @@ use crate::services::media_scheduler;
 use crate::services::media_service;
 use crate::services::snippet_service;
 
-/// 处理握手之后的消息（握手在 server.rs 的连接阶段完成）。
+/// handle messages after the handshake (handshake happens in server.rs)
 pub async fn dispatch(
     text: &str,
     client_id: &str,
@@ -47,7 +47,9 @@ pub async fn dispatch(
         "theme.enter" => handle_theme_enter(&req, client_id, monitor, clients).await,
         "theme.leave" => handle_theme_leave(&req, client_id, monitor).await,
         "launcher.open" => handle_launcher_open(&req).await,
+        "launcher.list" => handle_launcher_list(&req).await,
         "snippet.inject" => handle_snippet_inject(&req).await,
+        "snippet.list" => handle_snippet_list(&req).await,
         _ => JsonRpcResponse::error(-32601, "Method not found", req.id),
     };
 
@@ -103,14 +105,12 @@ async fn handle_monitor_subscribe(
     let mut mon = monitor.lock().await;
     if subscribe {
         mon.subscribe(client_id, params.sources.clone());
-        // 确保调度器正在运行，开始推送数据
         if !mon.is_running() {
             println!("[Monitor] Starting scheduler for client {}", client_id);
         }
         mon.start();
     } else {
         mon.unsubscribe(client_id, params.sources.clone());
-        // 无订阅者时停止调度器
         if !mon.has_subscribers() {
             println!("[Monitor] No more subscribers, stopping scheduler");
             mon.stop();
@@ -175,8 +175,8 @@ async fn handle_media_subscribe(
 
 const ALL_MONITOR_SOURCES: &[&str] = &["cpu", "memory", "network", "disk", "uptime", "battery"];
 
-/// 客户端进入主题页面：按需激活该客户端的硬件监控与媒体状态推送循环。
-/// 仅当连接仍在线时才允许启动，避免向已断开节点推送。
+/// client entered a theme page: start monitor + media push loops for that client on demand
+/// only allowed while the connection is still online, no pushing to dead nodes
 async fn handle_theme_enter(
     req: &JsonRpcRequest,
     client_id: &str,
@@ -190,7 +190,6 @@ async fn handle_theme_enter(
         .unwrap_or("")
         .to_string();
 
-    // 校验 WebSocket 连接仍处于正常连接状态
     let online = { clients.lock().await.contains_key(client_id) };
     if !online {
         return JsonRpcResponse::error(-32603, "连接已断开，无法激活推送", req.id.clone());
@@ -212,8 +211,8 @@ async fn handle_theme_enter(
     JsonRpcResponse::success(serde_json::json!({"status": "ok", "active": true}), req.id.clone())
 }
 
-/// 客户端离开主题页面：立即终止该客户端的监控与媒体推送订阅，
-/// 若无其他订阅者则自动停止对应调度器（Cancel/Abort 轮询任务）。
+/// client left the theme page: drop its monitor and media subscriptions right away,
+/// the schedulers stop themselves if no other subscribers remain
 async fn handle_theme_leave(
     req: &JsonRpcRequest,
     client_id: &str,
@@ -232,11 +231,13 @@ async fn handle_theme_leave(
 }
 
 async fn handle_launcher_open(req: &JsonRpcRequest) -> JsonRpcResponse {
-    // 支持两种方式：path 直接启动，id 按注册项查找
+    // two ways in: launch by path directly, or look up a registered entry by id
     let path = req.params.as_ref().and_then(|p| p.get("path")).and_then(|v| v.as_str()).filter(|s| !s.is_empty());
     let id = req.params.as_ref().and_then(|p| p.get("id")).and_then(|v| v.as_str()).filter(|s| !s.is_empty());
 
     if let Some(p) = path {
+        // remote launches must leave a log trail
+        println!("[WebSocket] launcher.open path={} (remote device request)", p);
         match launcher_service::launch_path(p) {
             Ok(()) => JsonRpcResponse::success(serde_json::json!({"status": "ok"}), req.id.clone()),
             Err(e) => JsonRpcResponse::error(-32000, &e, req.id.clone()),
@@ -259,5 +260,91 @@ async fn handle_snippet_inject(req: &JsonRpcRequest) -> JsonRpcResponse {
     match snippet_service::inject_snippet(text) {
         Ok(()) => JsonRpcResponse::success(serde_json::json!({"status": "ok", "length": text.len()}), req.id.clone()),
         Err(e) => JsonRpcResponse::error(-32000, &e, req.id.clone()),
+    }
+}
+
+/// launcher list for the phone's macro panel. icon is a PC-local path, useless to the phone, so it's not sent
+async fn handle_launcher_list(req: &JsonRpcRequest) -> JsonRpcResponse {
+    let apps: Vec<serde_json::Value> = launcher_service::list()
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            serde_json::json!({
+                "id": item.id,
+                "name": item.name,
+                "position": i
+            })
+        })
+        .collect();
+    JsonRpcResponse::success(serde_json::json!({ "apps": apps }), req.id.clone())
+}
+
+/// snippet list, data comes from the frontend's sync_snippets
+async fn handle_snippet_list(req: &JsonRpcRequest) -> JsonRpcResponse {
+    let snippets: Vec<serde_json::Value> = crate::services::snippet_store::list()
+        .iter()
+        .map(|s| {
+            serde_json::json!({
+                "id": s.id,
+                "label": s.label,
+                "content": s.content
+            })
+        })
+        .collect();
+    JsonRpcResponse::success(serde_json::json!({ "snippets": snippets }), req.id.clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use tokio::sync::Mutex as AsyncMutex;
+
+    fn empty_clients() -> Arc<AsyncMutex<HashMap<String, ClientHandle>>> {
+        Arc::new(AsyncMutex::new(HashMap::new()))
+    }
+
+    async fn dispatch_method(method: &str, params: serde_json::Value) -> serde_json::Value {
+        let text = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 7,
+            "method": method,
+            "params": params
+        })
+        .to_string();
+        let resp = dispatch(&text, "test-client", &empty_clients(), &None).await;
+        serde_json::from_str(&resp).expect("response should be valid json")
+    }
+
+    #[tokio::test]
+    async fn launcher_list_returns_apps_array() {
+        let resp = dispatch_method("launcher.list", serde_json::json!({})).await;
+        let result = resp.get("result").expect("success response");
+        assert!(result.get("apps").and_then(|a| a.as_array()).is_some());
+    }
+
+    #[tokio::test]
+    async fn snippet_list_returns_synced_snippets() {
+        crate::services::snippet_store::set_all(vec![crate::services::snippet_store::SnippetEntry {
+            id: "s1".into(),
+            label: "hello".into(),
+            content: "world".into(),
+        }]);
+        let resp = dispatch_method("snippet.list", serde_json::json!({})).await;
+        let result = resp.get("result").expect("success response");
+        let items = result
+            .get("snippets")
+            .and_then(|a| a.as_array())
+            .expect("snippets array");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].get("label").and_then(|v| v.as_str()), Some("hello"));
+        assert_eq!(items[0].get("content").and_then(|v| v.as_str()), Some("world"));
+    }
+
+    #[tokio::test]
+    async fn unknown_method_returns_32601() {
+        let resp = dispatch_method("nope.list", serde_json::json!({})).await;
+        assert_eq!(resp.get("error").and_then(|e| e.get("code")).and_then(|c| c.as_i64()), Some(-32601));
     }
 }

@@ -10,7 +10,6 @@ pub mod media_commands;
 pub mod calendar_commands;
 pub mod snippet_commands;
 pub mod theme_push_commands;
-pub mod upload_commands;
 pub mod webview_commands;
 pub mod generic_http;
 pub mod ai_chat_stream;
@@ -67,7 +66,7 @@ pub async fn send_ws_message(
     server.send_to_client(&client_id, &message).await
 }
 
-// ─── 诊断命令 ───────────────────────────────────────────────
+// ─── diagnostics ───────────────────────────────────────────
 
 #[tauri::command]
 pub async fn get_server_status(state: State<'_, WsServerState>) -> Result<ServerStatus, String> {
@@ -97,7 +96,7 @@ pub async fn regenerate_pairing_code(state: State<'_, WsServerState>) -> Result<
     Ok(server.regenerate_pairing_code().await)
 }
 
-/// 获取本机所有非回环的 IPv4 局域网地址（用于手机端连接二维码）。
+/// all non-loopback IPv4 LAN addresses, used for the phone-side QR code
 #[tauri::command]
 pub fn get_local_ip() -> Vec<String> {    let mut ips = Vec::new();
     if let Ok(list) = local_ip_address::list_afinet_netifas() {
@@ -113,7 +112,7 @@ pub fn get_local_ip() -> Vec<String> {    let mut ips = Vec::new();
             }
         }
     }
-    // 枚举失败时回退到 UDP socket 探测
+    // fall back to a UDP socket probe if enumeration fails
     if ips.is_empty() {
         if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0") {
             if socket.connect("8.8.8.8:80").is_ok() {
@@ -129,6 +128,31 @@ pub fn get_local_ip() -> Vec<String> {    let mut ips = Vec::new();
 }
 
 // ─── Theme Commands ─────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_custom_themes_dir() -> Option<String> {
+    config::load_config().custom_themes_dir
+}
+
+#[tauri::command]
+pub fn set_custom_themes_dir(path: Option<String>) -> Result<Option<String>, String> {
+    let mut cfg = config::load_config();
+    if let Some(p) = &path {
+        let trimmed = p.trim();
+        if !trimmed.is_empty() {
+            std::fs::create_dir_all(trimmed).map_err(|e| format!("create dir failed: {}", e))?;
+            cfg.custom_themes_dir = Some(trimmed.to_string());
+        } else {
+            cfg.custom_themes_dir = None;
+        }
+    } else {
+        cfg.custom_themes_dir = None;
+    }
+    config::save_config(&cfg)?;
+    // touching the root keeps scan results fresh on the next scan
+    let _ = manager::user_theme_root();
+    Ok(cfg.custom_themes_dir)
+}
 
 #[tauri::command]
 pub fn scan_themes() -> Result<Vec<ThemeSummary>, String> {
@@ -306,7 +330,7 @@ pub async fn download_theme_file(url: String, filename: String) -> Result<String
     Ok(file_path.to_string_lossy().to_string())
 }
 
-/// 保存文本内容到指定路径（用于日志导出等）。
+/// save text to a path (log export etc)
 #[tauri::command]
 pub fn save_text_file(path: String, content: String) -> Result<(), String> {
     let p = std::path::PathBuf::from(&path);
@@ -349,7 +373,7 @@ pub fn oauth_poll() -> Result<serde_json::Value, String> {
     crate::services::oauth_callback_server::poll_token()
 }
 
-/// 获取设备唯一标识码（持久化到 ~/.ilinkcat/device_code，不随浏览器缓存清除）
+/// device id persisted at ~/.ilinkcat/device_code, survives browser cache clears
 #[tauri::command]
 pub fn get_device_code() -> Result<String, String> {
     use std::io::{Read, Write};
@@ -367,7 +391,6 @@ pub fn get_device_code() -> Result<String, String> {
         let code = buf.trim().to_string();
         if !code.is_empty() { return Ok(code); }
     }
-    // 生成新 UUID v4
     let code = uuid::Uuid::new_v4().to_string();
     let mut f = std::fs::File::create(&path)
         .map_err(|e| format!("Failed to write device code: {}", e))?;
@@ -376,8 +399,8 @@ pub fn get_device_code() -> Result<String, String> {
     Ok(code)
 }
 
-/// 通用 API 请求（通过 Rust 后端发起，绕过 CORS）。
-/// 支持 GET/POST/PUT/DELETE，JSON body，自定义 headers。
+/// generic API request proxied through rust to bypass CORS
+/// GET/POST/PUT/DELETE, json body, custom headers
 #[tauri::command]
 pub async fn api_request(
     url: String,
@@ -400,11 +423,10 @@ pub async fn api_request(
         _ => client.get(&url),
     };
 
-    // 默认浏览器标识头
+    // default browser identity headers
     req = req.header("Accept", "application/json, text/plain, */*");
     req = req.header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
 
-    // 附加自定义 headers
     if let Some(h) = headers {
         if let Some(map) = h.as_object() {
             for (k, v) in map {
@@ -431,7 +453,6 @@ pub async fn api_request(
         .await
         .map_err(|e| format!("读取响应失败: {}", e))?;
 
-    // 尝试解析 JSON，失败则返回原文
     match serde_json::from_str::<serde_json::Value>(&text) {
         Ok(json) if text.trim_start().starts_with('{') || text.trim_start().starts_with('[') => {
             Ok(serde_json::json!({

@@ -7,5 +7,6 @@ pub mod media_scheduler;
 pub mod media_service;
 pub mod rss_parser;
 pub mod snippet_service;
+pub mod snippet_store;
 pub mod oauth_callback_server;
 pub mod weather_service;

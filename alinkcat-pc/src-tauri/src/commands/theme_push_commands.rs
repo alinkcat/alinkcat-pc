@@ -17,7 +17,7 @@ use crate::websocket::push_handler;
 use crate::websocket::server::WebSocketServer;
 
 const CHUNK_SIZE: usize = 64 * 1024; // 64KB
-// 手机端需要弹出对话框 + 用户确认（ready/rejected/busy），awaiting_confirm 给 10 秒
+// phone pops a confirm dialog (ready/rejected/busy), so awaiting_confirm gets 10s
 const START_TIMEOUT_SECS: u64 = 10;
 const CHUNK_TIMEOUT_SECS: u64 = 8;
 const CHUNK_ATTEMPTS: u32 = 3;
@@ -61,7 +61,7 @@ pub struct PushResult {
 
 pub struct AckBusState {
     pub bus: AckBus,
-    /// 正在进行的推送任务（key: (client_id, theme_id)）。cancel_push 据此 abort 停止推送。
+    /// in-flight push tasks, key: (client_id, theme_id); cancel_push aborts via this
     pub push_tasks: std::sync::Mutex<std::collections::HashMap<(String, String), tokio::task::JoinHandle<()>>>,
 }
 
@@ -100,13 +100,13 @@ fn add_dir<W: io::Write + io::Seek>(
     Ok(())
 }
 
-/// 将主题包打包为 .alc（内存 ZIP）并返回 base64 + 大小 + SHA-256。
+/// pack a theme into .alc (in-memory zip), return base64 + size + sha-256
 #[tauri::command]
 pub fn pack_theme_data(theme_id: String) -> Result<PackedTheme, String> {
     let dir = manager::get_theme_dir(&theme_id)?;
     let meta = manager::read_theme_meta_pub(&dir)?;
 
-    // 确保封面图存在，没有则生成占位封面
+    // make sure a cover exists, generate a placeholder otherwise
     let cover = dir.join("cover.png");
     if !cover.exists() {
         manager::write_default_cover(&dir, &meta.name)?;
@@ -135,8 +135,8 @@ pub fn pack_theme_data(theme_id: String) -> Result<PackedTheme, String> {
     })
 }
 
-/// 向指定设备分块推送主题包（带确认/超时/busy 重试 + 断点续传）。
-/// start_chunk > 0 表示从中断位置继续发送（跳过 start 握手，从该块继续）。
+/// push a theme pack to a device in chunks (ack/timeout/busy retry + resume)
+/// start_chunk > 0 resumes from that chunk (skips the start handshake)
 #[tauri::command]
 pub async fn push_theme_to_device(
     app: tauri::AppHandle,
@@ -195,7 +195,7 @@ pub async fn push_theme_to_device(
                 }));
             }
             Err(e) => {
-                // 主动取消时不再弹错误（前端已感知；避免覆盖取消提示）
+                // user-initiated cancel: don't emit an error, the frontend already knows
                 if e != "cancelled" {
                     let _ = app2.emit("theme-push-failed", serde_json::json!({
                         "themeId": theme_id2, "error": e
@@ -205,13 +205,13 @@ pub async fn push_theme_to_device(
         }
     });
 
-    // 登记任务句柄，供 cancel_push 中止
+    // register the task handle so cancel_push can abort it
     ack_state.push_tasks.lock().unwrap().insert((client_id, theme_id), task);
 
     Ok(result)
 }
 
-/// 发送一条消息并等待手机端确认（自定义超时），解析 busy / reject / error。
+/// send one message and wait for the phone's ack (custom timeout); classify busy / reject / error
 async fn send_and_await(
     server: &Arc<Mutex<WebSocketServer>>,
     ack: &AckBus,
@@ -234,7 +234,7 @@ async fn send_and_await(
     }
     match tokio::time::timeout(Duration::from_secs(timeout_secs), rx).await {
         Ok(Ok(v)) => {
-            // 手机端可回复 result.status = "ready" / "busy" / "reject"
+            // phone replies with result.status = "ready" / "busy" / "reject"
             if let Some(status) = v
                 .get("result")
                 .and_then(|r| r.get("status"))
@@ -243,7 +243,7 @@ async fn send_and_await(
                 match status {
                     "busy" => return AckOutcome::Busy,
                     "reject" | "rejected" => return AckOutcome::Rejected("用户拒绝接收".to_string()),
-                    _ => return AckOutcome::Ok, // "ready" / "received" / 普通确认
+                    _ => return AckOutcome::Ok, // generic ack
                 }
             }
             if let Some(err) = push_handler::extract_error(&v) {
@@ -259,7 +259,7 @@ async fn send_and_await(
     }
 }
 
-/// 发送 theme.push.start：15 秒超时，busy 等 3 秒重试（最多 5 次）。
+/// send theme.push.start; on busy wait 3s and retry (max 5 times)
 async fn send_start(
     server: &Arc<Mutex<WebSocketServer>>,
     ack: &AckBus,
@@ -291,7 +291,7 @@ async fn send_start(
     }
 }
 
-/// 发送单个数据块：5 秒超时、重试 3 次；busy 同样等待 3 秒后重试。
+/// send one chunk with retries; busy backs off 3s before retrying
 async fn send_chunk(
     server: &Arc<Mutex<WebSocketServer>>,
     ack: &AckBus,
@@ -340,15 +340,14 @@ async fn run_push(
     start_chunk: u32,
     app: &tauri::AppHandle,
 ) -> Result<(), String> {
-    // start_chunk 参数保留以兼容调用方，但接收端采用"全量覆盖接收"：
-    // 手机端始终需要完整 start 握手（重新确认），失败重试即全量重传，
-    // 因此不再跳过握手、不从中间块续传（跨端协议保持一致，避免 .part 数据错位）。
+    // start_chunk is kept for caller compat, but the phone does full-overwrite receive:
+    // it always needs the start handshake and a retry means a full resend (no mid-stream resume, avoids .part mismatch)
     let _ = start_chunk;
 
-    // 1. start 确认（awaiting_confirm：10 秒超时 + ready/busy/reject 处理）
+    // 1. start ack (awaiting_confirm: 10s timeout + ready/busy/reject handling)
     send_start(server, ack, client_id, theme_id, name, version, size, total_chunks, &hash).await?;
 
-    // 2. chunks（每块 8 秒超时、重试 3 次；全量发送，从第 0 块开始）
+    // 2. chunks (8s timeout per chunk, 3 attempts; full send from chunk 0)
     let t0 = Instant::now();
     let mut bytes_sent: u64 = 0;
     for i in 0..total_chunks {
@@ -357,7 +356,7 @@ async fn run_push(
         let chunk = &base64[start..end];
         send_chunk(server, ack, client_id, theme_id, i, chunk, i == total_chunks - 1).await?;
 
-        // chunk 是 base64 字符串，实际字节数 = 字符数 * 3 / 4（进度按真实字节计算）
+        // chunks are base64 strings, real bytes = chars * 3/4 (progress tracks actual bytes)
         bytes_sent += (chunk.len() as u64) * 3 / 4;
         let elapsed = t0.elapsed().as_secs_f64().max(0.001);
         let speed = (bytes_sent as f64 / 1024.0) / elapsed; // KB/s
@@ -378,19 +377,23 @@ async fn run_push(
         }));
     }
 
-    // 3. complete：手机端回执失败（如 SHA-256 校验失败、解压失败）时中止并报错，
-    //    避免"PC 显示成功、手机端实际失败"的假成功。
+    // 3. complete: no explicit success ack from the phone (fail/timeout/reject/busy) counts as failure
     let done_id = next_id();
     let done_msg = push_handler::push_complete(done_id, theme_id, "success");
     match send_and_await(server, ack, client_id, &done_msg, done_id, CHUNK_TIMEOUT_SECS).await {
+        AckOutcome::Ok => {}
         AckOutcome::Error(m) => return Err(m),
-        _ => {} // 成功 / 超时（回执丢失但手机端已处理）均视为完成
+        AckOutcome::Rejected(m) => return Err(format!("{}{}", ERR_REJECT_PREFIX, m)),
+        AckOutcome::Busy => return Err("手机端忙碌，未确认安装结果".to_string()),
+        AckOutcome::Timeout => {
+            return Err("手机端未确认安装结果（可能接收中断，请重新推送）".to_string())
+        }
     }
 
     Ok(())
 }
 
-/// 取消推送并通知手机端。
+/// cancel the push and notify the phone
 #[tauri::command]
 pub async fn cancel_push(
     server_state: State<'_, WsServerState>,
@@ -398,11 +401,11 @@ pub async fn cancel_push(
     theme_id: String,
     client_id: String,
 ) -> Result<(), String> {
-    // 1) 先中止 Rust 侧推送任务（停止继续发块）
+    // 1) abort the rust-side push task first (stop sending chunks)
     if let Some(handle) = ack_state.push_tasks.lock().unwrap().remove(&(client_id.clone(), theme_id.clone())) {
         handle.abort();
     }
-    // 2) 通知手机端取消（best-effort，可能已断连）
+    // 2) notify the phone (best-effort, it may already be disconnected)
     let msg = push_handler::push_cancel(next_id(), &theme_id, "user_cancelled");
     let s = server_state.server.lock().await;
     let _ = s.send_to_client(&client_id, &msg.to_string()).await;

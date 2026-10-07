@@ -10,6 +10,33 @@ use tokio::task::JoinHandle;
 
 const ALL_SOURCES: &[&str] = &["cpu", "memory", "network", "disk", "uptime", "battery"];
 
+/// params for monitor.update; network is a numeric object (KB/s), the flat string fields are legacy compat
+fn build_update_params(snapshot: &PerfSnapshot) -> serde_json::Value {
+    let upload = snapshot
+        .network
+        .as_ref()
+        .map(|n| format!("{:.1} KB/s", n.upload))
+        .unwrap_or_default();
+    let download = snapshot
+        .network
+        .as_ref()
+        .map(|n| format!("{:.1} KB/s", n.download))
+        .unwrap_or_default();
+    serde_json::json!({
+        "cpu": snapshot.cpu,
+        "memory": snapshot.memory,
+        "disk": snapshot.disk,
+        "network": snapshot.network.as_ref().map(|n| serde_json::json!({
+            "upload": n.upload,
+            "download": n.download
+        })),
+        "upload": upload,
+        "download": download,
+        "uptime": snapshot.uptime,
+        "battery": snapshot.battery
+    })
+}
+
 pub struct MonitorScheduler {
     clients: Arc<tokio::sync::Mutex<HashMap<String, ClientHandle>>>,
     subscriptions: Arc<StdMutex<HashMap<String, HashSet<String>>>>,
@@ -76,29 +103,10 @@ let handle = tokio::spawn(async move {
                 };
 
                 // Push to all connected clients
-                let upload = snapshot
-                    .network
-                    .as_ref()
-                    .map(|n| format!("{:.1} KB/s", n.upload))
-                    .unwrap_or_default();
-                let download = snapshot
-                    .network
-                    .as_ref()
-                    .map(|n| format!("{:.1} KB/s", n.download))
-                    .unwrap_or_default();
-
                 let msg = serde_json::json!({
                     "jsonrpc": "2.0",
                     "method": "monitor.update",
-                    "params": {
-                        "cpu": snapshot.cpu,
-                        "memory": snapshot.memory,
-                        "disk": snapshot.disk,
-                        "upload": upload,
-                        "download": download,
-                        "uptime": snapshot.uptime,
-                        "battery": snapshot.battery
-                    }
+                    "params": build_update_params(&snapshot)
                 });
                 let payload = serde_json::to_string(&msg).unwrap_or_default();
 
@@ -175,7 +183,7 @@ let handle = tokio::spawn(async move {
             }
         }
         drop(subs);
-        // 无订阅者时停止调度器，避免后台空转
+        // no subscribers left, stop the scheduler instead of idling in the background
         if !self.has_subscribers() {
             self.stop();
         }
@@ -185,7 +193,7 @@ let handle = tokio::spawn(async move {
         let mut subs = self.subscriptions.lock().unwrap();
         subs.remove(client_id);
         drop(subs);
-        // 连接断开后若无剩余订阅者，立即停止轮询任务，防止孤儿任务空转
+        // connection dropped: stop the poll task right away if no subscribers remain, no orphan tasks
         if !self.has_subscribers() {
             self.stop();
         }
@@ -194,5 +202,48 @@ let handle = tokio::spawn(async move {
     pub fn has_subscribers(&self) -> bool {
         let subs = self.subscriptions.lock().unwrap();
         !subs.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// network must be a numeric object, the phone parses it that way
+    #[test]
+    fn update_params_carry_numeric_network() {
+        let snapshot = PerfSnapshot {
+            timestamp: 0,
+            cpu: Some(12.5),
+            memory: Some(40.0),
+            network: Some(super::super::types::NetworkSpeed {
+                upload: 10.0,
+                download: 200.5,
+            }),
+            disk: Some(55.0),
+            uptime: Some(3600),
+            battery: None,
+        };
+
+        let params = build_update_params(&snapshot);
+        let net = params
+            .get("network")
+            .expect("network object present")
+            .get("upload")
+            .and_then(|v| v.as_f64())
+            .expect("upload numeric");
+        assert!((net - 10.0).abs() < f64::EPSILON);
+        assert_eq!(
+            params.get("network").and_then(|n| n.get("download")).and_then(|v| v.as_f64()),
+            Some(200.5)
+        );
+        // legacy compat fields stay strings
+        assert_eq!(params.get("upload").and_then(|v| v.as_str()), Some("10.0 KB/s"));
+
+        // no network data: network is null, not omitted
+        let mut empty = snapshot.clone();
+        empty.network = None;
+        let params = build_update_params(&empty);
+        assert!(params.get("network").map(|v| v.is_null()).unwrap_or(false));
     }
 }

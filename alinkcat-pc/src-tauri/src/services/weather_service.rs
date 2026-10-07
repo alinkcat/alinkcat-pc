@@ -33,7 +33,7 @@ fn map_condition(main: &str) -> &'static str {
     }
 }
 
-/// 获取实时天气 + 3 天预报（OpenWeatherMap）
+/// current weather + 3-day forecast (OpenWeatherMap)
 pub async fn fetch_weather(city: &str, api_key: &str, unit: &str) -> Result<WeatherInfo, String> {
     let units = if unit == "f" { "imperial" } else { "metric" };
 
@@ -42,7 +42,6 @@ pub async fn fetch_weather(city: &str, api_key: &str, unit: &str) -> Result<Weat
         .build()
         .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
 
-    // 实时天气
     let url = format!(
         "https://api.openweathermap.org/data/2.5/weather?q={}&appid={}&units={}",
         city, api_key, units
@@ -82,7 +81,7 @@ pub async fn fetch_weather(city: &str, api_key: &str, unit: &str) -> Result<Weat
         forecast: Vec::new(),
     };
 
-    // 3 天预报（失败不阻塞主数据）
+    // forecast is best-effort, failure doesn't block the main data
     let forecast_url = format!(
         "https://api.openweathermap.org/data/2.5/forecast?q={}&appid={}&units={}",
         city, api_key, units

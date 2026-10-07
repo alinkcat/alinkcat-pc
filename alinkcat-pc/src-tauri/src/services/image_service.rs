@@ -34,12 +34,12 @@ fn sanitize_rel(rel: &str) -> bool {
     !rel.contains("..") && !rel.starts_with('/') && !rel.starts_with('\\')
 }
 
-/// 将 base64 data URL 图片保存到主题包 assets/ 目录，返回相对路径。
+/// save a base64 data URL image into the theme's assets/, returns the relative path
 pub fn save_image_data(data_url: &str, theme_id: &str, _widget_id: &str) -> Result<String, String> {
     save_to_dir(data_url, theme_id, "assets")
 }
 
-/// 将 base64 data URL 图标保存到主题包 icons/ 目录，返回相对路径。
+/// save a base64 data URL icon into the theme's icons/, returns the relative path
 pub fn save_icon_data(data_url: &str, theme_id: &str, _widget_id: &str) -> Result<String, String> {
     save_to_dir(data_url, theme_id, "icons")
 }
@@ -54,7 +54,7 @@ fn save_to_dir(data_url: &str, theme_id: &str, subdir: &str) -> Result<String, S
         .decode(body.trim())
         .map_err(|e| format!("图片解码失败: {}", e))?;
 
-    // 使用内容 SHA-256 哈希命名，相同图片始终同名，避免重复
+    // name files by content sha-256 so identical images always dedupe to one file
     let hash = crate::services::hash_service::sha256_bytes(&bytes);
     let ext = ext_from_mime(meta);
     let dir = manager::user_theme_root().join(theme_id).join(subdir);
@@ -64,7 +64,6 @@ fn save_to_dir(data_url: &str, theme_id: &str, subdir: &str) -> Result<String, S
     let filename = format!("{}.{}", hash, ext);
     let rel = format!("{}/{}", subdir, filename);
     let target = dir.join(&filename);
-    // 文件已存在则跳过写入（不重复保存）
     if !target.exists() {
         std::fs::write(&target, &bytes)
             .map_err(|e| format!("写入文件失败: {}", e))?;
@@ -73,7 +72,7 @@ fn save_to_dir(data_url: &str, theme_id: &str, subdir: &str) -> Result<String, S
     Ok(rel)
 }
 
-/// 读取主题包内图片，返回 data URL。
+/// read an image from a theme, returns a data URL
 pub fn get_image_data(theme_id: &str, rel_path: &str) -> Result<String, String> {
     if !sanitize_rel(rel_path) {
         return Err("无效的图片路径".to_string());
@@ -92,7 +91,7 @@ pub fn get_image_data(theme_id: &str, rel_path: &str) -> Result<String, String> 
     Ok(format!("data:{};base64,{}", mime, b64))
 }
 
-/// 删除主题包内图片。
+/// delete an image from a theme
 pub fn delete_image(theme_id: &str, rel_path: &str) -> Result<(), String> {
     if !sanitize_rel(rel_path) {
         return Err("无效的图片路径".to_string());

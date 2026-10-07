@@ -1,6 +1,5 @@
 use serde_json::json;
 
-/// 生成 theme.push.start 消息
 pub fn push_start(
     req_id: u64,
     theme_id: &str,
@@ -25,7 +24,6 @@ pub fn push_start(
     })
 }
 
-/// 生成 theme.push.chunk 消息（data 为 base64 字符串片段）
 pub fn push_chunk(
     req_id: u64,
     theme_id: &str,
@@ -46,7 +44,6 @@ pub fn push_chunk(
     })
 }
 
-/// 生成 theme.push.complete 消息
 pub fn push_complete(req_id: u64, theme_id: &str, status: &str) -> serde_json::Value {
     json!({
         "jsonrpc": "2.0",
@@ -59,7 +56,6 @@ pub fn push_complete(req_id: u64, theme_id: &str, status: &str) -> serde_json::V
     })
 }
 
-/// 生成 theme.push.cancel 消息
 pub fn push_cancel(req_id: u64, theme_id: &str, reason: &str) -> serde_json::Value {
     json!({
         "jsonrpc": "2.0",
@@ -72,7 +68,7 @@ pub fn push_cancel(req_id: u64, theme_id: &str, reason: &str) -> serde_json::Val
     })
 }
 
-/// 从手机端响应中提取错误信息（若有）。
+/// pull the error message out of a phone response, if any
 pub fn extract_error(resp: &serde_json::Value) -> Option<String> {
     resp.get("error").and_then(|e| e.get("message").and_then(|m| m.as_str()).map(String::from))
 }

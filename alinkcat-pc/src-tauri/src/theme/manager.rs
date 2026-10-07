@@ -17,6 +17,13 @@ pub fn user_theme_root() -> PathBuf {
     user_themes_dir()
 }
 
+/// user-configured extra scan root (Settings), highest lookup priority
+pub fn custom_themes_dir() -> Option<PathBuf> {
+    let dir = config::load_config().custom_themes_dir?;
+    let path = PathBuf::from(&dir);
+    if path.is_dir() { Some(path) } else { None }
+}
+
 pub fn find_theme_dir_pub(id: &str) -> Option<PathBuf> {
     find_theme_dir(id)
 }
@@ -164,6 +171,13 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
 }
 
 fn find_theme_dir(id: &str) -> Option<PathBuf> {
+    // custom scan root (Settings) wins, so factory packs override everything
+    if let Some(custom) = custom_themes_dir() {
+        let c = custom.join(id);
+        if c.is_dir() && c.join("theme.json").exists() {
+            return Some(c);
+        }
+    }
     // User dir takes priority (allows overriding bundled themes)
     let user = user_themes_dir().join(id);
     if user.is_dir() && user.join("theme.json").exists() {
@@ -248,6 +262,15 @@ pub fn scan_themes() -> Result<Vec<ThemeSummary>, String> {
     println!("[Theme] Scanned user: {} theme(s) from {}", user_themes.len(), user_dir.display());
     for t in user_themes {
         map.insert(t.id.clone(), t);
+    }
+
+    // 3) Scan the custom root last (highest priority, overrides both)
+    if let Some(custom) = custom_themes_dir() {
+        let custom_themes = scan_dir(&custom);
+        println!("[Theme] Scanned custom: {} theme(s) from {}", custom_themes.len(), custom.display());
+        for t in custom_themes {
+            map.insert(t.id.clone(), t);
+        }
     }
 
     let mut results: Vec<ThemeSummary> = map.into_values().collect();
@@ -394,7 +417,7 @@ pub fn save_theme(
     fs::create_dir_all(&dir)
         .map_err(|e| format!("Failed to create theme dir: {}", e))?;
 
-    // 提取 base64 嵌入数据为独立文件，实现多页面复用时只存一份
+    // extract embedded base64 into standalone files so pages can share a single copy
     extract_embedded_assets(meta, &dir)?;
 
     let json = serde_json::to_string_pretty(meta)
@@ -411,14 +434,14 @@ pub fn save_theme(
 
     println!("[Theme] Saved theme '{}' to {}", meta.id, dir.display());
 
-    // 清理 orphaned 资源：theme.json 中引用的图片保留，其余删除
+    // clean up orphans: keep images referenced by theme.json, delete the rest
     cleanup_orphaned_assets(&dir, meta)?;
 
     Ok(())
 }
 
-/// 扫描所有 widget 的 extra 字段，将 base64 嵌入数据提取为独立文件，
-/// 并将 data URL 替换为相对路径（如 assets/xxx.png），实现多页面数据复用。
+/// extract base64-embedded data from widget extras into files,
+/// replacing data URLs with relative paths (assets/xxx.png) for reuse across pages
 fn extract_embedded_assets(meta: &mut ThemeMeta, dir: &Path) -> Result<(), String> {
     let assets_dir = dir.join("assets");
     let icons_dir = dir.join("icons");
@@ -465,7 +488,7 @@ fn extract_and_replace_in_map(
         .decode(body.trim())
         .map_err(|e| format!("Base64 decode error: {}", e))?;
 
-    // 使用 SHA-256 哈希命名，与 image_service 一致，保证稳定且去重
+    // sha-256 naming, same scheme as image_service, keeps it stable and deduped
     let hash = crate::services::hash_service::sha256_bytes(&bytes);
     let ext = guess_ext_from_data_url(&val);
     let filename = format!("{}{}", hash, ext);
@@ -506,21 +529,20 @@ fn guess_ext_from_data_url(data_url: &str) -> String {
     }
 }
 
-/// 解析 theme.json 中所有引用的资源路径
+/// collect every asset path referenced by theme.json
 fn collect_referenced_assets(meta: &ThemeMeta) -> Vec<String> {
     let mut refs = Vec::new();
-    // 页面背景图
+    // page background images
     for page in &meta.pages {
         if let Some(bg) = page.layout.extra.get("backgroundImage").and_then(|v| v.as_str()) {
             if !bg.starts_with("data:") && !bg.starts_with("http") {
                 refs.push(bg.to_string());
             }
         }
-        // 控件中的 src / icon
+        // widget src / icon fields
         for w in &page.widgets {
             for key in ["src", "icon", "cardImage"] {
                 if let Some(val) = w.extra.get(key).and_then(|v| v.as_str()) {
-                    // 如果存的是相对路径（非 data URL 和非 http），加入引用列表
                     if !val.starts_with("data:") && !val.starts_with("http") {
                         refs.push(val.to_string());
                     }
@@ -531,7 +553,7 @@ fn collect_referenced_assets(meta: &ThemeMeta) -> Vec<String> {
     refs
 }
 
-/// 删除 assets/ 和 icons/ 下未被 theme.json 引用的文件
+/// delete files under assets/ and icons/ that theme.json doesn't reference
 fn cleanup_orphaned_assets(dir: &Path, meta: &ThemeMeta) -> Result<(), String> {
     let referenced = collect_referenced_assets(meta);
 
@@ -549,7 +571,6 @@ fn cleanup_orphaned_assets(dir: &Path, meta: &ThemeMeta) -> Result<(), String> {
             if !entry.path().is_file() {
                 continue;
             }
-            // 相对路径如 "assets/xxx.png" 或 "icons/xxx.png"
             let rel = format!("{}/{}", subdir, entry.file_name().to_string_lossy());
             if !referenced.contains(&rel) {
                 if let Err(e) = std::fs::remove_file(&entry.path()) {
@@ -563,10 +584,9 @@ fn cleanup_orphaned_assets(dir: &Path, meta: &ThemeMeta) -> Result<(), String> {
     Ok(())
 }
 
-/// 生成默认占位封面（硬编码 1x1 蓝色 PNG，不依赖外部 crate）
+/// default placeholder cover (hardcoded 1x1 blue PNG, no extra crates)
 pub fn write_default_cover(dir: &Path, _name: &str) -> Result<(), String> {
     use base64::Engine;
-    // 预置的 1x1 蓝色 PNG
     const COVER_B64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPwz/sOAALEAbV2m9TiAAAAAElFTkSuQmCC";
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(COVER_B64)

@@ -54,6 +54,13 @@ impl Collector {
             snap.uptime = self.collect_uptime();
         }
 
+        eprintln!(
+            "[Collector] cpu={:?} mem={:?} net={:?} disk={:?} batt={:?} up={:?}",
+            snap.cpu, snap.memory,
+            snap.network.as_ref().map(|n| (n.upload, n.download)),
+            snap.disk, snap.battery, snap.uptime
+        );
+
         snap
     }
 
@@ -132,13 +139,14 @@ impl Collector {
     fn read_cpu_times(&self) -> Option<(u64, u64)> {
         use std::mem;
         #[repr(C)]
-        struct host_cpu_load_info_data_t {
-            cpu_ticks: [u32; 5], // user, system, idle, nice, total
+        struct host_cpu_load_info {
+            cpu_ticks: [u32; 4], // user, system, idle, nice
         }
         const HOST_CPU_LOAD_INFO: u32 = 3;
         const HOST_CPU_LOAD_INFO_COUNT: u32 =
-            mem::size_of::<host_cpu_load_info_data_t>() as u32 / 4;
+            mem::size_of::<host_cpu_load_info>() as u32 / 4;
         extern "C" {
+            fn mach_host_self() -> u32;
             fn host_statistics(
                 host_priv: u32,
                 flavor: u32,
@@ -147,15 +155,21 @@ impl Collector {
             ) -> u32;
         }
         unsafe {
-            let mut info = host_cpu_load_info_data_t { cpu_ticks: [0; 5] };
+            let host = mach_host_self();
+            if host == 0 {
+                eprintln!("[Collector] mach_host_self() returned 0");
+                return None;
+            }
+            let mut info = host_cpu_load_info { cpu_ticks: [0; 4] };
             let mut count = HOST_CPU_LOAD_INFO_COUNT;
-            if host_statistics(
-                1,
+            let kr = host_statistics(
+                host,
                 HOST_CPU_LOAD_INFO,
                 info.cpu_ticks.as_mut_ptr(),
                 &mut count,
-            ) != 0
-            {
+            );
+            if kr != 0 {
+                eprintln!("[Collector] host_statistics(HOST_CPU_LOAD_INFO) failed: kr={}", kr);
                 return None;
             }
             let user = info.cpu_ticks[0] as u64;
@@ -218,6 +232,8 @@ impl Collector {
     #[cfg(target_os = "macos")]
     fn collect_memory(&self) -> Option<f64> {
         use std::mem;
+        // Must match the kernel's vm_statistics64 on modern macOS (10.12+).
+        // Missing fields cause host_statistics64 to reject the buffer size.
         #[repr(C)]
         struct vm_statistics64 {
             _free_count: u32,
@@ -235,10 +251,19 @@ impl Collector {
             _purgeable_count: u32,
             _purges: u64,
             _speculative_count: u32,
+            _decompressions: u64,
+            _compressions: u64,
+            _swapins: u64,
+            _swapouts: u64,
+            _compressor_page_count: u32,
+            _throttled_count: u32,
+            _external_page_count: u32,
+            _internal_page_count: u32,
+            _total_uncompressed_pages_in_compressor: u64,
         }
         const HOST_VM_INFO64: u32 = 6;
-        const VM_REGION_TOP_INFO: u32 = 12;
         extern "C" {
+            fn mach_host_self() -> u32;
             fn host_statistics64(
                 host_priv: u32,
                 flavor: u32,
@@ -247,23 +272,28 @@ impl Collector {
             ) -> u32;
             fn sysctlbyname(
                 name: *const i8,
-                oldp: *mut u64,
+                oldp: *mut std::ffi::c_void,
                 oldlenp: *mut usize,
                 newp: *const u8,
                 newlen: usize,
             ) -> i32;
         }
         unsafe {
+            let host = mach_host_self();
+            if host == 0 {
+                eprintln!("[Collector] mach_host_self() returned 0 (memory)");
+                return None;
+            }
             let mut stats = mem::zeroed::<vm_statistics64>();
-            let mut count =
-                mem::size_of::<vm_statistics64>() as u32 / 4;
-            if host_statistics64(
-                1,
+            let mut count = mem::size_of::<vm_statistics64>() as u32 / 4;
+            let kr = host_statistics64(
+                host,
                 HOST_VM_INFO64,
                 &mut stats as *mut _ as *mut u32,
                 &mut count,
-            ) != 0
-            {
+            );
+            if kr != 0 {
+                eprintln!("[Collector] host_statistics64(HOST_VM_INFO64) failed: kr={}, count={}", kr, count);
                 return None;
             }
             let mut total_mem: u64 = 0;
@@ -271,7 +301,7 @@ impl Collector {
             let name = b"hw.memsize\0";
             if sysctlbyname(
                 name.as_ptr() as *const i8,
-                &mut total_mem,
+                &mut total_mem as *mut u64 as *mut std::ffi::c_void,
                 &mut size,
                 std::ptr::null(),
                 0,
@@ -279,12 +309,21 @@ impl Collector {
             {
                 return None;
             }
-            let page_size: u64 = 4096;
-            let free = stats._free_count as u64 * page_size;
             if total_mem == 0 {
                 return None;
             }
-            Some(((total_mem - free) as f64 / total_mem as f64 * 100.0).clamp(0.0, 100.0))
+            let page_size: u64 = 4096;
+            // free + inactive + speculative are reclaimable on macOS
+            let free_pages = stats._free_count as u64;
+            let inactive_pages = stats._inactive_count as u64;
+            let spec_pages = stats._speculative_count as u64;
+            let available = (free_pages + inactive_pages + spec_pages) * page_size;
+            eprintln!(
+                "[Collector] mem: free={} inactive={} spec={} pages, available={}B / total={}B",
+                free_pages, inactive_pages, spec_pages, available, total_mem
+            );
+            let used = total_mem.saturating_sub(available);
+            Some((used as f64 / total_mem as f64 * 100.0).clamp(0.0, 100.0))
         }
     }
 
@@ -300,7 +339,7 @@ impl Collector {
             if elapsed < 0.001 {
                 return Some(NetworkSpeed { upload: 0.0, download: 0.0 });
             }
-            // 处理 32-bit 计数器溢出：若新值小于旧值，说明计数器绕了一圈
+            // Handle 32-bit counter overflow: a lower new value means the counter wrapped around
             let rx_delta = if rx >= prev.rx {
                 rx - prev.rx
             } else {
@@ -602,7 +641,7 @@ impl Collector {
         extern "C" {
             fn sysctlbyname(
                 name: *const i8,
-                oldp: *mut timeval,
+                oldp: *mut std::ffi::c_void,
                 oldlenp: *mut usize,
                 newp: *const u8,
                 newlen: usize,
@@ -615,7 +654,7 @@ impl Collector {
             let name = b"kern.boottime\0";
             if sysctlbyname(
                 name.as_ptr() as *const i8,
-                &mut boot,
+                &mut boot as *mut timeval as *mut std::ffi::c_void,
                 &mut size,
                 std::ptr::null(),
                 0,
@@ -705,6 +744,132 @@ impl Collector {
 
     #[cfg(target_os = "macos")]
     fn collect_battery(&self) -> Option<BatteryInfo> {
-        None
+        // IOKit IOPowerSources — the standard Apple API for battery info.
+        // Linked against IOKit + CoreFoundation system frameworks.
+        #[link(name = "IOKit", kind = "framework")]
+        #[link(name = "CoreFoundation", kind = "framework")]
+        extern "C" {
+            fn IOPSCopyPowerSourcesInfo() -> *mut std::ffi::c_void;
+            fn IOPSCopyPowerSourcesList(
+                info: *mut std::ffi::c_void,
+            ) -> *mut std::ffi::c_void;
+            fn IOPSGetPowerSourceDescription(
+                info: *mut std::ffi::c_void,
+                ps: *mut std::ffi::c_void,
+            ) -> *mut std::ffi::c_void;
+            fn CFArrayGetCount(array: *mut std::ffi::c_void) -> isize;
+            fn CFArrayGetValueAtIndex(
+                array: *mut std::ffi::c_void,
+                idx: isize,
+            ) -> *mut std::ffi::c_void;
+            fn CFDictionaryGetValue(
+                dict: *mut std::ffi::c_void,
+                key: *const std::ffi::c_void,
+            ) -> *mut std::ffi::c_void;
+            fn CFNumberGetValue(
+                num: *mut std::ffi::c_void,
+                the_type: u32,
+                value_ptr: *mut std::ffi::c_void,
+            ) -> bool;
+            fn CFBooleanGetValue(boolean: *mut std::ffi::c_void) -> bool;
+            fn CFStringCreateWithCString(
+                alloc: *mut std::ffi::c_void,
+                cstr: *const i8,
+                encoding: u32,
+            ) -> *mut std::ffi::c_void;
+            fn CFRelease(cf: *mut std::ffi::c_void);
+        }
+
+        // kCFNumberSInt32 = 3, kCFStringEncodingUTF8 = 0x08001000
+        const SINT32: u32 = 3;
+        const UTF8: u32 = 0x08001000;
+
+        unsafe {
+            let info = IOPSCopyPowerSourcesInfo();
+            if info.is_null() {
+                return None;
+            }
+            let list = IOPSCopyPowerSourcesList(info);
+            if list.is_null() {
+                CFRelease(info);
+                return None;
+            }
+            let count = CFArrayGetCount(list);
+            if count == 0 {
+                CFRelease(list);
+                CFRelease(info);
+                return None;
+            }
+
+            // grab the first power source (internal battery)
+            let ps = CFArrayGetValueAtIndex(list, 0);
+            let desc = IOPSGetPowerSourceDescription(info, ps);
+            if desc.is_null() {
+                CFRelease(list);
+                CFRelease(info);
+                return None;
+            }
+
+            let k_current = b"Current Capacity\0";
+            let k_max = b"Max Capacity\0";
+            let k_charging = b"Is Charging\0";
+
+            let kc = CFStringCreateWithCString(
+                std::ptr::null_mut(),
+                k_current.as_ptr() as *const i8,
+                UTF8,
+            );
+            let km = CFStringCreateWithCString(
+                std::ptr::null_mut(),
+                k_max.as_ptr() as *const i8,
+                UTF8,
+            );
+            let kch = CFStringCreateWithCString(
+                std::ptr::null_mut(),
+                k_charging.as_ptr() as *const i8,
+                UTF8,
+            );
+
+            let mut current: i32 = 0;
+            let mut max: i32 = 0;
+            let mut charging = false;
+
+            let cur_val = CFDictionaryGetValue(desc, kc);
+            if !cur_val.is_null() {
+                CFNumberGetValue(
+                    cur_val,
+                    SINT32,
+                    &mut current as *mut _ as *mut _,
+                );
+            }
+            let max_val = CFDictionaryGetValue(desc, km);
+            if !max_val.is_null() {
+                CFNumberGetValue(
+                    max_val,
+                    SINT32,
+                    &mut max as *mut _ as *mut _,
+                );
+            }
+            let chg_val = CFDictionaryGetValue(desc, kch);
+            if !chg_val.is_null() {
+                charging = CFBooleanGetValue(chg_val);
+            }
+
+            CFRelease(kc);
+            CFRelease(km);
+            CFRelease(kch);
+            CFRelease(list);
+            CFRelease(info);
+
+            if max == 0 {
+                return None;
+            }
+            let level = (current as f64 / max as f64 * 100.0).clamp(0.0, 100.0);
+            Some(BatteryInfo {
+                level,
+                charging: Some(charging),
+                temperature: None,
+            })
+        }
     }
 }

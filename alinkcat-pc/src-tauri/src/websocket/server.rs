@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
+use tauri::Emitter;
 use rand::Rng;
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, Mutex};
@@ -30,6 +31,10 @@ const MAX_PORT_ATTEMPTS: u16 = 5;
 const HANDSHAKE_TIMEOUT_SECS: u64 = 10;
 const MAX_LOGS: usize = 50;
 
+/// max concurrent devices: free plan is single-device, raise this (or read it
+/// from the membership config) once paid multi-device ships
+const MAX_DEVICES: usize = 1;
+
 pub struct WebSocketServer {
     pub clients: Arc<Mutex<HashMap<String, ClientHandle>>>,
     pub pairing_code: Arc<Mutex<String>>,
@@ -38,7 +43,15 @@ pub struct WebSocketServer {
     pub logs: Arc<std::sync::Mutex<VecDeque<ConnectionLog>>>,
     pub monitor: Option<Arc<Mutex<MonitorScheduler>>>,
     pub ack_bus: AckBus,
+    /// frontend listens for "ws-clients-changed" to keep the device counter live
+    app_handle: Option<tauri::AppHandle>,
     task_handle: Option<tokio::task::JoinHandle<()>>,
+}
+
+/// the phone keeps one main connection plus a "(Display)" render connection —
+/// both belong to the same physical device
+fn base_device_name(name: &str) -> &str {
+    name.strip_suffix(" (Display)").unwrap_or(name)
 }
 
 impl WebSocketServer {
@@ -51,7 +64,30 @@ impl WebSocketServer {
             logs: Arc::new(std::sync::Mutex::new(VecDeque::new())),
             monitor: None,
             ack_bus: AckBus::new(),
+            app_handle: None,
             task_handle: None,
+        }
+    }
+
+    pub fn set_app_handle(&mut self, handle: tauri::AppHandle) {
+        self.app_handle = Some(handle);
+    }
+
+    /// count distinct physical devices (main + "(Display)" connections collapse to one)
+    pub async fn device_count(&self) -> usize {
+        let map = self.clients.lock().await;
+        let mut names: HashSet<&str> = HashSet::new();
+        for c in map.values() {
+            names.insert(base_device_name(&c.info.device_name));
+        }
+        names.len()
+    }
+
+    /// notify the frontend so the footer counter updates the moment a device
+    /// connects or drops, instead of waiting for the next poll
+    fn emit_clients_changed(&self) {
+        if let Some(app) = &self.app_handle {
+            let _ = app.emit("ws-clients-changed", ());
         }
     }
 
@@ -109,8 +145,8 @@ impl WebSocketServer {
         }
     }
 
-    /// 启动服务：优先 0.0.0.0:9527，被占用则依次尝试 9528、9529...
-    /// 返回本次配对码。若所有候选端口均被占用则返回错误。
+    /// start the server: prefers 0.0.0.0:9527, then 9528, 9529... if taken
+    /// returns the pairing code, or an error when every candidate port is busy
     pub async fn start(&mut self) -> Result<String, String> {
         {
             let running = self.is_running.lock().await;
@@ -119,7 +155,6 @@ impl WebSocketServer {
             }
         }
 
-        // 端口冲突处理：从 9527 开始逐个尝试
         let mut bound_port: Option<u16> = None;
         let mut listener: Option<TcpListener> = None;
         for port in DEFAULT_PORT..DEFAULT_PORT + MAX_PORT_ATTEMPTS {
@@ -172,6 +207,7 @@ impl WebSocketServer {
         let monitor = self.monitor.clone();
         let logs = self.logs.clone();
         let ack_bus = self.ack_bus.clone();
+        let app_handle = self.app_handle.clone();
 
         let handle = tokio::spawn(async move {
             loop {
@@ -189,10 +225,11 @@ impl WebSocketServer {
                 let mon = monitor.clone();
                 let logs = logs.clone();
                 let ack = ack_bus.clone();
+                let app = app_handle.clone();
 
                 tokio::spawn(async move {
                     if let Err(e) =
-                        handle_connection(stream, peer, clients, code, logs, mon, ack).await
+                        handle_connection(stream, peer, clients, code, logs, mon, ack, app).await
                     {
                         eprintln!("[WebSocket] Connection {} error: {}", peer, e);
                     }
@@ -243,7 +280,7 @@ impl WebSocketServer {
         *self.port.lock().unwrap()
     }
 
-    /// 返回最近 20 条连接日志（新的在前）。
+    /// last 20 connection logs, newest first
     pub fn get_logs(&self) -> Vec<ConnectionLog> {
         self.logs
             .lock()
@@ -267,13 +304,13 @@ impl WebSocketServer {
         }
     }
 
-    /// 获取目标设备的发送通道克隆（用于主题包推送）。
+    /// cloned send channel of the target device (for theme pack pushes)
     pub async fn client_sender(&self, client_id: &str) -> Option<ClientSender> {
         let map = self.clients.lock().await;
         map.get(client_id).map(|c| c.sender.clone())
     }
 
-    /// 向目标设备发送一条原始消息。
+    /// send a raw message to one device
     pub async fn send_to_client(&self, client_id: &str, message: &str) -> Result<(), String> {
         let map = self.clients.lock().await;
         match map.get(client_id) {
@@ -292,6 +329,72 @@ fn hostname() -> String {
         .unwrap_or_else(|_| "iLinkCat PC".into())
 }
 
+// 4-digit pairing code is enumerable: 5-min IP ban after too many failures, plus a random delay on failure responses to slow scripts
+
+use std::net::IpAddr;
+use std::time::Instant;
+
+const HS_FAIL_WINDOW_SECS: u64 = 60;
+const HS_FAIL_MAX: u32 = 5;
+const HS_BLOCK_SECS: u64 = 300;
+
+#[derive(Clone, Copy)]
+struct HsRecord {
+    fails: u32,
+    window_start: Instant,
+    blocked_until: Option<Instant>,
+}
+
+static HANDSHAKE_GUARD: std::sync::LazyLock<std::sync::Mutex<HashMap<IpAddr, HsRecord>>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
+
+fn hs_gc(now: Instant, map: &mut HashMap<IpAddr, HsRecord>) {
+    map.retain(|_, r| {
+        r.blocked_until.map(|b| b > now).unwrap_or(false)
+            || now.duration_since(r.window_start).as_secs() < HS_FAIL_WINDOW_SECS
+    });
+}
+
+/// remaining ban time for the ip, None if not banned
+fn handshake_blocked_remaining(ip: IpAddr) -> Option<Duration> {
+    let mut map = HANDSHAKE_GUARD.lock().ok()?;
+    let now = Instant::now();
+    hs_gc(now, &mut map);
+    let until = map.get(&ip)?.blocked_until?;
+    (until > now).then(|| until.duration_since(now))
+}
+
+/// record a pairing failure, returns the random ms to sleep before responding
+fn record_handshake_failure(ip: IpAddr) -> u64 {
+    let mut map = match HANDSHAKE_GUARD.lock() {
+        Ok(m) => m,
+        Err(_) => return 0,
+    };
+    let now = Instant::now();
+    hs_gc(now, &mut map);
+    let r = map.entry(ip).or_insert(HsRecord {
+        fails: 0,
+        window_start: now,
+        blocked_until: None,
+    });
+    if now.duration_since(r.window_start).as_secs() >= HS_FAIL_WINDOW_SECS {
+        r.fails = 0;
+        r.window_start = now;
+    }
+    r.fails += 1;
+    if r.fails >= HS_FAIL_MAX && r.blocked_until.is_none() {
+        r.blocked_until = Some(now + Duration::from_secs(HS_BLOCK_SECS));
+    }
+    rand::rng().random_range(200..800u64)
+}
+
+/// clear failure records after a successful pairing
+fn clear_handshake_failures(ip: IpAddr) {
+    if let Ok(mut map) = HANDSHAKE_GUARD.lock() {
+        map.remove(&ip);
+    }
+}
+
 // ─── Per-connection handler ─────────────────────────────────
 
 async fn handle_connection(
@@ -302,6 +405,7 @@ async fn handle_connection(
     logs: Arc<std::sync::Mutex<VecDeque<ConnectionLog>>>,
     monitor: Option<Arc<Mutex<MonitorScheduler>>>,
     ack_bus: AckBus,
+    app: Option<tauri::AppHandle>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use tokio_tungstenite::accept_async;
 
@@ -309,7 +413,26 @@ async fn handle_connection(
     let (mut ws_tx, mut ws_rx) = ws.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
 
-    // ── Phase 1: 握手（10 秒超时） ──
+    // banned IPs get rejected at handshake, before any pairing check
+    if let Some(remaining) = handshake_blocked_remaining(peer.ip()) {
+        let err = JsonRpcResponse::error(
+            ERR_RATE_LIMITED,
+            &format!("Too many pairing attempts, retry after {}s", remaining.as_secs()),
+            None,
+        );
+        let _ = ws_tx
+            .send(Message::Text(serde_json::to_string(&err)?.into()))
+            .await;
+        // sleep briefly so the error message lands before the socket closes
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        WebSocketServer::push_log(
+            &logs,
+            format!("{} 配对失败过多已封禁，剩余 {}s", peer, remaining.as_secs()),
+        );
+        return Ok(());
+    }
+
+    // ── Phase 1: handshake (10s timeout) ──
     let first_msg = match tokio::time::timeout(
         Duration::from_secs(HANDSHAKE_TIMEOUT_SECS),
         ws_rx.next(),
@@ -364,24 +487,28 @@ async fn handle_connection(
         }
     };
 
-    // 配对码校验
     let current_code = {
         let code = pairing_code.lock().await;
         code.clone()
     };
     if params.pairing_code != current_code {
+        let delay_ms = record_handshake_failure(peer.ip());
         let err = JsonRpcResponse::error(ERR_INVALID_PAIRING_CODE, "Invalid pairing code", req.id);
         let _ = ws_tx.send(Message::Text(serde_json::to_string(&err)?.into())).await;
         WebSocketServer::push_log(&logs, format!("{} 拒绝连接：配对码错误", peer));
         println!("[WebSocket] Rejected {} — invalid pairing code", peer);
+        // random delay to slow brute force; ban check happens on the next connection
+        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
         return Ok(());
     }
+    clear_handshake_failures(peer.ip());
 
-    // 重复连接处理：同名设备踢掉旧连接
+    // duplicate connection: same base device name kicks the old one
+    // (covers both the main connection and its "(Display)" sibling)
     let old = {
         let map = clients.lock().await;
         map.values()
-            .find(|c| c.info.device_name == params.device_name)
+            .find(|c| base_device_name(&c.info.device_name) == base_device_name(&params.device_name))
             .map(|c| (c.info.client_id.clone(), c.sender.clone()))
     };
     if let Some((old_id, old_sender)) = old {
@@ -403,16 +530,46 @@ async fn handle_connection(
             &logs,
             format!("设备 {} 重复连接，已断开旧连接", params.device_name),
         );
+    } else {
+        // no existing connection from this device: enforce the plan limit
+        let distinct = {
+            let map = clients.lock().await;
+            let mut names: HashSet<&str> = HashSet::new();
+            for c in map.values() {
+                names.insert(base_device_name(&c.info.device_name));
+            }
+            names.len()
+        };
+        if distinct >= MAX_DEVICES {
+            let err = JsonRpcResponse::error(
+                ERR_DEVICE_LIMIT,
+                &format!("Device limit reached ({}), disconnect the other device first", MAX_DEVICES),
+                req.id,
+            );
+            let _ = ws_tx.send(Message::Text(serde_json::to_string(&err)?.into())).await;
+            tokio::time::sleep(Duration::from_millis(150)).await;
+            WebSocketServer::push_log(
+                &logs,
+                format!("{} 拒绝连接：已达设备数上限（{}）", peer, MAX_DEVICES),
+            );
+            println!("[WebSocket] Rejected {} — device limit ({})", peer, MAX_DEVICES);
+            return Ok(());
+        }
     }
 
     let client_id = Uuid::new_v4().to_string();
+
+    // the phone uses this list as a hint when it has no themes locally
+    let theme_list: Vec<String> = crate::theme::manager::scan_themes()
+        .map(|list| list.into_iter().map(|t| t.name).collect())
+        .unwrap_or_default();
 
     let ok = HandshakeResult {
         status: "ok",
         server_version: env!("CARGO_PKG_VERSION").to_string(),
         server_name: hostname(),
         device_id: client_id.clone(),
-        theme_list: vec!["default".into(), "dark".into()],
+        theme_list,
     };
     let resp = JsonRpcResponse::success(serde_json::to_value(ok)?, req.id);
     ws_tx.send(Message::Text(serde_json::to_string(&resp)?.into())).await?;
@@ -435,13 +592,16 @@ async fn handle_connection(
             },
         );
     }
+    if let Some(app) = &app {
+        let _ = app.emit("ws-clients-changed", ());
+    }
     WebSocketServer::push_log(
         &logs,
         format!("设备 {} (v{}) 已连接，来源 {}", params.device_name, params.app_version, peer),
     );
     println!("[WebSocket] Client {} paired from {}", client_id, peer);
 
-    // ── Phase 2: 双向消息泵 ──
+    // ── Phase 2: message pump ──
 
     let cid_recv = client_id.clone();
     let clients_recv = clients.clone();
@@ -458,7 +618,7 @@ async fn handle_connection(
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = ws_rx.next().await {
             if let Message::Text(text) = msg {
-                // 先尝试解析为响应（推送确认），若命中 AckBus 则消费，否则正常分发
+                // try parsing it as a response (push ack) first; if AckBus claims it, done, else dispatch normally
                 if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
                     let has_method = v.get("method").is_some();
                     let id_num = v.get("id").and_then(|i| i.as_u64());
@@ -484,9 +644,9 @@ async fn handle_connection(
         _ = &mut recv_task => send_task.abort(),
     }
 
-    // ── Phase 3: 清理 ──
-    // 连接断开兜底：注销该连接关联的所有后台轮询/推送订阅，
-    // 无订阅者时调度器自动 stop，防止孤儿任务（Zombie Tasks）在后台空转。
+    // ── Phase 3: cleanup ──
+    // disconnect safety net: unregister every background poll/push subscription tied to
+    // this connection; schedulers stop themselves when empty, no zombie tasks left spinning
 
     if let Some(mon) = &monitor {
         mon.lock().await.remove_client(&client_id);
@@ -497,6 +657,9 @@ async fn handle_connection(
     {
         let mut map = clients.lock().await;
         map.remove(&client_id);
+    }
+    if let Some(app) = &app {
+        let _ = app.emit("ws-clients-changed", ());
     }
     WebSocketServer::push_log(
         &logs,

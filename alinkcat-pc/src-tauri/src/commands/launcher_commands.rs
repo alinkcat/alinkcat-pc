@@ -27,7 +27,7 @@ pub fn open_launcher(id: String) -> Result<(), String> {
     launcher_service::open(&id)
 }
 
-/// 使用 PowerShell 提取 .exe/.lnk 的图标，返回 data:image/png;base64,...
+/// extract .exe/.lnk icon via PowerShell, returns data:image/png;base64,...
 #[tauri::command]
 pub fn extract_app_icon(path: String) -> Result<String, String> {
     let resolved = resolve_real_path(&path)?;
@@ -41,7 +41,7 @@ pub fn extract_app_icon(path: String) -> Result<String, String> {
         .map_err(|e| format!("PowerShell 执行失败: {}", e))?;
     let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if result.is_empty() {
-        // 部分 exe 可能没有图标，返回默认占位空字符串
+        // some exes have no icon, return an empty string as placeholder
         return Ok(String::new());
     }
     Ok(format!("data:image/png;base64,{}", result))
@@ -57,14 +57,13 @@ pub fn resolve_launcher_path(path: String) -> Result<LauncherResolveResult, Stri
     let p = std::path::Path::new(&path);
     let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
 
-    // 解析 .lnk 快捷方式 → 获取真实目标路径
+    // resolve .lnk shortcut -> real target path
     let resolved = if ext == "lnk" {
         resolve_lnk(&path)?
     } else {
         path.clone()
     };
 
-    // 提取显示名称（无扩展名文件名）
     let name = std::path::Path::new(&resolved)
         .file_stem()
         .and_then(|s| s.to_str())
@@ -74,7 +73,7 @@ pub fn resolve_launcher_path(path: String) -> Result<LauncherResolveResult, Stri
     Ok(LauncherResolveResult { name, resolved_path: resolved })
 }
 
-/// 使用 PowerShell 解析 .lnk 快捷方式的目标路径（跨 Win7+ 兼容）
+/// resolve .lnk target path via PowerShell (Win7+ compatible)
 fn resolve_lnk(path: &str) -> Result<String, String> {
     let escaped = path.replace('\'', "''");
     let script = format!(

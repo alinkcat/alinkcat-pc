@@ -15,14 +15,13 @@ pub struct BilibiliLiveInfo {
     pub room_url: String,
 }
 
-/// 获取 B站直播间信息（房间信息 + 主播名）
+/// fetch bilibili live room info (room data + anchor name)
 pub async fn fetch_room_info(room_id: &str) -> Result<BilibiliLiveInfo, String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
 
-    // 房间基本信息
     let url = format!(
         "https://api.live.bilibili.com/room/v1/Room/get_info?id={}",
         room_id
@@ -63,7 +62,7 @@ pub async fn fetch_room_info(room_id: &str) -> Result<BilibiliLiveInfo, String> 
         room_url: format!("https://live.bilibili.com/{}", room_id),
     };
 
-    // 主播名（失败不影响主数据）
+    // anchor name is best-effort, failure doesn't affect the main data
     if uid > 0 {
         let master_url = format!(
             "https://api.live.bilibili.com/live_user/v1/Master/info?uid={}",

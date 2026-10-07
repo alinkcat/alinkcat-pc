@@ -1,13 +1,12 @@
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 
-/// 将文本写入系统剪贴板，然后模拟 Ctrl+V / Cmd+V 粘贴到当前光标位置。
+/// write text to the clipboard, then simulate Ctrl+V / Cmd+V at the cursor
 pub fn inject_snippet(text: &str) -> Result<(), String> {
     clipboard_write(text)?;
     simulate_paste()
 }
 
 fn clipboard_write(text: &str) -> Result<(), String> {
-    // 使用 arboard 写入系统剪贴板
     let mut ctx = arboard::Clipboard::new().map_err(|e| format!("剪贴板初始化失败: {}", e))?;
     ctx.set_text(text).map_err(|e| format!("剪贴板写入失败: {}", e))?;
     Ok(())

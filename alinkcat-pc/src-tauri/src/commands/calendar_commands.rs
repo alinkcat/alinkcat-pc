@@ -3,8 +3,7 @@ use serde_json::json;
 
 use crate::services::calendar_service::{self, LunarInfo};
 
-/// 获取指定公历日期的农历信息。
-/// date 参数格式 "YYYY-MM-DD"，省略时返回今天的农历。
+/// lunar info for a gregorian date ("YYYY-MM-DD"), defaults to today
 #[tauri::command]
 pub fn get_lunar_info(date: Option<String>) -> Result<LunarInfo, String> {
     let d = match date {
@@ -15,8 +14,8 @@ pub fn get_lunar_info(date: Option<String>) -> Result<LunarInfo, String> {
     calendar_service::get_lunar_info(Some(d))
 }
 
-/// 当前时间 + 农历打包数据，可直接注入 widget.data 供移动端/PC 端渲染。
-/// 返回：{ solar, weekday, lunar, lunarYear, lunarMonth, lunarDay }
+/// now + lunar data packed for widget.data, renders on both phone and PC
+/// returns { solar, weekday, lunar, lunarYear, lunarMonth, lunarDay }
 #[tauri::command]
 pub fn get_calendar_widget_data() -> Result<serde_json::Value, String> {
     let now = chrono::Local::now();

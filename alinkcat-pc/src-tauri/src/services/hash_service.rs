@@ -1,7 +1,7 @@
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
-/// 计算文件的 SHA-256 哈希（十六进制小写）。
+/// sha-256 of a file, lowercase hex
 pub fn sha256_file(path: &Path) -> Result<String, String> {
     let bytes = std::fs::read(path).map_err(|e| format!("读取文件失败: {}", e))?;
     let mut hasher = Sha256::new();
@@ -10,7 +10,7 @@ pub fn sha256_file(path: &Path) -> Result<String, String> {
     Ok(format!("{:x}", digest))
 }
 
-/// 计算字节内容的 SHA-256 哈希。
+/// sha-256 of raw bytes
 #[allow(dead_code)]
 pub fn sha256_bytes(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
@@ -19,7 +19,7 @@ pub fn sha256_bytes(bytes: &[u8]) -> String {
     format!("{:x}", digest)
 }
 
-/// 递归统计目录总大小（字节）。
+/// total directory size in bytes, recursive
 pub fn dir_size(dir: &Path) -> u64 {
     let mut total = 0u64;
     if let Ok(entries) = std::fs::read_dir(dir) {
