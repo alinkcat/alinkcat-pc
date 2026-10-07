@@ -1,17 +1,17 @@
 #!/system/bin/sh
-# action.sh —— 动作执行核心
-# 由 alnkcat_helper action 调用
+# action.sh - action runner
+# called from alnkcat_helper action
 
 run_action() {
   local type="$1"; shift
 
   case "$type" in
     "shell")
-      # 执行任意 shell 脚本（需用户确认）
+      # run an arbitrary shell command (user confirms in the app first)
       sh -c "$*"
       ;;
     "service")
-      # 启动/停止系统服务
+      # start/stop a system service
       local svc="$1"
       local op="${2:-start}"
       case "$op" in
@@ -22,24 +22,24 @@ run_action() {
       esac
       ;;
     "settings")
-      # 修改系统设置（需 root）
+      # change system settings
       local ns="$1"; local key="$2"; local value="$3"
       [ -n "$ns" ] && [ -n "$key" ] && settings put "$ns" "$key" "$value"
       ;;
     "brightness")
-      # root 级亮度控制
+      # brightness via root
       local val="$1"
       for f in /sys/class/backlight/*/brightness; do
         [ -f "$f" ] && echo "$val" > "$f" 2>/dev/null && break
       done
       ;;
     "input")
-      # 模拟按键
+      # inject key events
       local key_code="$1"
       input keyevent "$key_code" 2>/dev/null
       ;;
     "pm")
-      # 包管理操作
+      # package manager passthrough
       pm "$@" 2>/dev/null
       ;;
     *)

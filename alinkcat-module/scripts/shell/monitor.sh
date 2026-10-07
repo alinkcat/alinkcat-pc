@@ -1,18 +1,18 @@
 #!/system/bin/sh
-# monitor.sh —— 深层硬件数据获取
-# 由 alnkcat_helper monitor 调用
-# 读取系统文件节点，绕过 Android 权限限制
+# monitor.sh - deep hw stats
+# called from alnkcat_helper monitor
+# reads sysfs/proc nodes directly, no android permission needed
 
 # ─── CPU ────────────────────────────────────────
 
 get_cpu_usage() {
-  # 读取 /proc/stat 计算 CPU 使用率
+  # cpu usage from /proc/stat
   local cpu_line
   cpu_line=$(grep '^cpu ' /proc/stat 2>/dev/null) || return
   set -- $cpu_line
   local total=$(( $2 + $3 + $4 + $5 + $6 + $7 + $8 ))
   local idle=$5
-  # 此处简化：输出原始值，App 端处理差值
+  # keep it simple: dump raw counters, the app does the delta math
   echo "total=$total idle=$idle"
 }
 
@@ -43,7 +43,7 @@ get_cpu() {
   esac
 }
 
-# ─── 电池 ────────────────────────────────────────
+# --- battery ---
 
 get_battery_volt() {
   cat /sys/class/power_supply/battery/voltage_now 2>/dev/null || echo "0"
@@ -91,7 +91,7 @@ get_gpu() {
   echo "gpu_freq: $(get_gpu_freq)Hz"
 }
 
-# ─── 内存 ────────────────────────────────────────
+# --- memory ---
 
 get_memory() {
   local mem_total=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')
@@ -102,7 +102,7 @@ get_memory() {
   echo "mem_available: ${mem_avail:-0}kB"
 }
 
-# ─── 全部 ────────────────────────────────────────
+# --- all ---
 
 get_all() {
   echo "=== CPU ===";  get_cpu all

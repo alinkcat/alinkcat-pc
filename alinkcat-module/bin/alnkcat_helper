@@ -1,17 +1,17 @@
 #!/system/bin/sh
-# alnkcat_helper —— 艾联猫 Root 模块统一入口
-# 用法: sh alnkcat_helper <cmd> [args...]
-# 符合 POSIX shell，兼容 Magisk/KSU 环境
+# alnkcat_helper - unified entry for the alinkcat root module
+# usage: sh alnkcat_helper <cmd> [args...]
+# plain POSIX shell, works under Magisk/KSU
 
 VERSION="1.0.0"
 MODDIR="/data/adb/modules/alinkcat_module"
 
-# 加载配置
+# load config
 CONF="${0%/*}/../config/module.conf"
 [ -f "$CONF" ] && . "$CONF"
 [ -f "$MODDIR/config/module.conf" ] && . "$MODDIR/config/module.conf"
 
-# 输出帮助
+# help
 usage() {
   echo "usage: alnkcat_helper <cmd> [args]"
   echo ""
@@ -35,10 +35,10 @@ case "$1" in
     [ "$ENABLE_ACCESSIBILITY" = "1" ] && echo "accessibility"
     ;;
   daemon)
-    # 守护进程：保持存活，监听指令
+    # daemon: keep alive and wait for commands
     while true; do
       sleep 30
-      # 可扩展：监听本地 socket
+      # TODO: listen on a local unix socket here
     done
     ;;
   monitor)
@@ -53,7 +53,7 @@ case "$1" in
     shift
     [ "$ENABLE_ACTION" != "1" ] && { echo "action disabled"; exit 1; }
 
-    # 鉴权：第一个参数为 secret
+    # auth: first arg must be the secret
     local_secret="$1"; shift
     [ "$local_secret" != "$MODULE_SECRET" ] && { echo "permission denied"; exit 1; }
 

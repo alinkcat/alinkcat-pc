@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 艾联猫模块打包脚本
-# 构建标准 Magisk/KSU 模块 zip
+# pack the alinkcat module zip
+# standard Magisk/KSU module layout
 
 set -e
 cd "$(dirname "$0")"
@@ -11,11 +11,11 @@ MODULE_NAME="alinkcat-module-${VERSION}"
 
 echo "== 构建艾联猫 Root 模块 ${VERSION} =="
 
-# 清理
+# clean
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
-# 打包
+# pack
 echo "- 打包模块..."
 zip -r "${OUTPUT_DIR}/${MODULE_NAME}.zip" \
   META-INF/ \

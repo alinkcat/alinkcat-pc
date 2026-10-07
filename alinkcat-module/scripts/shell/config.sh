@@ -1,6 +1,6 @@
 #!/system/bin/sh
-# config.sh —— 模块配置读写
-# 由 alnkcat_helper config 调用
+# config.sh - config read/write
+# called from alnkcat_helper config
 
 CONF="${0%/*}/../config/module.conf"
 [ -f "$CONF" ] || CONF="/data/adb/modules/alinkcat_module/config/module.conf"

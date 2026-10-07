@@ -1,6 +1,6 @@
 #!/system/bin/sh
-# 艾联猫模块 - post-fs-data 阶段
-# （可选：早期系统尚未完全就绪时执行，适合挂载类操作）
-# 当前无挂载需求，保留入口。
+# alinkcat module - post-fs-data stage
+# runs early, system not fully up yet; meant for mount work
+# nothing to mount for now, keep the entry point
 
 exit 0
