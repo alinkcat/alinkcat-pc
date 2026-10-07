@@ -378,3 +378,8 @@ capabilities: monitor action config
 - Magisk Developer Guides: https://topjohnwu.github.io/Magisk/guides.html
 - KernelSU 模块开发: https://kernelsu.org/guide/module.html
 - Magisk 模块 Props: module.prop 规范
+---
+
+## 九、开源协议
+
+本模块随 alinkcat 项目整体基于 **GNU AGPL-3.0** 协议开源（完整文本见仓库根目录 `LICENSE`）。修改或衍生作品分发时必须以同协议开源。「艾联猫」「alinkcat」及官方 logo / 域名为受保护的品牌标识；云服务商业运营或闭源集成需获取单独商业授权，详见仓库根 README 的「协议与授权」章节。

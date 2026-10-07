@@ -66,4 +66,4 @@ app/src/main/java/com/ailinkcat/mobile/
 
 ## License
 
-[Apache License 2.0](LICENSE)
+[GNU AGPL-3.0](LICENSE)（仓库根目录含完整文本）——修改衍生须同协议开源；网络服务运营须向使用者提供源码（§13）。品牌标识与云服务商业授权条款见仓库根 README。

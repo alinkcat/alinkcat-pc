@@ -216,7 +216,11 @@ alinkcat-pc/
 
 ## 📄 License
 
-> 开源协议待定，确定后补充 LICENSE 文件并更新此处。
+本项目代码基于 **GNU AGPL-3.0** 协议开源（完整文本见仓库根目录 [LICENSE](../LICENSE)）：
+
+- 修改或衍生作品必须以 AGPL-3.0 同协议开源；作为网络服务运营时须向使用者提供源码（AGPL-3.0 §13）。
+- 「艾联猫」、`alinkcat`、官方 logo 及官方域名 `top.atqx.cn` 为受保护的品牌标识，不在代码授权范围内；衍生项目不得使用官方名称与标识。
+- 云服务商业运营、闭源集成或 OEM 定制需联系作者获取单独的**商业授权**：GitHub Issues / https://top.atqx.cn
 
 ---
 
