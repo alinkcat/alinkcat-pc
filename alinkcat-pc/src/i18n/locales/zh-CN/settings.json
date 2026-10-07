@@ -50,7 +50,7 @@
   "ai_saved": "AI 设置已保存",
   "dev_title": "🔧 开发者模式",
   "dev_api_server": "API 服务器地址",
-  "dev_api_desc": "支持格式：localhost:8080 / top.atqx.cn:8080 / http://top.atqx.cn:8080 / https://api.example.com",
+  "dev_api_desc": "支持格式：api.pynen.com 或 https://api.example.com",
   "dev_server_addr": "服务器地址",
   "dev_server_placeholder": "localhost:8080",
   "dev_current": "当前解析",
@@ -66,5 +66,12 @@
   "dev_mode_hint": "连续点击标题 5 次解锁",
   "importLanguage": "导入语言包",
   "languageImported": "已导入语言包：{{label}}",
-  "languageImportFailed": "语言包导入失败，请检查 JSON 格式"
+  "languageImportFailed": "语言包导入失败，请检查 JSON 格式",
+  "themesDirTitle": "主题包目录",
+  "themesDirLabel": "自定义主题包目录",
+  "themesDirExtra": "此目录中的主题包会以最高优先级出现在主题列表。留空恢复默认目录。",
+  "themesDirPlaceholder": "例如 D:\\MyThemes",
+  "browse": "浏览",
+  "save_themes_dir": "保存目录",
+  "themesDirSaved": "主题包目录已保存，主题列表已刷新"
 }

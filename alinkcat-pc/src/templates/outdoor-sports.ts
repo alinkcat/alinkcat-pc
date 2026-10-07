@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 户外运动模板 - 竖屏
- * 运动风格，健康数据+时钟+天气，适合户外爱好者
- */
+/** outdoor sports template, portrait - health data + clock + weather */
 const template: EditorTheme = {
   id: 'template-outdoor-sports',
   name: '户外运动',

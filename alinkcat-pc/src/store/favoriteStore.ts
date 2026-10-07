@@ -29,16 +29,16 @@ export const useFavoriteStore = create<FavoriteState>((set, get) => ({
   toggle: async (themeId) => {
     const list = get().favorites;
     const isFav = list.includes(themeId);
-    // 乐观更新
+    // optimistic update
     const next = isFav ? list.filter((id) => id !== themeId) : [...list, themeId];
     saveLocal(next);
     set({ favorites: next });
-    // 同步后端（POST 切换：已收藏则取消，未收藏则添加）
+    // POST toggles: favorite if absent, unfavorite if present
     try {
       await themeApi.favorite(themeId);
       return !isFav;
     } catch {
-      // 回滚
+      // rollback
       saveLocal(list);
       set({ favorites: list });
       return isFav;
@@ -48,7 +48,6 @@ export const useFavoriteStore = create<FavoriteState>((set, get) => ({
   isFavorite: (themeId) => get().favorites.includes(themeId),
 
   hydrate: async () => {
-    // 从后端拉取收藏列表
     try {
       const resp = await themeApi.favorites({ page: 1, size: 100 });
       if (resp.code === 200 && resp.data) {
@@ -56,6 +55,6 @@ export const useFavoriteStore = create<FavoriteState>((set, get) => ({
         saveLocal(ids);
         set({ favorites: ids });
       }
-    } catch { /* 未登录或失败时保留本地 */ }
+    } catch { /* logged out or failed, keep local */ }
   },
 }));

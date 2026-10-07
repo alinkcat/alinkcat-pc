@@ -15,7 +15,7 @@ export default function OAuthCallback() {
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    // 文档约定回调参数：token / refreshToken / username
+    // callback params per the OAuth docs: token / refreshToken / username
     const token = searchParams.get('token');
     const refreshToken = searchParams.get('refreshToken');
     const error = searchParams.get('error');
@@ -32,14 +32,14 @@ export default function OAuthCallback() {
       return;
     }
 
-    // 存储令牌（refreshToken 可能为空，由后端按需下发）并同步登录状态
+    // store tokens (refreshToken may be empty, backend sends it on demand) and sync login state
     applyTokens(token, refreshToken || '')
       .then(() => {
         setStatus('done');
         setTimeout(() => navigate('/profile', { replace: true }), 1200);
       })
       .catch(() => {
-        // 即使 profile 拉取失败，也视为登录成功
+        // profile fetch failure still counts as a successful login
         setStatus('done');
         setTimeout(() => navigate('/profile', { replace: true }), 1200);
       });

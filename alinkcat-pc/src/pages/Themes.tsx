@@ -81,7 +81,7 @@ export default function Themes() {
     }
   }, []);
 
-  // 手动刷新主题列表，成功后给出提示
+  // manual refresh with a success toast
   const handleRefresh = async () => {
     await fetchData();
     message.success(t('themes.refreshSuccess') ?? 'Theme list refreshed');
@@ -176,9 +176,9 @@ export default function Themes() {
     try {
       await tauriInvoke('activate_theme', { id });
       setActiveId(id);
-      // 立即刷新列表，确保激活状态同步显示
+      // refresh right away so the active state shows up
       fetchData();
-      // 广播 theme.switch 消息给所有已连接的手机端
+      // broadcast theme.switch to every connected phone
       try {
         await tauriInvoke('broadcast', {
           message: JSON.stringify({
@@ -188,7 +188,7 @@ export default function Themes() {
           }),
         });
       } catch {
-        // WebSocket 服务未运行 — 忽略广播异常
+        // websocket service not running, ignore broadcast failure
       }
       message.success(t('themes.themeSwitched'));
     } catch (e) {
@@ -246,7 +246,7 @@ export default function Themes() {
       let errorCount = 0;
       for (const device of devices) {
         try {
-          // 向每台已连接设备逐个发起主题包推送（复用现有 push_theme_to_device 协议）
+          // push the theme pack to each device (reuses the push_theme_to_device protocol)
           await tauriInvoke('push_theme_to_device', {
             themeId: theme.id,
             clientId: device.client_id,
@@ -497,13 +497,11 @@ export default function Themes() {
         onClose={() => setPushTarget(null)}
       />
 
-      {/* 从模板新建 */}
       <TemplatePicker
         open={templateOpen}
         onClose={() => setTemplateOpen(false)}
       />
 
-      {/* 分享海报 Modal */}
       <Modal
         title={t('themes.sharePoster')}
         open={!!shareTheme}

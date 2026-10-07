@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 音乐墙模板 - 横屏
- * 大封面音乐控制+歌词+时钟，深色
- */
+/** music wall template, landscape - large cover + lyrics + clock, dark */
 const template: EditorTheme = {
   id: 'template-music-wall',
   name: '音乐墙',

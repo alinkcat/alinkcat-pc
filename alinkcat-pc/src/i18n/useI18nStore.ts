@@ -7,10 +7,10 @@ interface I18nState {
   lang: string;
   antdLocale: Locale | null;
   initialized: boolean;
-  /** 当前可用语言列表（含外部导入） */
+  /** available languages, including imported ones */
   languages: { code: string; label: string }[];
   changeLang: (code: string) => Promise<void>;
-  /** 导入外部语言包 JSON */
+  /** import an external language pack JSON */
   importLanguage: (payload: { code: string; label: string; resources: Record<string, object> }) => Promise<void>;
   hydrate: () => Promise<void>;
 }
@@ -25,11 +25,11 @@ export const useI18nStore = create<I18nState>((set, get) => ({
     const def = LANGUAGES.find((l) => l.code === code);
     if (!def) return;
 
-    // 加载 antd locale
+    // load the antd locale
     const antdModule = await def.antdLocale();
     const antdLocale = antdModule.default || antdModule;
 
-    // 切换 i18next
+    // switch i18next
     await setAppLanguage(code);
 
     set({ lang: code, antdLocale });
@@ -39,7 +39,7 @@ export const useI18nStore = create<I18nState>((set, get) => ({
     const def = addImportedLanguage(payload.code, payload.label, payload.resources);
     saveCustomLanguages();
     set({ languages: LANGUAGES.map((l) => ({ code: l.code, label: l.label })) });
-    // 导入后自动切换到新语言
+    // switch to the new language right after import
     await get().changeLang(def.code);
   },
 
@@ -47,7 +47,7 @@ export const useI18nStore = create<I18nState>((set, get) => ({
     const saved = loadStoredLang();
     const def = LANGUAGES.find((l) => l.code === saved) || LANGUAGES[0];
 
-    // 确保 i18next 语言与资源已就绪
+    // make sure i18next language + resources are ready
     await setAppLanguage(saved).catch(console.error);
 
     const antdModule = await def.antdLocale();

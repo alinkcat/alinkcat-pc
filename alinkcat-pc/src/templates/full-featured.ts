@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 全功能模板 - 横屏
- * 4页主题：监控/媒体/时钟/快捷面板，grid布局
- */
+/** full featured, landscape - 4 pages: monitor/media/clock/quick actions on grid */
 const template: EditorTheme = {
   id: 'template-full-featured',
   name: '全功能',

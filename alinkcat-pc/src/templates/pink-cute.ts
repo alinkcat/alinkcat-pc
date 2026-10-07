@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 粉色可爱模板 - 竖屏
- * 粉色主题，圆角组件，可爱风格，适合少女心用户
- */
+/** pink cute template, portrait - rounded widgets, pastel pink */
 const template: EditorTheme = {
   id: 'template-pink-cute',
   name: '粉色可爱',

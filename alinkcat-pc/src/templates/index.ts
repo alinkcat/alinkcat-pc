@@ -21,15 +21,11 @@ import retro from './retro';
 import outdoorSports from './outdoor-sports';
 
 export interface TemplateDef {
-  /** 模板 ID */
   id: string;
-  /** 模板名称 */
   name: string;
-  /** 模板描述 */
   description: string;
-  /** 分类：监控/时钟/媒体/空白/商务/游戏/自然等 */
+  /** monitor/clock/media/blank/business/gaming/nature... */
   category: string;
-  /** 模板主题数据 */
   theme: EditorTheme;
 }
 
@@ -176,16 +172,12 @@ export const TEMPLATES: TemplateDef[] = [
   },
 ];
 
-/**
- * 通过模板 ID 查找模板数据
- */
+// look up template data by id
 export function getTemplateById(id: string): EditorTheme | undefined {
   return TEMPLATES.find((t) => t.id === id)?.theme;
 }
 
-/**
- * 深拷贝模板数据（避免共享引用导致状态串动）
- */
+// deep-copy so templates don't share state across edits
 export function cloneTemplate(theme: EditorTheme): EditorTheme {
   return JSON.parse(JSON.stringify(theme)) as EditorTheme;
 }

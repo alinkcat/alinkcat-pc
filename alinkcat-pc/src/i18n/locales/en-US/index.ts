@@ -9,7 +9,6 @@ import themes from './themes.json';
 import profile from './profile.json';
 import market from './market.json';
 import admin from './admin.json';
-import upload from './upload.json';
 import snippets from './snippets.json';
 import notifications from './notifications.json';
 import tickets from './tickets.json';
@@ -33,7 +32,6 @@ export default {
   profile,
   market,
   admin,
-  upload,
   snippets,
   notifications,
   tickets,

@@ -1,6 +1,6 @@
 import { tauriInvoke } from '../utils/tauri';
 
-// 轻量 JSON 取值：点号路径 + 可选数组下标，替代 jmespath
+// lightweight JSON lookup: dot path + optional array index, replaces jmespath
 function simpleSearch(obj: any, expr: string): any {
   if (!expr) return undefined;
   const parts = expr.split('.');
@@ -20,7 +20,7 @@ function simpleSearch(obj: any, expr: string): any {
   return cur;
 }
 
-/** 简单占位符渲染，例如 "${city}" → 实际值 */
+/** tiny template renderer, "${city}" → actual value */
 function renderTemplate(str: string, vars: Record<string, string | number>): string {
   return str.replace(/\${([^}]+)}/g, (_, key) => {
     const v = vars[key.trim()];
@@ -38,7 +38,7 @@ export async function fetchWithMapping(config: {
 }) {
   const { requestUrl, requestMethod, requestHeaders = {}, requestBody = '', vars, responseMapping } = config;
 
-  // 先渲染占位符，再走后端 generic_http
+  // render placeholders first, then let the backend do generic_http
   const url = renderTemplate(requestUrl, vars);
   const headers: Record<string, string> = {};
   for (const k of Object.keys(requestHeaders)) {
@@ -53,7 +53,7 @@ export async function fetchWithMapping(config: {
     body,
   });
 
-  // 按映射表提取字段
+  // extract fields per the mapping table
   const result: Record<string, any> = {};
   for (const [target, expr] of Object.entries(responseMapping)) {
     result[target] = simpleSearch(raw, expr);

@@ -6,12 +6,12 @@ function baseUrl() { return config.apiBaseUrl; }
 const TOKEN_KEY = 'ilinkcat_access_token';
 const REFRESH_KEY = 'ilinkcat_refresh_token';
 
-/** 下划线命名 → 驼峰命名（如 cover_url → coverUrl） */
+/** snake_case → camelCase (cover_url → coverUrl) */
 function toCamel(str: string): string {
   return str.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 }
 
-/** 递归转换对象所有 key 为驼峰 */
+/** recursively camelCase every key in the object */
 function snakeToCamel<T = unknown>(value: unknown): T {
   if (Array.isArray(value)) return value.map((v) => snakeToCamel(v)) as T;
   if (value && typeof value === 'object') {
@@ -26,7 +26,7 @@ function snakeToCamel<T = unknown>(value: unknown): T {
 
 let refreshing: Promise<string> | null = null;
 
-/** 本会话是否已触发过"登录过期"弹窗（只弹一次，登录成功后可重置） */
+/** whether the auth-expired dialog already fired this session (once only, reset on login) */
 let authExpiredNotified = false;
 export function resetAuthExpiredFlag() {
   authExpiredNotified = false;
@@ -50,7 +50,7 @@ export function clearTokens() {
   localStorage.removeItem(REFRESH_KEY);
 }
 
-/** 通过 Rust 后端发起 HTTP 请求（绕过 CORS） */
+/** route http through the Rust backend to bypass CORS */
 async function rustFetch(
   url: string,
   method: string = 'GET',
@@ -110,7 +110,7 @@ export async function apiFetch<T = unknown>(
     console.log(`[API] ← ${resp.status} ${url}`);
 
     if (resp.status === 401) {
-      // 无 token（未登录用户访问需鉴权接口）→ 静默失败，不弹"登录过期"
+      // no token (anonymous user hitting an authed endpoint) → fail silently, no auth-expired popup
       if (!getAccessToken()) {
         throw new Error('未登录');
       }
@@ -125,7 +125,7 @@ export async function apiFetch<T = unknown>(
         return snakeToCamel<T>(retry.body);
       } catch {
         clearTokens();
-        // 登录过期弹窗：每会话只触发一次
+        // auth-expired dialog only fires once per session
         if (!authExpiredNotified) {
           authExpiredNotified = true;
           window.dispatchEvent(new CustomEvent('auth:expired'));
@@ -153,7 +153,7 @@ export async function apiFetch<T = unknown>(
   }
 }
 
-/** Upload multipart form (for theme upload, etc.) — uses browser fetch (Tauri 不拦截 multipart 的 CORS) */
+/** Upload multipart form (theme upload etc.) — browser fetch, Tauri doesn't proxy multipart CORS */
 export async function apiUpload<T = unknown>(
   path: string,
   formData: FormData,

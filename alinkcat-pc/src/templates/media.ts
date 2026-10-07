@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 媒体控制模板 - 横屏
- * 音乐控制 + 时钟 + 快捷启动，适合配合 PC 播放器使用
- */
+/** media control template, landscape - music + clock + launcher, pairs with a pc player */
 const template: EditorTheme = {
   id: 'template-media',
   name: '媒体控制',

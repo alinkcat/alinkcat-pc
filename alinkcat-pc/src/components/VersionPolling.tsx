@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Modal, Button, Typography, Space } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { APP_VERSION } from '../config';
+import { APP_VERSION , APP_PLATFORM } from '../config';
 import { clientVersionApi } from '../api/clientVersionApi';
 
 const { Text } = Typography;
-const POLL_INTERVAL = 5 * 60 * 1000; // 5 分钟
+const POLL_INTERVAL = 5 * 60 * 1000; // 5 min
 const SEEN_KEY = 'ilinkcat_seen_announcements';
 
 function getSeenIds(): Set<number> {
@@ -21,10 +21,7 @@ function markSeen(id: number) {
   localStorage.setItem(SEEN_KEY, JSON.stringify([...set]));
 }
 
-/**
- * 定期轮询版本状态，发现强制更新或弹窗公告时立即显示。
- * 嵌入 App 根组件，与 App 同生命周期。
- */
+/** polls version status, shows force-update / announcement modals as soon as they appear. mounted at the App root */
 export default function VersionPolling() {
   const { t } = useTranslation();
   const [modal, setModal] = useState<{
@@ -35,12 +32,12 @@ export default function VersionPolling() {
   useEffect(() => {
     const check = async () => {
       try {
-        const resp = await clientVersionApi.check('windows', APP_VERSION);
+        const resp = await clientVersionApi.check(APP_PLATFORM, APP_VERSION);
         if (resp.code !== 200 || !resp.data) return;
 
         const { version, announcements } = resp.data;
 
-        // 版本控制（优先级最高）
+        // version gate first, highest priority
         if (version.status === 2) {
           setModal({ type: 'deprecated', message: t('versionGate.deprecated'), url: version.updateUrl });
           return;
@@ -54,12 +51,12 @@ export default function VersionPolling() {
           return;
         }
 
-        // 弹窗公告
+        // popup announcements
         const seen = getSeenIds();
         const now = new Date().toISOString();
         const valid = announcements.filter((a) => {
           if (a.status !== 1) return false;
-          if (a.targetPlatform && a.targetPlatform !== 'windows') return false;
+          if (a.targetPlatform && a.targetPlatform !== APP_PLATFORM) return false;
           if (a.popupType === 'once' && seen.has(a.id)) return false;
           if (a.startAt && a.startAt > now) return false;
           if (a.endAt && a.endAt < now) return false;
@@ -71,10 +68,10 @@ export default function VersionPolling() {
           markSeen(a.id);
           setModal({ type: 'announcement', title: a.title, message: a.content || '' });
         }
-      } catch { /* 网络错误静默忽略 */ }
+      } catch { /* network errors ignored */ }
     };
 
-    // 首次延迟 30 秒（避免与启动检查冲突），然后每 5 分钟轮询
+    // first check delayed 30s to avoid clashing with the startup check, then poll every 5 min
     const initial = setTimeout(check, 30_000);
     const timer = setInterval(check, POLL_INTERVAL);
     return () => { clearTimeout(initial); clearInterval(timer); };

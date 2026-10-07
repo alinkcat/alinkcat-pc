@@ -5,7 +5,7 @@ export interface PageTemplateDef {
   label: string;
   description: string;
   category: string;
-  /** 深拷贝后使用 */
+  /** always deep-copy before use */
   page: EditorPage;
 }
 
@@ -145,9 +145,7 @@ export const PAGE_TEMPLATES: PageTemplateDef[] = [
   },
 ];
 
-/**
- * 深拷贝页面模板
- */
+// deep copy of a page template
 export function clonePageTemplate(page: EditorPage): EditorPage {
   return JSON.parse(JSON.stringify(page)) as EditorPage;
 }

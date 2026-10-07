@@ -8,14 +8,13 @@ interface ScreenshotCarouselProps {
   height?: number;
 }
 
-/** 轻量截图轮播图：自动播放 + 左右箭头 + 指示点，无第三方依赖（antd v6 已移除 Carousel）。 */
+/** lightweight screenshot carousel: autoplay + arrows + dots, no deps (antd v6 dropped Carousel) */
 export default function ScreenshotCarousel({ images, alt = '', height = 280 }: ScreenshotCarouselProps) {
   const [index, setIndex] = useState(0);
   const count = images.length;
 
   const go = (i: number) => setIndex(((i % count) + count) % count);
 
-  // 自动轮播（5s）
   useEffect(() => {
     if (count <= 1) return;
     const timer = setInterval(() => setIndex((i) => (i + 1) % count), 5000);
@@ -26,7 +25,6 @@ export default function ScreenshotCarousel({ images, alt = '', height = 280 }: S
 
   return (
     <div style={{ position: 'relative', height, borderRadius: 8, overflow: 'hidden' }}>
-      {/* 滑动轨道 */}
       <div style={{
         display: 'flex', width: '100%', height: '100%',
         transform: `translateX(-${index * 100}%)`,
@@ -45,7 +43,6 @@ export default function ScreenshotCarousel({ images, alt = '', height = 280 }: S
 
       {count > 1 && (
         <>
-          {/* 左右箭头 */}
           <div style={{ position: 'absolute', top: 0, bottom: 0, left: 8, display: 'flex', alignItems: 'center' }}>
             <button
               aria-label="previous"
@@ -64,7 +61,6 @@ export default function ScreenshotCarousel({ images, alt = '', height = 280 }: S
               <RightOutlined />
             </button>
           </div>
-          {/* 指示点 */}
           <div style={{
             position: 'absolute', bottom: 8, left: 0, right: 0,
             display: 'flex', justifyContent: 'center', gap: 6,

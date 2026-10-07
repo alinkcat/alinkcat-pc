@@ -2,11 +2,11 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Button, Spin, Tag, Rate, Typography, Card, Descriptions, Space, Empty, Row, Col, List, // Input, Avatar, Divider（评论模块暂时禁用）
+  Button, Spin, Tag, Rate, Typography, Card, Descriptions, Space, Empty, Row, Col, List, // Input, Avatar, Divider (comments disabled for now)
 } from 'antd';
 import { ArrowLeftOutlined, DownloadOutlined } from '@ant-design/icons';
 import { themeApi } from '../api/themeApi';
-// 评论模块暂时禁用：import { commentApi } from '../api/commentApi';
+// comments disabled for now: import { commentApi } from '../api/commentApi';
 import { versionApi } from '../api/versionApi';
 import { useMessage } from '../hooks/useMessage';
 import { downloadToQueue } from '../utils/downloadTheme';
@@ -15,7 +15,7 @@ import FavoriteButton from '../components/FavoriteButton';
 import UserRating from '../components/UserRating';
 import ScreenshotCarousel from '../components/ScreenshotCarousel';
 import type { ThemeItem, ThemeVersion } from '../api/types';
-// 评论模块暂时禁用：import type { ThemeComment } from '../api/types';
+// comments disabled for now: import type { ThemeComment } from '../api/types';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -41,25 +41,25 @@ export default function MarketDetail() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [screenshots, setScreenshots] = useState<string[]>([]);
-  // 评论模块暂时禁用：const [comments, setComments] = useState<ThemeComment[]>([]);
+  // comments disabled for now: const [comments, setComments] = useState<ThemeComment[]>([]);
   const [versions, setVersions] = useState<ThemeVersion[]>([]);
-  // 评论模块暂时禁用：const [commentText, setCommentText] = useState('');
-  // 评论模块暂时禁用：const [commentOpen, setCommentOpen] = useState(false);
+  // comments disabled for now: const [commentText, setCommentText] = useState('');
+  // comments disabled for now: const [commentOpen, setCommentOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     Promise.all([
       themeApi.detail(Number(id)),
-      // 评论模块暂时禁用：commentApi.list(id),
+      // comments disabled for now: commentApi.list(id),
       versionApi.list(id),
     ]).then(([themeResp, versionResp]) => {
       if (themeResp.code === 200 && themeResp.data) setItem(themeResp.data);
-      // 评论模块暂时禁用：if (commentResp.code === 200) setComments(commentResp.data?.records ?? []);
+      // comments disabled for now: if (commentResp.code === 200) setComments(commentResp.data?.records ?? []);
       if (versionResp.code === 200) setVersions(Array.isArray(versionResp.data) ? versionResp.data : []);
     }).finally(() => setLoading(false));
 
-    // 截图轮播：独立请求，无认证、无浏览量副作用；失败不影响详情展示
+    // screenshots load separately: no auth, no view-count side effects; failure doesn't block the detail view
     themeApi.screenshots(Number(id))
       .then((resp) => {
         if (resp.code === 200 && Array.isArray(resp.data)) setScreenshots(resp.data);
@@ -77,7 +77,7 @@ export default function MarketDetail() {
     finally { setDownloading(false); }
   };
 
-/* 评论模块暂时禁用：
+/* comments disabled for now:
   const handlePostComment = async () => {
     if (!item || !commentText.trim()) return;
     try {
@@ -186,7 +186,7 @@ export default function MarketDetail() {
         </Card>
       )}
 
-      {/* 评论模块暂时禁用 — 下方整块被注释
+      {/* comments disabled for now — whole block commented out below
       <Card title={t('market.comments')} style={{ marginTop: 16 }}>
         <Space style={{ marginBottom: 16 }}>
           <Button type={commentOpen ? 'primary' : 'default'} onClick={() => setCommentOpen(!commentOpen)}>

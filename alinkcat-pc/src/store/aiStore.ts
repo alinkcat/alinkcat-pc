@@ -26,7 +26,7 @@ function genId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// ─── 会话存储 ──────────────────────────────────────────────
+// ─── session storage ───────────────────────────────────────
 
 export interface SessionMeta {
   id: string;
@@ -68,8 +68,8 @@ function deleteSessionMessages(themeId: string, sessionId: string) {
 // ─── Store ─────────────────────────────────────────────────
 
 export interface DroppedImage {
-  name: string;      // 图1、图2...
-  fileName: string;  // 原始文件名
+  name: string;      // "图1", "图2"... the ref format the AI uses
+  fileName: string;  // original file name
   dataUrl: string;   // base64 data URL
 }
 
@@ -124,24 +124,23 @@ export const useAIStore = create<AIState>((set, get) => ({
   droppedImages: [],
   snapshots: [],
 
-  // ─── 初始化主题 ──────────────────────────────────────
+  // ─── init theme ──────────────────────────────────────
   initTheme: (themeId) => {
     const s = get();
     if (s.themeId === themeId && s.messages.length > 0) return;
-    // 保存当前主题的会话
+    // save the current theme's session
     if (s.themeId && s.currentSessionId && s.messages.length > 0) {
       saveSessionMessages(s.themeId, s.currentSessionId, s.messages);
     }
-    // 加载新主题的会话列表
+    // load the new theme's session list
     const sessions = loadSessionList(themeId);
     let currentSessionId: string | null = null;
     let messages: AIMessage[] = [];
     if (sessions.length > 0) {
-      // 恢复最近一个会话
+      // restore the most recent session
       currentSessionId = sessions[0].id;
       messages = loadSessionMessages(themeId, currentSessionId);
     } else {
-      // 创建新会话
       currentSessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       const meta: SessionMeta = {
         id: currentSessionId, title: '新对话',
@@ -154,11 +153,10 @@ export const useAIStore = create<AIState>((set, get) => ({
     set({ themeId, messages, currentSessionId, sessions });
   },
 
-  // ─── 新建会话 ──────────────────────────────────────
+  // ─── new session ────────────────────────────────────
   newSession: () => {
     const s = get();
     if (!s.themeId) return;
-    // 保存当前会话
     if (s.currentSessionId && s.messages.length > 0) {
       saveSessionMessages(s.themeId, s.currentSessionId, s.messages);
       const list = loadSessionList(s.themeId);
@@ -169,7 +167,6 @@ export const useAIStore = create<AIState>((set, get) => ({
         saveSessionList(s.themeId, list);
       }
     }
-    // 创建新会话
     const id = `session-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const meta: SessionMeta = {
       id, title: '新对话',
@@ -182,11 +179,10 @@ export const useAIStore = create<AIState>((set, get) => ({
     set({ currentSessionId: id, messages: [], sessions });
   },
 
-  // ─── 加载指定会话 ──────────────────────────────────
+  // ─── load session ───────────────────────────────────
   loadSession: (sessionId) => {
     const s = get();
     if (!s.themeId) return;
-    // 保存当前会话
     if (s.currentSessionId && s.messages.length > 0) {
       saveSessionMessages(s.themeId, s.currentSessionId, s.messages);
       const list = loadSessionList(s.themeId);
@@ -197,12 +193,11 @@ export const useAIStore = create<AIState>((set, get) => ({
         saveSessionList(s.themeId, list);
       }
     }
-    // 加载目标会话
     const messages = loadSessionMessages(s.themeId, sessionId);
     set({ currentSessionId: sessionId, messages });
   },
 
-  // ─── 删除会话 ──────────────────────────────────────
+  // ─── delete session ─────────────────────────────────
   deleteSession: (sessionId) => {
     const s = get();
     if (!s.themeId) return;
@@ -211,19 +206,19 @@ export const useAIStore = create<AIState>((set, get) => ({
     deleteSessionMessages(s.themeId, sessionId);
     set({ sessions: list });
     if (s.currentSessionId === sessionId) {
-      // 当前会话被删除，切换到最近一个
+      // current session deleted, fall back to the most recent one
       if (list.length > 0) {
         const next = list[0];
         const messages = loadSessionMessages(s.themeId, next.id);
         set({ currentSessionId: next.id, messages });
       } else {
-        // 无会话，创建新会话
+        // nothing left, start a new session
         get().newSession();
       }
     }
   },
 
-  // ─── 清空当前会话 ──────────────────────────────────
+  // ─── clear current session ──────────────────────────
   clearHistory: () => {
     const s = get();
     if (!s.themeId || !s.currentSessionId) return;
@@ -273,7 +268,7 @@ export const useAIStore = create<AIState>((set, get) => ({
     } catch { return false; }
   },
 
-  // ─── 发送消息 ──────────────────────────────────────
+  // ─── send message ───────────────────────────────────
   sendMessage: async (content) => {
     const { config, model, themeId, currentSessionId } = get();
     if (!config.apiKey) {
@@ -293,9 +288,9 @@ export const useAIStore = create<AIState>((set, get) => ({
       status: config.streamOutput ? 'streaming' : 'sending',
     };
 
-    // 注意：必须在 set() 加入本轮消息【之前】基于历史构建请求——
-    // 否则 get().messages 已包含本轮 userMsg（内容重复发送一次）
-    // 与空内容的 aiMsg 占位（把空 assistant 消息发给模型）。
+    // build the request from history BEFORE adding this turn's messages to the store,
+    // otherwise the user msg gets sent twice and the empty aiMsg placeholder
+    // would go to the model as an empty assistant message
     const editorState = useEditorStore.getState();
     const system = buildSystemPrompt(editorState.theme, editorState.activePageIdx, get().droppedImages);
     const reqMsgs = buildRequestMessages(system, get().messages.filter((m) => m.role !== 'system'), content, config.maxTurns);
@@ -318,13 +313,13 @@ export const useAIStore = create<AIState>((set, get) => ({
       const instrs = parseInstructions(full);
       let finalMsg: AIMessage = { ...aiMsg, content: full, status: 'done', instructions: instrs };
 
-      // autoExecute 只自动执行普通指令；danger（整页生成等破坏性操作）强制等待用户确认
+      // autoExecute only runs normal instructions; danger ones (full-page generation etc.) always wait for user confirmation
       const auto = instrs.filter((i) => i.severity !== 'danger');
       if (auto.length > 0 && config.autoExecute) {
         const r = runInstructions(auto);
         auto.forEach((i) => { i.confirmed = true; });
         finalMsg = { ...finalMsg, instructions: instrs };
-        // 静默自动执行失败时，把错误反馈给用户（避免"点了没反应"）
+        // surface auto-execute failures to the user instead of silently doing nothing
         if (r.errors.length > 0) {
           const failLine = r.errors.map((e) => `⚠️ ${e}`).join('\n');
           finalMsg = { ...finalMsg, content: `${full}\n\n${failLine}` };
@@ -336,12 +331,12 @@ export const useAIStore = create<AIState>((set, get) => ({
         messages: s.messages.map((m) => (m.id === aiMsg.id ? finalMsg : m)),
       }));
 
-      // 保存到当前会话。必须校验会话身份未变：若用户在本轮流式期间切换了会话/主题，
-      // 旧主题的保存不应把新会话/新主题的 messages 覆盖写进去。
+      // save to the current session, but only if it's still the active one:
+      // if the user switched sessions/themes while streaming, the stale save
+      // must not overwrite the new session's messages
       if (themeId && currentSessionId && get().themeId === themeId && get().currentSessionId === currentSessionId) {
         const msgs = get().messages;
         saveSessionMessages(themeId, currentSessionId, msgs);
-        // 更新会话元数据
         const list = loadSessionList(themeId);
         const idx = list.findIndex((m) => m.id === currentSessionId);
         if (idx >= 0) {
@@ -371,7 +366,7 @@ export const useAIStore = create<AIState>((set, get) => ({
     if (!message?.instructions) return;
     const instr = message.instructions.find((i) => i.id === instrId);
     if (!instr) return;
-    // runInstructions 会写回 executed/failed/error（复制一份执行，避免原地改 store 状态）
+    // runInstructions writes back executed/failed/error (run on a copy to avoid mutating store state in place)
     const copy: AIInstruction = { ...instr };
     runInstructions([copy]);
     copy.confirmed = true;

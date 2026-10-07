@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 空白模板 - 竖屏
- * 提供干净的画布，适合白手起家用户
- */
+/** blank template, portrait - clean canvas to start from */
 const template: EditorTheme = {
   id: 'template-blank',
   name: '空白模板',

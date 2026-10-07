@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 简约白色模板 - 竖屏
- * 纯白背景，简洁时钟+日期+便签，适合日常使用
- */
+/** minimalist white template, portrait - plain white, clock + date + sticky note */
 const template: EditorTheme = {
   id: 'template-minimalist-white',
   name: '简约白色',

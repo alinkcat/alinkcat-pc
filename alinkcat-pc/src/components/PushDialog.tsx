@@ -56,7 +56,7 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
       .catch(() => setDevices([]));
   }, [open, reset]);
 
-  // 记录推送开始时间（用于 ETA 计算）
+  // record push start time for the ETA estimate
   useEffect(() => {
     if (state.status === 'pushing' && state.sentSize > 0 && startTimeRef.current === 0) {
       startTimeRef.current = Date.now();
@@ -66,7 +66,6 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
     }
   }, [state.status, state.sentSize]);
 
-  // 计算预计剩余时间（ETA）
   const etaText = useMemo(() => {
     if (state.status !== 'pushing' || state.speed <= 0 || state.sentSize <= 0) return null;
     const remaining = state.totalSize - state.sentSize;
@@ -187,7 +186,6 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
               <Text type="secondary">{t('push.dialog.sent')}: {formatBytes(state.sentSize)} / {formatBytes(state.totalSize)}</Text>
               <Text type="secondary">{t('push.dialog.speed')}: {Math.round(state.speed)} KB/s</Text>
             </div>
-            {/* ETA 显示 */}
             {etaText && state.status === 'pushing' && (
               <div style={{ marginTop: 4, fontSize: 12 }}>
                 <Text type="secondary">{t('push.dialog.eta')}: {etaText}</Text>
@@ -198,7 +196,6 @@ export default function PushDialog({ themeId, themeName, themeVersion, open, onC
               <Tag color={state.status === 'retrying' ? 'error' : (state.status === 'awaiting_confirm' || state.stage === 'start' ? 'warning' : 'processing')}>
                 {statusLabel(t, state.status)}
               </Tag>
-              {/* 自动重试提示 */}
               {state.status === 'retrying' && (
                 <Text type="warning" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
                   {t('push.dialog.autoRetry', { n: state.autoRetryCount, max: 2 })}

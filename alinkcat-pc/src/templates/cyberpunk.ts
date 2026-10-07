@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 赛博朋克风格监控模板 - 横屏
- * 霓虹风格数据监控 + 时钟，适合极客用户
- */
+/** cyberpunk monitor theme, landscape - neon gauges + clock */
 const template: EditorTheme = {
   id: 'template-cyberpunk',
   name: '赛博朋克监控',

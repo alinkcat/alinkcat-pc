@@ -1,4 +1,4 @@
-import { apiFetch, apiUpload } from './client';
+import { apiFetch } from './client';
 import type { ApiResponse, PageResult, ThemeItem, ThemeListParams, FavoriteStatus } from './types';
 
 function qs(params: Record<string, unknown>): string {
@@ -18,8 +18,6 @@ export const themeApi = {
     apiFetch<ApiResponse<void>>(`/api/theme/${id}/download`, { method: 'POST' }),
   my: (params?: ThemeListParams) =>
     apiFetch<ApiResponse<PageResult<ThemeItem>>>(`/api/theme/my${qs((params || {}) as Record<string, unknown>)}`),
-  upload: (formData: FormData) =>
-    apiUpload<ApiResponse<ThemeItem>>('/api/theme/upload', formData),
   delete: (id: number) =>
     apiFetch<ApiResponse<void>>(`/api/theme/${id}`, { method: 'DELETE' }),
   favorite: (themeId: string) =>

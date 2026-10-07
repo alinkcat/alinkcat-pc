@@ -18,10 +18,10 @@ export function saveStoredLang(code: string) {
   localStorage.setItem(STORAGE_KEY, code);
 }
 
-// 启动时恢复外部导入的语言包
+// restore imported language packs at startup
 restoreCustomLanguages();
 
-// 同步加载兜底英语资源（fallbackLng = en-US）
+// sync-load the fallback english resources (fallbackLng = en-US)
 import enResources from './locales/en-US/index';
 
 i18n.use(initReactI18next).init({
@@ -49,13 +49,13 @@ export async function setAppLanguage(code: string) {
   saveStoredLang(code);
   saveCustomLanguages();
 
-  // 动态 import() 返回的是模块命名空间对象 { default: {...} }，需要解包
+  // dynamic import() returns a module namespace { default: {...} }, unwrap it
   const maybeMod = await def.loadResources();
   const resources = 'default' in (maybeMod as object)
     ? (maybeMod as { default: Record<string, object> }).default
     : (maybeMod as Record<string, object>);
 
-  // 替换整个 common 命名空间
+  // replace the whole common namespace
   i18n.addResourceBundle(code, 'common', resources, true, true);
   await i18n.changeLanguage(code);
 }

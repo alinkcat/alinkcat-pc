@@ -1,6 +1,6 @@
 import type { EditorTheme, EditorPage } from '../pages/Editor/types';
 
-/** 构建 AI 系统 Prompt，附带当前主题包状态 */
+// build the AI system prompt, includes current theme pack state
 export function buildSystemPrompt(theme: EditorTheme, activePageIdx: number, droppedImages?: { name: string; fileName: string }[]): string {
   const pageList = theme.pages
     .map((p: EditorPage, i: number) => `${i}. ${p.label}(${p.layoutMode}, ${p.widgets.length}控件)`)

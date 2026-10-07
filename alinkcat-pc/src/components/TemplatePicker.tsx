@@ -6,7 +6,7 @@ import { TEMPLATES } from '../templates';
 
 const { Text } = Typography;
 
-// 模板分类图标
+// category icons
 const CATEGORY_EMOJI: Record<string, string> = {
   monitor: '📊',
   clock: '🕐',
@@ -33,15 +33,13 @@ export default function TemplatePicker({ open, onClose }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  // 模板加载
   const handleSelect = (templateId: string) => {
-    // 通过路由参数传递模板 ID，Editor 检测到后加载
+    // pass the template id via route params, Editor picks it up and loads
     navigate(`/themes/edit/new?template=${templateId}`);
     onClose();
   };
 
   const categories = useMemo(() => {
-    // 按分类分组
     const map = new Map<string, typeof TEMPLATES>();
     for (const tpl of TEMPLATES) {
       const cat = tpl.category;

@@ -13,7 +13,7 @@ interface HistoryFile {
   updatedAt: string;
 }
 
-/** 加载主题包的对话历史 */
+// load chat history for a theme pack
 export function loadHistory(themeId: string): AIMessage[] {
   try {
     const raw = localStorage.getItem(historyKey(themeId));
@@ -25,10 +25,10 @@ export function loadHistory(themeId: string): AIMessage[] {
   }
 }
 
-/** 保存对话历史（每 30 条自动保存，也可手动调用） */
+// autosaves every 30 messages, can also be called manually
 export function saveHistory(themeId: string, messages: AIMessage[]): void {
   if (messages.length % SAVE_EVERY !== 0 && messages.length > SAVE_EVERY) {
-    // 仅当达到 30 的倍数或强制保存时落盘，避免频繁写入
+    // only persist on multiples of 30 to avoid frequent writes
   }
   const file: HistoryFile = {
     themeId,
@@ -39,11 +39,11 @@ export function saveHistory(themeId: string, messages: AIMessage[]): void {
   try {
     localStorage.setItem(historyKey(themeId), JSON.stringify(file));
   } catch {
-    // localStorage 可能满，忽略
+    // localStorage may be full, ignore
   }
 }
 
-/** 强制保存（清空、切换主题包、关闭时调用） */
+// force save, used on clear / theme pack switch / shutdown
 export function saveHistoryNow(themeId: string, messages: AIMessage[]): void {
   const file: HistoryFile = {
     themeId,
@@ -62,7 +62,7 @@ export function clearHistory(themeId: string): void {
   localStorage.removeItem(historyKey(themeId));
 }
 
-/** 导出历史为 JSON 并下载 */
+// export history as a downloaded json file
 export function exportHistory(themeId: string, messages: AIMessage[]): void {
   const blob = new Blob([JSON.stringify({ themeId, messages, exportedAt: new Date().toISOString() }, null, 2)], {
     type: 'application/json',

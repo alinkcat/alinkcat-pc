@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 复古怀旧模板 - 竖屏
- * 暖色调，复古字体，时钟+日期，怀旧风格
- */
+/** retro template, portrait - warm tones, retro fonts, clock + date */
 const template: EditorTheme = {
   id: 'template-retro',
   name: '复古怀旧',

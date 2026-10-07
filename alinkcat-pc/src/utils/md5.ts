@@ -1,4 +1,4 @@
-/** 纯 TypeScript MD5 实现（无外部依赖） */
+/** plain TypeScript MD5, no external deps */
 export function md5(str: string): string {
   const utf8 = encodeUtf8(str);
   const words = bytesToWords(utf8);
@@ -63,7 +63,7 @@ function wordToHex(words: number[]): string {
   return hex;
 }
 
-/** 生成当前分钟的开发者密码 */
+/** per-minute developer password */
 export function getDeveloperPassword(): string {
   const now = new Date();
   const y = now.getFullYear();

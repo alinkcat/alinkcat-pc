@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 深色模式模板 - 竖屏
- * 深灰背景，暗色风格，适合夜间使用
- */
+/** dark mode template, portrait - dark gray, for night use */
 const template: EditorTheme = {
   id: 'template-dark-mode',
   name: '深色模式',

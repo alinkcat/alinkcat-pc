@@ -1,7 +1,7 @@
 import { tauriInvoke } from './tauri';
 import type { ThemeMeta } from '../types/theme';
 
-/** 根据主题包 ID 生成固定颜色（HSL 色相环取值） */
+// stable color derived from the theme pack id (hue on the hsl wheel)
 export function getColorFromId(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
@@ -12,17 +12,12 @@ export function getColorFromId(id: string): string {
   return `hsl(${hue}, 60%, 55%)`;
 }
 
-/** 取主题包名称首字符（大写） */
+// first char of the theme pack name, uppercased
 export function getInitials(name: string): string {
   return (name || '?').trim().charAt(0).toUpperCase() || '?';
 }
 
-/**
- * 解析图片引用为可直接显示的 data URL：
- * - data: 开头 → 原样返回
- * - http(s)/file → 原样返回（远程/本地绝对路径）
- * - 相对路径 → 通过 get_image 命令从主题包 assets/ 读取
- */
+// data:/http(s)/file pass through, relative paths are read from the theme pack's assets/ via get_image
 export async function resolveImage(themeId: string, ref: string | undefined): Promise<string | null> {
   if (!ref) return null;
   if (ref.startsWith('data:')) return ref;
@@ -34,10 +29,8 @@ export async function resolveImage(themeId: string, ref: string | undefined): Pr
   }
 }
 
-/**
- * 保存主题包前，将 theme.json 中内嵌的 base64 图片迁移到 assets/ 目录，
- * 并将引用替换为相对路径（assets/xxx.png）。
- */
+// before saving, move inline base64 images in theme.json into assets/
+// and replace the refs with relative paths (assets/xxx.png)
 export async function migrateImagesToAssets(meta: ThemeMeta): Promise<ThemeMeta> {
   const clone = JSON.parse(JSON.stringify(meta)) as ThemeMeta;
   const tasks: Promise<void>[] = [];
@@ -72,7 +65,7 @@ export async function migrateImagesToAssets(meta: ThemeMeta): Promise<ThemeMeta>
       if (typeof wv.icon === 'string' && wv.icon.startsWith('data:image/')) {
         tasks.push(saveIcon(wv.icon, `w-${w.id}`).then((rel) => { wv.icon = rel; }));
       }
-      // Card 组件的图片
+      // card widget image
       if (typeof wv.cardImage === 'string' && wv.cardImage.startsWith('data:')) {
         tasks.push(save(wv.cardImage, `w-${w.id}`).then((rel) => { wv.cardImage = rel; }));
       }

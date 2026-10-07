@@ -13,7 +13,7 @@ export const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '�
 
 export const WEEKDAY_ABBR = ['日', '一', '二', '三', '四', '五', '六'];
 
-/** 按模板格式化日期，支持 YYYY / MM / DD / 星期X / 星期 等令牌；weekdays 可传入翻译后的星期名数组。 */
+/** format a date from a template, tokens: YYYY / MM / DD / 星期X / 星期; pass translated weekday names via weekdays */
 export function fmtDate(d: Date, fmt: string, weekdays: string[] = WEEKDAYS): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -31,7 +31,7 @@ export function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** 通过 Rust 后端获取农历信息；非 Tauri 环境或出错时返回 null。 */
+/** lunar calendar info from the Rust backend; null outside Tauri or on error */
 export async function fetchLunar(date: Date): Promise<LunarInfo | null> {
   try {
     return await tauriInvoke<LunarInfo>('get_lunar_info', { date: toDateStr(date) });

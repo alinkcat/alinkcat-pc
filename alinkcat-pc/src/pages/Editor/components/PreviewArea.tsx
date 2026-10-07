@@ -44,8 +44,8 @@ function CanvasWidget({ widget, page, canvasW, canvasH }: {
 
 function buildBgStyle(page: EditorPage): React.CSSProperties {
   const s: React.CSSProperties = {};
-  // backgroundColor 可能为纯色（#0a0e1a）或 CSS 渐变（linear-gradient(...)）：
-  // 渐变必须写入 background / background-image 属性，background-color 不接受 gradient 值
+  // backgroundColor can be a flat color or a CSS gradient:
+  // gradients must go into background/background-image, background-color won't take them
   const bg = page.backgroundColor;
   if (bg && /gradient\(/i.test(bg)) {
     s.background = bg;
@@ -53,10 +53,10 @@ function buildBgStyle(page: EditorPage): React.CSSProperties {
     s.backgroundColor = bg;
   }
   if (page.backgroundImage) {
-    // 有图片时叠加在底色/渐变之上（渐变 + 图片并存：图片优先，保留底图视觉）
+    // image stacks on top of the color/gradient (image wins, base layer still shows through)
     s.backgroundImage = `url(${page.backgroundImage})`;
     const m = (page.backgroundMode || 'cover') as string;
-    // 'tile' 是传输层/Mobile 使用的值（编辑器用 'repeat'），两者等价，都按平铺处理
+    // 'tile' is the transport/mobile value (editor uses 'repeat'), both mean tiled
     s.backgroundSize = m === 'cover' ? 'cover' : m === 'contain' ? 'contain' : m === 'stretch' ? '100% 100%' : 'auto';
     s.backgroundRepeat = (m === 'repeat' || m === 'tile') ? 'repeat' : 'no-repeat';
     s.backgroundPosition = 'center';

@@ -59,7 +59,7 @@ export default function Auth() {
 
   if (isLoggedIn) return null;
 
-  // GitHub OAuth 登录（系统浏览器 + 等待弹窗）
+  // github OAuth login (system browser + waiting modal)
   const handleGithubLogin = async () => {
     setOauthLoading(true);
     setOauthOpen(true);
@@ -75,7 +75,6 @@ export default function Auth() {
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       setOauthError(errMsg);
-      // 解析错误类型以显示对应按钮
       if (errMsg.includes('未绑定') || errMsg.includes('注册')) {
         setOauthErrorAction('register');
       } else if (errMsg.includes('过期') || errMsg.includes('重试')) {
@@ -288,7 +287,6 @@ export default function Auth() {
         }}
         onRegister={() => {
           setOauthOpen(false);
-          // 切到注册 Tab
         }}
       />
     </div>

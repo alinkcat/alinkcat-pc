@@ -15,7 +15,7 @@ interface AuthState {
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   hydrate: () => void;
-  /** OAuth 登录成功后应用令牌并同步登录状态（无需 user 对象，profile 会补充） */
+  /** apply tokens after OAuth login and sync login state (no user object needed, profile fills in later) */
   applyTokens: (accessToken: string, refreshToken?: string) => Promise<boolean>;
 }
 
@@ -36,7 +36,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (resp.code !== 200) throw new Error(resp.message);
       const user = resp.data;
       setTokens(user.accessToken, user.refreshToken);
-      resetAuthExpiredFlag(); // 重新登录后允许再次触发"登录过期"提示
+      resetAuthExpiredFlag(); // re-login allows the auth-expired prompt again
       set({ user, isLoggedIn: true, loading: false });
       // auto-fetch profile
       get().fetchProfile().catch(() => {});
@@ -77,14 +77,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (resp.code === 200 && resp.data) {
         set({ profile: resp.data });
       } else if (resp.code === 401) {
-        // 明确的鉴权失败：清 token 登出（apiFetch 已触发 auth:expired）
+        // definite auth failure: drop tokens and log out (apiFetch already fired auth:expired)
         console.warn('[Auth] fetchProfile 401, logging out:', resp.message);
         clearTokens();
         set({ user: null, profile: null, isLoggedIn: false });
       }
-      // 其它非 2xx（如后端 5xx）仅保留异常，不清 token，避免网络抖动导致误登出
+      // other non-2xx (backend 5xx etc.): keep the exception, don't clear tokens — a flaky network shouldn't log people out
     } catch (e) {
-      // 网络/解析错误：不清 token、不登出；仅在 401 场景由上方分支处理
+      // network/parse error: keep tokens, no logout; 401 is handled in the branch above
       console.warn('[Auth] fetchProfile failed (kept session):', e);
     }
   },
@@ -99,7 +99,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     setTokens(accessToken, refreshToken || '');
     resetAuthExpiredFlag();
     set({ isLoggedIn: true, user: null, loading: false });
-    // 拉取 profile：成功返回 true；失败不强制登出（网络抖动等），仍视为已登录
+    // fetch profile; resolve true either way — a failed fetch doesn't force logout (flaky network etc.)
     try {
       await get().fetchProfile();
       return true;

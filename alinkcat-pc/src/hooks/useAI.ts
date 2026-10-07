@@ -7,7 +7,7 @@ export interface ChatMessage {
   content: string;
 }
 
-/** 构造请求消息（系统 Prompt + 截断的历史 + 当前输入） */
+/** build request messages: system prompt + truncated history + current input */
 export function buildRequestMessages(
   system: string,
   history: AIMessage[],
@@ -16,8 +16,8 @@ export function buildRequestMessages(
 ): ChatMessage[] {
   const msgs: ChatMessage[] = [{ role: 'system', content: system }];
 
-  // 取最近 maxTurns 轮（用户+助手成对）。防御非法值：null/NaN/<=0 时回退 20 轮
-  // （slice(-0) 语义是"取全部"而非"不截断"，若 maxTurns 为空会意外发送全量历史，token 成本爆炸）。
+  // last maxTurns turns (user+assistant pairs). guard bad values: fall back to 20
+  // (slice(-0) means "take all", so an empty maxTurns would silently send the full history and blow up token usage)
   const turns = Number.isFinite(maxTurns) && maxTurns > 0 ? maxTurns : 20;
   const recent = history
     .filter((m) => m.role === 'user' || m.role === 'assistant')
@@ -31,11 +31,10 @@ export function buildRequestMessages(
 }
 
 /**
- * 调用 OpenAI 兼容接口（流式）。
- * - Tauri 环境：走 Rust 后端 ai_chat_stream 命令（绕过 CORS），
- *   通过 Tauri 事件 ai-chunk / ai-done / ai-error 逐段接收增量。
- * - 浏览器环境（开发）：回退到原生 fetch 的 SSE 流式。
- * 返回 AsyncGenerator，逐段产出增量文本。
+ * stream from an OpenAI-compatible endpoint.
+ * tauri: goes through the Rust ai_chat_stream command (bypasses CORS),
+ * deltas arrive via the ai-chunk / ai-done / ai-error events.
+ * browser (dev): plain fetch SSE fallback.
  */
 export async function* streamChat(
   messages: ChatMessage[],
@@ -50,7 +49,7 @@ export async function* streamChat(
   };
   const body = JSON.stringify({ model, messages, stream: true, temperature: 0.7 });
 
-  // ─── Tauri 环境：Rust 流式命令 + 事件推送 ──────────────────
+  // ─── tauri: Rust streaming command + event push ──────────
   if (isTauri()) {
     const queue: string[] = [];
     let settled = false;
@@ -77,7 +76,7 @@ export async function* streamChat(
     unlisteners.push(await listen<string>('ai-error', (e) => onError(e.payload)));
 
     try {
-      // 后台发起请求，数据由事件携带（不 await 其完成）
+      // fire the request in the background, data arrives via events
       const invokePromise = tauriInvoke('ai_chat_stream', { url, headers, body }).catch(
         (e) => onError(String(e instanceof Error ? e.message : e)),
       );
@@ -93,7 +92,7 @@ export async function* streamChat(
         });
         wake = null;
       }
-      await invokePromise; // 确保命令完成，吞掉已处理的错误
+      await invokePromise; // error already surfaced above
       if (failMsg) throw new Error(failMsg);
       return;
     } finally {
@@ -101,7 +100,7 @@ export async function* streamChat(
     }
   }
 
-  // ─── 浏览器环境：原生 fetch SSE 流式（开发用） ──────────────
+  // ─── browser: plain fetch SSE (dev) ──────────
   const res = await fetch(url, {
     method: 'POST',
     headers,
@@ -142,7 +141,7 @@ export async function* streamChat(
           const delta = json.choices?.[0]?.delta?.content;
           if (typeof delta === 'string' && delta) yield delta;
         } catch {
-          // 忽略解析失败的数据行
+          // ignore unparseable data lines
         }
       }
     }
@@ -151,7 +150,7 @@ export async function* streamChat(
   }
 }
 
-/** 非流式调用（模型不支持流式时降级） */
+/** non-streaming call, fallback when the model can't stream */
 export async function chatOnce(
   messages: ChatMessage[],
   config: AIConfig,
@@ -159,7 +158,7 @@ export async function chatOnce(
 ): Promise<string> {
   const url = `${config.apiUrl.replace(/\/$/, '')}/chat/completions`;
 
-  // Tauri 环境：走 Rust api_request（绕过 CORS）
+  // tauri: Rust api_request (bypasses CORS)
   if (isTauri()) {
     const result = await tauriInvoke<{ status: number; body: unknown }>('api_request', {
       url,
@@ -176,7 +175,6 @@ export async function chatOnce(
     return json.choices?.[0]?.message?.content ?? '';
   }
 
-  // 浏览器环境：原生 fetch
   const res = await fetch(url, {
     method: 'POST',
     headers: {

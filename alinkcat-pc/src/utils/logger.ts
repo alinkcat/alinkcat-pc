@@ -1,4 +1,3 @@
-/** 错误日志条目 */
 export interface LogEntry {
   id: number;
   timestamp: string;
@@ -20,7 +19,7 @@ function addLog(level: LogEntry['level'], message: string, stack?: string, sourc
   if (logs.length > MAX_LOGS) logs = logs.slice(-MAX_LOGS);
 }
 
-/** 初始化错误捕获（拦截 console.error + 全局错误） */
+// trap console.error/warn + global errors
 export function initLogger() {
   if (initialized) return;
   initialized = true;
@@ -53,12 +52,10 @@ function safeStringify(obj: unknown): string {
   try { return JSON.stringify(obj); } catch { return String(obj); }
 }
 
-/** 获取所有日志 */
 export function getLogs(): LogEntry[] {
   return [...logs];
 }
 
-/** 清除日志 */
 export function clearLogs() {
   logs = [];
   nextId = 0;

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 const { Title, Text, Paragraph } = Typography;
 
-// 法律正文保留中文原文，标题通过 titleKey 指向 i18n 翻译
+// legal body text stays in Chinese, section titles point at i18n via titleKey
 const SECTIONS: { titleKey: string; content: string | string[] }[] = [
   {
     titleKey: 'terms.section1',

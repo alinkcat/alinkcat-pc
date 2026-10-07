@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 系统监控模板 - 横屏
- * 展示 CPU、内存、磁盘、网络监控数据，适合高级用户
- */
+/** system monitor template, landscape - cpu/memory/disk/network, for power users */
 const template: EditorTheme = {
   id: 'template-monitor',
   name: '系统监控',

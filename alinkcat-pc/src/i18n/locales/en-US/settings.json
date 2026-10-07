@@ -50,7 +50,7 @@
   "ai_saved": "AI settings saved",
   "dev_title": "🔧 Developer Mode",
   "dev_api_server": "API Server URL",
-  "dev_api_desc": "Supported formats: localhost:8080 / top.atqx.cn:8080 / http://top.atqx.cn:8080 / https://api.example.com",
+  "dev_api_desc": "Supported formats: api.pynen.com or https://api.example.com",
   "dev_server_addr": "Server URL",
   "dev_server_placeholder": "localhost:8080",
   "dev_current": "Current",
@@ -66,5 +66,12 @@
   "dev_mode_hint": "Click the title 5 times to unlock",
   "importLanguage": "Import Language Pack",
   "languageImported": "Language pack imported: {{label}}",
-  "languageImportFailed": "Failed to import language pack. Check JSON format."
+  "languageImportFailed": "Failed to import language pack. Check JSON format.",
+  "themesDirTitle": "Theme Pack Folder",
+  "themesDirLabel": "Custom theme pack folder",
+  "themesDirExtra": "Packs in this folder appear in the theme list with highest priority. Leave empty for the default folder.",
+  "themesDirPlaceholder": "e.g. D:\\MyThemes",
+  "browse": "Browse",
+  "save_themes_dir": "Save Folder",
+  "themesDirSaved": "Theme pack folder saved"
 }

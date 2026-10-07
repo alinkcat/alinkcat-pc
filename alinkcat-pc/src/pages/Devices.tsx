@@ -83,7 +83,7 @@ export default function Devices() {
     init();
   }, [loadDeviceData, fetchConnections, fetchLocalIp]);
 
-  // 页内轮询遵循设置（status_polling 开关 + 频率），关闭时只加载一次
+  // in-page polling follows settings (status_polling toggle + interval); when off, load once
   useEffect(() => {
     let settings: { status_polling?: boolean; status_polling_interval?: number } = {};
     try {

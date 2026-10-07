@@ -14,7 +14,7 @@ import { APP_VERSION } from '../../config';
 
 const { Sider } = Layout;
 
-// 云服务子菜单的子页面路径（用于自动展开菜单）
+// cloud submenu child paths (used to auto-expand the menu)
 const CLOUD_PATHS = ['/member', '/mycloud', '/points', '/tickets', '/invite'];
 
 export default function AppSidebar() {
@@ -27,7 +27,7 @@ export default function AppSidebar() {
 
   const selectedKey = location.pathname === '/' ? '/themes' : location.pathname;
 
-  // 当位于云服务子页面时确保父菜单展开（仅登录态有子菜单）
+  // keep the parent menu open while on a cloud subpage (submenu only exists when logged in)
   useEffect(() => {
     if (!isLoggedIn) return;
     if (CLOUD_PATHS.some((p) => location.pathname.startsWith(p))) {
@@ -43,7 +43,7 @@ export default function AppSidebar() {
     setOpenKeys(keys);
   };
 
-  // 云服务子菜单：未登录时折叠为单个"登录后使用"入口（锁定态）
+  // cloud submenu collapses to a single locked entry when logged out
   const cloudMenu = !isLoggedIn
     ? {
         key: '/auth',

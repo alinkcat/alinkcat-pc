@@ -16,6 +16,7 @@ import {
   Tooltip,
 } from 'antd';
 import { message } from '../utils/message';
+import { isTauri, tauriInvoke } from '../utils/tauri';
 import {
   PlusOutlined,
   EditOutlined,
@@ -41,6 +42,17 @@ function loadSnippets(): Snippet[] {
 
 function saveSnippets(snippets: Snippet[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(snippets));
+  syncSnippetsToDevice(snippets);
+}
+
+/** the phone's snippet.list data lives on the Rust side, sync after every change */
+function syncSnippetsToDevice(snippets: Snippet[]) {
+  if (!isTauri()) return;
+  tauriInvoke('sync_snippets', {
+    snippets: snippets.map((s) => ({ id: s.id, label: s.label, content: s.content })),
+  }).catch(() => {
+    // best effort, next change syncs again
+  });
 }
 
 export default function Snippets() {
@@ -54,7 +66,9 @@ export default function Snippets() {
   const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setSnippets(loadSnippets());
+    const loaded = loadSnippets();
+    setSnippets(loaded);
+    syncSnippetsToDevice(loaded);
   }, []);
 
   const filtered = snippets.filter((s) => {

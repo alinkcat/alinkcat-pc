@@ -29,7 +29,7 @@ const LIB_LABELS: Record<string, string> = {
   'lib-snippet-list': 'editor.controlLibrary.snippet-list', 'lib-text': 'editor.controlLibrary.text', 'lib-shape': 'editor.controlLibrary.shape', 'lib-system-monitor': 'editor.controlLibrary.system-monitor', 'lib-media-control': 'editor.controlLibrary.media-control', 'lib-quick-action': 'editor.controlLibrary.quick-action', 'lib-launcher': 'editor.controlLibrary.launcher', 'lib-webview': 'editor.controlLibrary.webview', 'lib-image': 'editor.controlLibrary.image',
 };
 
-// 页面模板选择器（替换旧 AddPageModal）
+// page template picker (replaces the old AddPageModal)
 const CATEGORY_EMOJI: Record<string, string> = {
   blank: '📄', monitor: '📊', clock: '🕐', weather: '⛅', media: '🎵',
 };
@@ -124,19 +124,17 @@ export default function Editor() {
 
   const EDITOR_GUIDE_KEY = 'ilinkcat_editor_guide_done';
 
-  // 启用自动保存草稿
+  // autosave drafts on
   useAutoSave();
 
   const leftPanel = usePanelResize(110, 'editor-left-w', 80, 200);
   const rightPanel = usePanelResize(260, 'editor-right-w', 200, 400);
 
   useEffect(() => {
-    // 检查是否有本地草稿需要恢复
     const draft = getDraft();
 
     if (isNew) {
       if (draft) {
-        // 有草稿，弹出恢复询问
         setDraftModal(draft);
         return;
       }
@@ -144,7 +142,7 @@ export default function Editor() {
         const tpl = getTemplateById(templateId);
         if (tpl) {
           const cloned = cloneTemplate(tpl);
-          // 生成新 ID 防止冲突
+          // fresh id to avoid clashing with an existing theme
           cloned.id = `theme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
           replaceTheme(cloned);
         } else {
@@ -156,28 +154,25 @@ export default function Editor() {
     } else if (id) {
       tauriInvoke<ThemeMeta>('load_theme', { id })
         .then(async (meta) => {
-          // 将相对图片路径解析为 data URL，确保背景图/控件图正常显示
+          // resolve relative image paths to data URLs so backgrounds/widget images render
           const resolved = await resolveThemeImages(meta);
           loadTheme(resolved);
-          // 加载该主题包的 AI 对话历史
           initAITheme(id);
-          // 主题加载完成后，如果有草稿也弹出询问
           if (draft) {
             setDraftModal(draft);
           }
         })
         .catch(e => message.error(String(e)));
     }
-    // 注意：这里的依赖故意不包含 draft，因为只在挂载时执行一次
+    // deliberately not depending on draft — mount only
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isNew, templateId, loadTheme, initNewTheme, initAITheme]);
 
-  // 编辑器首次使用引导
   useEffect(() => {
     if (isNew && !draftModal) {
       const done = localStorage.getItem(EDITOR_GUIDE_KEY);
       if (!done) {
-        // 延迟显示，确保 DOM 已渲染完毕
+        // slight delay so the DOM is fully laid out
         const timer = setTimeout(() => setEditorGuideOpen(true), 500);
         return () => clearTimeout(timer);
       }
@@ -189,16 +184,15 @@ export default function Editor() {
     setEditorGuideOpen(true);
   };
 
-  // 全局键盘快捷键
+  // global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const editor = useEditorStore.getState();
-      // 检查是否在输入框中，避免误触发
+      // skip when typing in an input
       const tag = (e.target as HTMLElement).tagName;
       const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement).isContentEditable;
 
-      // ── 全局快捷键（不受输入框限制） ──
-      // Ctrl+Z 撤销
+      // ── global shortcuts (work even in inputs) ──
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         if (editor.canUndo) {
           editor.undo();
@@ -206,7 +200,7 @@ export default function Editor() {
         }
         return;
       }
-      // Ctrl+Y 或 Ctrl+Shift+Z 重做
+      // ctrl+y or ctrl+shift+z → redo
       if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
         if (editor.canRedo) {
           editor.redo();
@@ -215,10 +209,9 @@ export default function Editor() {
         return;
       }
 
-      // 以下快捷键仅在非输入框内生效
+      // these only fire outside inputs
       if (isInput) return;
 
-      // Delete / Backspace 删除选中控件
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (editor.selectedWidgetId) {
           editor.removeWidget(editor.selectedWidgetId);
@@ -227,7 +220,6 @@ export default function Editor() {
         return;
       }
 
-      // Escape 取消选中
       if (e.key === 'Escape') {
         if (editor.selectedWidgetId) {
           editor.selectWidget(null);
@@ -236,7 +228,6 @@ export default function Editor() {
         return;
       }
 
-      // Ctrl+C 复制选中控件
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         if (editor.selectedWidgetId) {
           const pg = editor.theme.pages[editor.activePageIdx];
@@ -249,13 +240,12 @@ export default function Editor() {
         return;
       }
 
-      // Ctrl+V 粘贴控件
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
         if (copiedWidgetRef.current) {
           const pg = editor.theme.pages[editor.activePageIdx];
           if (pg) {
             const newWidget = { ...copiedWidgetRef.current, id: `w-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}` };
-            // 在自由模式下放置在鼠标位置附近，网格模式下放在下一个空位
+            // free layout: drop near the mouse, grid: next free cell
             if (pg.layoutMode === 'free') {
               const offset = 2;
               newWidget.freeX = Math.min(90, (newWidget.freeX ?? 10) + offset);
@@ -266,7 +256,7 @@ export default function Editor() {
               newWidget.gridRow = r;
             }
             editor.addWidget(newWidget.type);
-            // 同步新控件的属性（除了 id 和 type）
+            // copy props over (except id/type)
             const newId = editor.selectedWidgetId;
             if (newId) {
               const values: Record<string, unknown> = {};
@@ -282,7 +272,6 @@ export default function Editor() {
         return;
       }
 
-      // Ctrl+D 复制（duplicate）选中控件
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
         if (editor.selectedWidgetId) {
           const pg = editor.theme.pages[editor.activePageIdx];
@@ -307,7 +296,7 @@ export default function Editor() {
         return;
       }
 
-      // 方向键微调（仅自由模式）
+      // arrow-key nudging, free layout only
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         if (editor.selectedWidgetId) {
           const pg = editor.theme.pages[editor.activePageIdx];
@@ -371,9 +360,9 @@ export default function Editor() {
     if (!theme.name) return message.warning(t('editor.messages.needThemeName'));
     setSaving(true);
     try {
-      // 将 base64 图片迁移到 assets/ 目录，引用改为相对路径
+      // move base64 images into assets/, references become relative paths
       const themeMeta = await migrateImagesToAssets(editorToThemeMeta(theme));
-      // 生成封面图（失败时降级为默认占位封面）
+      // generate a cover (falls back to a default placeholder on failure)
       let coverData: string | null = null;
       try {
         coverData = themeMeta.pages.length > 0
@@ -383,16 +372,14 @@ export default function Editor() {
         coverData = null;
       }
       await tauriInvoke('save_theme', { theme: themeMeta, coverPath: null, coverData });
-      // 保存成功，清除本地草稿
       clearDraft();
-      // 保存版本历史快照
       saveVersion();
       message.success(t('editor.messages.saved'));
     } catch (e) { message.error(String(e)); }
     finally { setSaving(false); }
   }, [theme, setSaving]);
 
-  // Ctrl+S / Cmd+S 保存
+  // ctrl+s / cmd+s
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -424,7 +411,7 @@ export default function Editor() {
   };
 
   const handleSaveAsNew = async () => {
-    // 另存为：生成新 ID，保存为新主题，不覆盖当前
+    // save as a new theme with a fresh id, current one stays untouched
     if (!theme.name) return message.warning(t('editor.messages.needThemeName'));
     setSaving(true);
     try {
@@ -440,7 +427,6 @@ export default function Editor() {
       await tauriInvoke('save_theme', { theme: themeMeta, coverPath: null, coverData });
       clearDraft();
       message.success(t('editor.messages.savedAsNew'));
-      // 跳转到新主题
       navigate(`/themes/edit/${newId}`);
     } catch (e) { message.error(String(e)); }
     finally { setSaving(false); }
@@ -514,7 +500,6 @@ export default function Editor() {
 
       <PageTemplateModal open={addPageOpen} onSelect={(pt) => { addPageFromTemplate(clonePageTemplate(pt.page)); setAddPageOpen(false); }} onCancel={() => setAddPageOpen(false)} />
       <ThemeFileManager themeId={theme.id} open={fileMgrOpen} onClose={() => setFileMgrOpen(false)} />
-      {/* 草稿恢复弹窗 */}
       <Modal
         title={t('editor.messages.draftRecoverTitle')}
         open={!!draftModal}
@@ -576,7 +561,6 @@ export default function Editor() {
       >
         <p>{isNew ? t('editor.messages.draftRecoverNew') : t('editor.messages.draftRecoverExisting')}</p>
       </Modal>
-      {/* 版本历史弹窗 */}
       <Modal
         title={t('editor.versionHistory.title')}
         open={versionHistoryOpen}
@@ -637,7 +621,6 @@ export default function Editor() {
           />
         )}
       </Modal>
-      {/* 编辑器引导 Tour */}
       <Tour
         open={editorGuideOpen}
         onClose={() => {

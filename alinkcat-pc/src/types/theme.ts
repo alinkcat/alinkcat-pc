@@ -19,9 +19,9 @@ export interface WidgetDefinition {
   freeH: number;
   borderRadius?: number;
   objectFit?: 'cover' | 'contain' | 'fill';
-  /** 联动事件类型 */
+  /** interaction event type */
   triggerEvent?: 'switch_page' | 'toggle_widget' | 'update_data' | 'trigger_action';
-  /** 联动目标控件 ID */
+  /** target widget id for the interaction */
   targetWidgetId?: string;
   [key: string]: unknown;
 }
@@ -59,7 +59,7 @@ export interface ThemeMeta {
   source?: string;
   market_id?: string;
   downloaded_at?: string;
-  /** 主题默认方向：portrait 竖屏 / landscape 横屏 */
+  /** default orientation for the theme pack */
   orientation?: 'portrait' | 'landscape';
   pages: PageDefinition[];
 }
@@ -123,9 +123,9 @@ export interface AppSettings {
   data_interval: number;
   auto_start: boolean;
   log_level: 'ERROR' | 'WARN' | 'INFO' | 'DEBUG';
-  /** 是否定时轮询本地服务状态（get_server_status / get_connections） */
+  /** poll local service status periodically (get_server_status / get_connections) */
   status_polling: boolean;
-  /** 状态轮询频率（秒） */
+  /** polling interval in seconds */
   status_polling_interval: number;
 }
 

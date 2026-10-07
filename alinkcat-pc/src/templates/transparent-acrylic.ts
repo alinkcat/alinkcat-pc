@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 透明亚克力模板 - 竖屏
- * 透明背景+毛玻璃效果，极简组件，现代感
- */
+/** transparent acrylic template, portrait - translucent bg + frosted glass, minimal */
 const template: EditorTheme = {
   id: 'template-transparent-acrylic',
   name: '透明亚克力',

@@ -11,9 +11,9 @@ export interface EditorPage {
   widgets: EditorWidget[];
 }
 
-// ─── Widget 公共基础属性 ────────────────────────────────
+// ─── shared widget base props ───────────────────────────
 export interface WidgetBase {
-  // 保留索引签名，兼容 editorToThemeMeta / themeToEditor 中 Object.fromEntries 动态属性传递
+  // index signature kept so dynamic props flow through editorToThemeMeta / themeToEditor
   [key: string]: unknown;
   id: string;
   label: string;
@@ -32,15 +32,15 @@ export interface WidgetBase {
   textColor?: string;
   fontSize?: number;
   fontWeight?: 'normal' | 'bold' | 'bolder';
-  /** 点击动作 */
+  /** what happens on click */
   clickAction?: { type: string; keys?: string[]; path?: string; url?: string; targetPage?: string; script?: string; command?: string; args?: string[] };
-  /** 联动事件类型 */
+  /** interaction event type */
   triggerEvent?: 'switch_page' | 'toggle_widget' | 'update_data' | 'trigger_action';
-  /** 联动目标控件 ID */
+  /** widget targeted by the interaction */
   targetWidgetId?: string;
 }
 
-// 每个 widget 具体类型一个接口（discriminated union）
+// one interface per widget type (discriminated union)
 interface ButtonWidget extends WidgetBase {
   type: 'button';
   icon?: string;
@@ -74,19 +74,19 @@ interface ClockWidget extends WidgetBase {
   format24h?: boolean;
   showSeconds?: boolean;
   showAmpm?: boolean;
-  /** 时间下方显示星期几 */
+  /** weekday under the time */
   showWeekday?: boolean;
-  /** 显示模式: digital(数字时钟) / analog(模拟时钟) */
+  /** digital or analog */
   clockDisplay?: 'digital' | 'analog';
-  /** 模拟钟: 是否显示刻度 */
+  /** analog: show tick marks */
   tickMarks?: boolean;
-  /** 模拟钟: 是否显示数字 1-12 */
+  /** analog: show numbers 1-12 */
   showNumbers?: boolean;
-  /** 模拟钟: 指针样式 classic / modern / thin */
+  /** analog: hand style classic / modern / thin */
   handStyle?: 'classic' | 'modern' | 'thin';
-  /** 模拟钟: 表盘颜色 */
+  /** analog: face color */
   faceColor?: string;
-  /** 模拟钟: 指针颜色 */
+  /** analog: hand color */
   handColor?: string;
 }
 interface DateWidget extends WidgetBase {
@@ -104,14 +104,14 @@ interface TextWidget extends WidgetBase {
   content?: string;
   textAlign?: 'left' | 'center' | 'right';
   padding?: number;
-  /** 点击动作 */
+  /** what happens on click */
   clickAction?: { type: string; keys?: string[]; url?: string; targetPage?: string };
 }
 interface ImageWidget extends WidgetBase {
   type: 'image';
   src?: string;
   objectFit?: 'cover' | 'contain' | 'fill';
-  /** 点击动作 */
+  /** what happens on click */
   clickAction?: { type: string; keys?: string[]; url?: string; targetPage?: string };
 }
 interface ShapeWidget extends WidgetBase {
@@ -133,7 +133,7 @@ interface WebViewWidget extends WidgetBase {
   rssUrl?: string;
   jsonUrl?: string;
   refreshInterval?: number;
-  /** 自定义请求头（如 Authorization: Bearer <token>，JWT 鉴权） */
+  /** custom request headers (e.g. Authorization: Bearer <token> for JWT) */
   headers?: Record<string, string>;
   titleField?: string;
   descField?: string;
@@ -141,11 +141,11 @@ interface WebViewWidget extends WidgetBase {
   linkField?: string;
   preset?: string;
   bilibiliRoomId?: string;
-  /** 旧版天气字段（已废弃，兼容旧主题） */
+  /** legacy weather fields, kept for old themes */
   weatherCity?: string;
   weatherApiKey?: string;
   weatherUnit?: 'c' | 'f';
-  /** 通用天气配置：请求细节 */
+  /** generic weather config: request details */
   requestUrl?: string;
   requestMethod?: 'GET' | 'POST';
   requestHeaders?: Record<string, string>;
@@ -155,21 +155,21 @@ interface WebViewWidget extends WidgetBase {
   extraParams?: Record<string, string>;
   unit?: 'c' | 'f';
   refreshHours?: number;
-  /** 响应字段映射：目标字段 → JSON 路径（如 main.temp / weather[0].icon） */
+  /** response field mapping: target field → JSON path (main.temp / weather[0].icon) */
   responseMapping?: Record<string, string>;
   showScrollbar?: boolean;
 }
-/** 天气组件：由控件库「天气」直接创建，字段与 webview 的 weather 预设保持一致，两端通用 */
+/** weather widget: created straight from the control library, fields match the webview weather preset so both work the same */
 interface WeatherWidget extends WidgetBase {
   type: 'weather';
   url?: string;
   displayMode?: string;
   preset?: string;
-  /** 旧版天气字段（已废弃，兼容旧主题） */
+  /** legacy weather fields, kept for old themes */
   weatherCity?: string;
   weatherApiKey?: string;
   weatherUnit?: 'c' | 'f';
-  /** 通用天气配置：请求细节 */
+  /** generic weather config: request details */
   requestUrl?: string;
   requestMethod?: 'GET' | 'POST';
   requestHeaders?: Record<string, string>;
@@ -179,7 +179,7 @@ interface WeatherWidget extends WidgetBase {
   extraParams?: Record<string, string>;
   unit?: 'c' | 'f';
   refreshHours?: number;
-  /** 响应字段映射：目标字段 → JSON 路径（如 main.temp / weather[0].icon） */
+  /** response field mapping: target field → JSON path (main.temp / weather[0].icon) */
   responseMapping?: Record<string, string>;
 }
 interface MediaWidget extends WidgetBase {
@@ -195,7 +195,7 @@ interface SystemMonitorWidget extends WidgetBase {
   showDisk?: boolean;
   showNetwork?: boolean;
   refreshInterval?: number;
-  /** 点击动作 */
+  /** what happens on click */
   clickAction?: { type: string; keys?: string[]; url?: string; targetPage?: string };
 }
 interface QuickActionWidget extends WidgetBase {
@@ -274,7 +274,7 @@ export interface EditorTheme {
   source?: string;
   market_id?: string;
   downloaded_at?: string;
-  /** 主题默认方向：portrait 竖屏 / landscape 横屏 */
+  /** default orientation: portrait / landscape */
   orientation?: 'portrait' | 'landscape';
   pages: EditorPage[];
 }

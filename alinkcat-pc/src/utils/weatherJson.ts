@@ -1,7 +1,5 @@
-/**
- * wttr.in (j1) / OpenWeatherMap 风格 JSON 的天气数据提取与图标映射。
- * 供 WebViewJSON 组件（PC 与主题通用）识别天气数据结构并做可视化渲染。
- */
+// weather extraction + icon mapping for wttr.in (j1) / openweathermap style json,
+// used by the WebViewJSON widget (shared by pc and theme packs) to render weather data.
 
 export interface WeatherForecastDay {
   date: string;
@@ -22,7 +20,7 @@ export interface WeatherExtracted {
   forecast: WeatherForecastDay[];
 }
 
-/** wttr.in 使用的 Met Office 天气代码 → emoji */
+// met office weather codes used by wttr.in -> emoji
 const CODE_ICONS: Record<number, string> = {
   113: '☀️', 116: '⛅', 119: '☁️', 122: '☁️', 143: '🌫️',
   176: '🌦️', 179: '🌨️', 182: '🌧️', 185: '🌧️', 200: '⛈️',
@@ -45,7 +43,7 @@ function num(v: unknown): number | null {
   return null;
 }
 
-/** 按天气代码取 emoji，无代码时按描述关键词兜底 */
+// emoji by code, falls back to description keywords
 export function weatherIconFor(code: number | null | undefined, desc?: string): string {
   if (code != null && CODE_ICONS[code]) return CODE_ICONS[code];
   const d = (desc || '').toLowerCase();
@@ -59,25 +57,25 @@ export function weatherIconFor(code: number | null | undefined, desc?: string): 
 }
 
 function codeOf(holder: unknown): number | null {
-  // holder 形如 [{ "value": "113" }]
+  // holder looks like [{ "value": "113" }]
   if (Array.isArray(holder) && holder[0] && typeof holder[0] === 'object') {
     return num((holder[0] as Record<string, unknown>).value);
   }
   return null;
 }
 
-/** 从任意 JSON 中提取天气数据；非天气结构返回 null */
+// pull weather data out of arbitrary json, null when it's not a weather structure
 export function extractWeather(data: unknown): WeatherExtracted | null {
   if (!data || typeof data !== 'object') return null;
   let obj = data as Record<string, unknown>;
-  // 兼容后端网关包装：{ code, message, data: {...} }
-  // 若顶层带 data 对象（wttr.in j1 / OWM 结构在内层），剥壳后继续识别
+  // backend gateway may wrap the payload: { code, message, data: {...} }
+  // if the top level has a data object (wttr.in j1 / OWM live inside), unwrap and retry
   const wrapped = obj.data;
   if (wrapped && typeof wrapped === 'object' && !Array.isArray(wrapped)) {
     obj = wrapped as Record<string, unknown>;
   }
 
-  // ── wttr.in j1 格式 ──────────────────────────────
+  // ── wttr.in j1 format ────────────────────────────
   const ccArr = obj.current_condition;
   if (Array.isArray(ccArr) && ccArr[0] && typeof ccArr[0] === 'object') {
     const cc = ccArr[0] as Record<string, unknown>;
@@ -88,7 +86,7 @@ export function extractWeather(data: unknown): WeatherExtracted | null {
     const forecast: WeatherForecastDay[] = weatherArr.slice(0, 3).map(d => {
       const day = d as Record<string, unknown>;
       const hourly = Array.isArray(day.hourly) ? (day.hourly as unknown[]) : [];
-      // 取中午（12:00）的天气代码作代表：wttr.in 3 小时一个点，index 4 = 12:00（0=00,1=03,2=06,3=09,4=12）
+      // wttr.in reports every 3h, index 4 = 12:00 (0=00,1=03,2=06,3=09,4=12), use it as the day's code
       const noonCode = codeOf((hourly[4] as Record<string, unknown>)?.weatherCode ?? (hourly[4] as Record<string, unknown>)?.weathercode);
       return {
         date: String(day.date || ''),
@@ -110,7 +108,7 @@ export function extractWeather(data: unknown): WeatherExtracted | null {
     };
   }
 
-  // ── OpenWeatherMap 格式 ──────────────────────────
+  // ── OpenWeatherMap format ────────────────────────
   const main = obj.main as Record<string, unknown> | undefined;
   if (main && typeof main === 'object' && main.temp != null) {
     const w0 = Array.isArray(obj.weather) ? (obj.weather[0] as Record<string, unknown>) : undefined;

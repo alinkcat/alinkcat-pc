@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/react';
 import { Button, Result, Space } from 'antd';
 import { message } from '../utils/message';
 import i18n from '../i18n/setup';
-import { exportEncryptedLogs } from '../utils/errorExport';
+import { exportLogs } from '../utils/errorExport';
 
 function FallbackRender({ error, resetError }: { error: Error | null; resetError: () => void }) {
   const handleCopyError = async () => {
@@ -16,7 +16,7 @@ function FallbackRender({ error, resetError }: { error: Error | null; resetError
 
   const handleExportLogs = async () => {
     try {
-      await exportEncryptedLogs();
+      await exportLogs();
       message.success(i18n.t('errorBoundary.exported') || 'Exported');
     } catch (err) {
       message.error((err as Error).message || 'Export failed');

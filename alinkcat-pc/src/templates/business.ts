@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 商务风模板 - 竖屏
- * 蓝色系，简洁大方，时钟+日程+天气
- */
+/** business style, portrait - blue, clock + schedule + weather */
 const template: EditorTheme = {
   id: 'template-business',
   name: '商务风',

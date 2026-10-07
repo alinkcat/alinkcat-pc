@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 实时天气模板 - 竖屏
- * 天气主页+时钟+日期+快捷面板，天气配色
- */
+/** live weather template, portrait - weather home + clock + date + quick actions */
 const template: EditorTheme = {
   id: 'template-live-weather',
   name: '实时天气',
