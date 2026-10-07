@@ -12,11 +12,11 @@ export interface PushState {
   speed: number;
   currentChunk: number;
   totalChunks: number;
-  /** 断点续传：下一个要发送的 chunk 索引（失败后记录） */
+  /** next chunk index to send, recorded on failure for resuming */
   resumeChunk: number;
-  /** 当前推送阶段：start 等待确认 / chunk 传输 / complete */
+  /** push stage: start awaiting confirm / chunk transfer / complete */
   stage?: 'start' | 'chunk' | 'complete';
-  /** 是否在等待手机端确认或重试中 */
+  /** waiting for phone-side confirm or retry */
   waiting?: boolean;
   errorMessage?: string;
 }
@@ -37,12 +37,12 @@ export const INITIAL_PUSH_STATE: PushState = {
   errorMessage: undefined,
 };
 
-/** 推送超时与分块配置（与后端常量保持一致） */
+/** push timeouts and chunking, must stay in sync with backend constants */
 export const PUSH_CONFIG = {
-  handshakeTimeout: 10000, // awaiting_confirm 等待确认超时
-  chunkTimeout: 8000,      // 等待 chunk 确认超时
-  maxRetries: 3,           // 最大重试次数
-  chunkSize: 64 * 1024,    // 每块 64KB
+  handshakeTimeout: 10000, // awaiting_confirm timeout
+  chunkTimeout: 8000,      // per-chunk ack timeout
+  maxRetries: 3,           // retries
+  chunkSize: 64 * 1024,    // 64KB per chunk
 };
 
 export interface PackedTheme {

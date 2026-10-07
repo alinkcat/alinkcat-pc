@@ -5,20 +5,15 @@ import { getColorFromId, getInitials, resolveImage } from '../utils/coverHelper'
 interface ThemeCoverProps {
   themeId: string;
   themeName: string;
-  /** 第一个页面的背景图引用（优先使用） */
+  /** background image ref from the first page (preferred) */
   coverUrl?: string;
-  /** 是否存在 cover.png */
+  /** whether cover.png exists */
   hasCover?: boolean;
 }
 
 type CoverState = 'loading' | 'ready' | 'placeholder';
 
-/**
- * 主题包封面图，三级降级：
- * 1. 第一个页面背景图
- * 2. cover.png
- * 3. 按 ID 生成颜色的首字母占位图
- */
+/** theme pack cover with 3-level fallback: first page background → cover.png → initials placeholder colored by id */
 export default function ThemeCover({ themeId, themeName, coverUrl, hasCover }: ThemeCoverProps) {
   const [state, setState] = useState<CoverState>('loading');
   const [src, setSrc] = useState<string | null>(null);
@@ -29,19 +24,16 @@ export default function ThemeCover({ themeId, themeName, coverUrl, hasCover }: T
     setSrc(null);
 
     (async () => {
-      // 优先用页面背景图
       const bg = await resolveImage(themeId, coverUrl);
       if (cancelled) return;
       if (bg) { setSrc(bg); setState('ready'); return; }
 
-      // 其次 cover.png
       if (hasCover) {
         const cover = await resolveImage(themeId, 'cover.png');
         if (cancelled) return;
         if (cover) { setSrc(cover); setState('ready'); return; }
       }
 
-      // 都没捞到就画占位
       if (!cancelled) setState('placeholder');
     })();
 

@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 极简时间模板 - 竖屏
- * 超大字体的时钟，只有时间+日期，极简free布局
- */
+/** minimal time template, portrait - huge clock, time + date only, free layout */
 const template: EditorTheme = {
   id: 'template-minimal-time',
   name: '极简时间',

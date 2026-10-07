@@ -19,7 +19,7 @@ import { SaveOutlined, RobotOutlined, ReloadOutlined, BugOutlined, UploadOutline
 import { useTranslation } from 'react-i18next';
 import { useAIStore } from '../store/aiStore';
 import { useI18nStore } from '../i18n/useI18nStore';
-import { exportEncryptedLogs } from '../utils/errorExport';
+import { exportLogs } from '../utils/errorExport';
 import { getLogs } from '../utils/logger';
 import { devConfig, config as appConfig } from '../config';
 import { getDeveloperPassword } from '../utils/md5';
@@ -45,6 +45,14 @@ export default function Settings() {
   const [form] = Form.useForm();
   const [aiForm] = Form.useForm();
   const [saved, setSaved] = useState(loadSettings());
+  const [themesDir, setThemesDir] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    tauriInvoke<string | null>('get_custom_themes_dir')
+      .then((dir) => setThemesDir(dir))
+      .catch(() => {});
+  }, []);
   const { config, updateConfig } = useAIStore();
   const { lang, changeLang, importLanguage, languages } = useI18nStore();
   const languageInputRef = useRef<HTMLInputElement>(null);
@@ -65,14 +73,14 @@ export default function Settings() {
     reader.onload = async () => {
       try {
         const json = JSON.parse(reader.result as string);
-        // 兼容两种格式：{code,label,resources} 或 {code,label,common:{}}
+        // two accepted shapes: {code,label,resources} or {code,label,common:{}}
         const code = json.code || json.locale || json.language;
         const label = json.label || json.name || code;
         let resources: Record<string, object> = {};
         if (json.resources && typeof json.resources === 'object') {
           resources = json.resources;
         } else {
-          // 扁平格式：提取所有非 meta 字段作为 common
+          // flat shape: everything except meta fields becomes common
           const { code: _c, label: _l, locale: _lo, language: _la, name: _n, ...rest } = json;
           resources = { common: rest };
         }
@@ -146,7 +154,7 @@ export default function Settings() {
 
       let ids: string[];
       if (isTauri()) {
-        // 通过 Tauri Rust 后端转发，绕过 CORS
+        // forwarded through the Tauri Rust backend to bypass CORS
         const result = await tauriInvoke<{ status: number; body: unknown }>('api_request', {
           url,
           method: 'GET',
@@ -156,7 +164,7 @@ export default function Settings() {
         const json = result.body as { data?: { id: string }[] };
         ids = (json.data || []).map((m: { id: string }) => m.id).filter(Boolean);
       } else {
-        // 浏览器环境（开发）：原生 fetch
+        // browser (dev): plain fetch
         const resp = await fetch(url, { headers });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const json = await resp.json();
@@ -175,7 +183,7 @@ export default function Settings() {
 
   const handleExportLogs = async () => {
     try {
-      await exportEncryptedLogs();
+      await exportLogs();
       message.success(t('settings.logs_exported'));
     } catch (e) {
       message.info(String(e instanceof Error ? e.message : e));
@@ -183,7 +191,7 @@ export default function Settings() {
   };
 
   const handleDevSave = () => {
-    // 解析完整 URL，分离 host 和 port
+    // split a full URL into host + port
     let url = devApiUrl.replace(/\/+$/, '');
     if (url.includes('://')) {
       const parsed = new URL(url);
@@ -231,7 +239,6 @@ export default function Settings() {
 
       <Row gutter={[16, 16]}>
       <Col xs={24} md={12}>
-        {/* 语言选择 */}
         <Card style={{ maxWidth: 560, marginBottom: 16 }}>
           <Form.Item
             label={t('settings.language')}
@@ -258,7 +265,42 @@ export default function Settings() {
           />
         </Card>
 
-        {/* 端口配置 */}
+        <Card style={{ maxWidth: 560 }} title={t('settings.themesDirTitle')}>
+          <Form.Item label={t('settings.themesDirLabel')} extra={t('settings.themesDirExtra')}>
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
+                value={themesDir ?? ''}
+                placeholder={t('settings.themesDirPlaceholder')}
+                onChange={(e) => setThemesDir(e.target.value || null)}
+              />
+              <Button
+                onClick={async () => {
+                  try {
+                    const { open } = await import('@tauri-apps/plugin-dialog');
+                    const picked = await open({ directory: true, multiple: false });
+                    if (typeof picked === 'string') setThemesDir(picked);
+                  } catch { /* dialog unavailable outside tauri */ }
+                }}
+              >
+                {t('settings.browse')}
+              </Button>
+            </Space.Compact>
+          </Form.Item>
+          <Button
+            type="primary"
+            onClick={async () => {
+              try {
+                await tauriInvoke('set_custom_themes_dir', { path: themesDir });
+                message.success(t('settings.themesDirSaved'));
+              } catch (e) {
+                message.error(String(e));
+              }
+            }}
+          >
+            {t('settings.save_themes_dir')}
+          </Button>
+        </Card>
+
         <Card style={{ maxWidth: 560 }}>
         <Form
           form={form}
@@ -266,42 +308,8 @@ export default function Settings() {
           initialValues={saved}
           requiredMark="optional"
         >
-          <Form.Item
-            name="ws_port"
-            label={t('settings.ws_port')}
-            rules={[{ required: true, message: t('settings.ws_port_required') }]}
-            extra={t('settings.ws_port_extra')}
-          >
-            <InputNumber
-              min={1024}
-              max={65535}
-              style={{ width: '100%' }}
-              placeholder={t('settings.ws_port_placeholder')}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="data_interval"
-            label={t('settings.data_interval')}
-            rules={[{ required: true, message: t('settings.data_interval_required') }]}
-            extra={t('settings.data_interval_extra')}
-          >
-            <InputNumber
-              min={100}
-              max={60000}
-              step={100}
-              style={{ width: '100%' }}
-              placeholder={t('settings.data_interval_placeholder')}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="auto_start"
-            label={t('settings.auto_start')}
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
+          {/* ws_port / data_interval / auto_start / log_level live in the store
+              but nothing consumes them yet — hidden until they actually work */}
 
           <Form.Item
             name="status_polling"
@@ -326,21 +334,6 @@ export default function Settings() {
             />
           </Form.Item>
 
-          <Form.Item
-            name="log_level"
-            label={t('settings.log_level')}
-            rules={[{ required: true, message: t('settings.log_level_required') }]}
-          >
-            <Select
-              options={[
-                { label: 'ERROR', value: 'ERROR' },
-                { label: 'WARN', value: 'WARN' },
-                { label: 'INFO', value: 'INFO' },
-                { label: 'DEBUG', value: 'DEBUG' },
-              ]}
-            />
-          </Form.Item>
-
           <Form.Item>
             <Button
               type="primary"
@@ -352,7 +345,6 @@ export default function Settings() {
           </Form.Item>
         </Form>
       </Card>
-      {/* 诊断日志 */}
       <Card style={{ marginTop: 16 }}>
         <Alert
           title={t('settings.diagnostic_logs')}
@@ -461,7 +453,6 @@ export default function Settings() {
       )}
       </Row>
 
-      {/* 开发者密码验证弹窗 */}
       <Modal
         title={t('settings.dev_pwd_title')}
         open={pwdOpen}

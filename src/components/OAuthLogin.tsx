@@ -9,9 +9,9 @@ import i18n from '../i18n/setup';
 
 const { Text } = Typography;
 
-const MAX_WAIT_MS = 60 * 1000; // 60 秒超时兜底
+const MAX_WAIT_MS = 60 * 1000; // 60s hard timeout
 
-/** 后端错误 → 用户友好提示映射 */
+/** map backend errors to user-friendly messages */
 function friendlyError(err: string): { text: string; action: 'register' | 'retry' | 'close' | 'contact' } {
   const msg = err.toLowerCase();
   if (msg.includes('未绑定') || msg.includes('not bound')) {
@@ -38,10 +38,7 @@ interface OAuthModalProps {
   onRegister?: () => void;
 }
 
-/**
- * 系统浏览器 OAuth 等待弹窗。
- * 支持登录失败时显示业务错误提示 + 引导按钮。
- */
+/** waiting modal for browser OAuth, shows a friendly error + follow-up action on failure */
 export function OAuthWaitingModal({ open, error, errorAction, onCancel, onRetry, onRegister }: OAuthModalProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -97,19 +94,16 @@ export function OAuthWaitingModal({ open, error, errorAction, onCancel, onRetry,
   );
 }
 
-/**
- * 根据后端错误消息生成友好提示对象。
- */
+/** turn a backend error message into a friendly { text, action } pair */
 export function parseOAuthError(errMsg: string): { text: string; action: 'register' | 'retry' | 'close' | 'contact' } {
   return friendlyError(errMsg);
 }
 
 /**
- * 执行 GitHub OAuth 登录：打开系统浏览器 → 等待本地回调 → 存储 token。
- * 仅适用于已绑定 GitHub 的账号快捷登录。
+ * github OAuth login: open system browser → wait for local callback → store tokens.
+ * only for quick login with accounts already bound to github
  */
 export async function startGithubOAuth(): Promise<boolean> {
-  // 检测 OAuth 是否可用
   try {
     await authApi.oauthCheck();
   } catch (e) {
@@ -118,7 +112,6 @@ export async function startGithubOAuth(): Promise<boolean> {
     throw new Error(i18n.t('auth.cannotConnectServer'));
   }
 
-  // 获取授权地址
   const resp = await authApi.oauthLogin();
   if (resp.code !== 200 || !resp.data?.authorizeUrl) {
     throw new Error(resp.message || i18n.t('auth.authUrlFailed'));
@@ -127,7 +120,7 @@ export async function startGithubOAuth(): Promise<boolean> {
   await tauriInvoke('oauth_reset').catch(() => {});
   await openUrl(resp.data.authorizeUrl);
 
-  // 轮询等待本地回调服务器返回结果
+  // poll the local callback server for the result
   const started = Date.now();
   while (Date.now() - started < MAX_WAIT_MS) {
     try {
@@ -148,10 +141,7 @@ export async function startGithubOAuth(): Promise<boolean> {
   throw new Error(i18n.t('auth.loginTimeout'));
 }
 
-/**
- * 执行 GitHub 绑定到当前用户。
- * 用于个人设置中绑定 GitHub 账号，流程同登录但无需存 token。
- */
+/** bind github to the current user (profile settings), same flow as login but no token stored */
 export async function startGithubBind(): Promise<boolean> {
   await tauriInvoke('oauth_reset').catch(() => {});
   const resp = await authApi.oauthBind();
@@ -169,7 +159,6 @@ export async function startGithubBind(): Promise<boolean> {
         throw new Error(friendly.text);
       }
       if (result?.token) {
-        // 绑定成功，刷新页面获取最新绑定状态
         return true;
       }
     } catch (e) {

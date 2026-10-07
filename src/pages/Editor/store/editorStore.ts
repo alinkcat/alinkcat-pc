@@ -40,7 +40,7 @@ export function makeWidget(type: string, col: number, row: number): EditorWidget
     case 'calendar': return { ...base, label: '日历', viewMode: 'month', highlightToday: true, gridW: 2, gridH: 3 } as unknown as EditorWidget;
     case 'card': return { ...base, label: '', cardTitle: '', cardDesc: '卡片描述', cardImage: '', cardImagePosition: 'top', cardTags: [], cardFooter: '' } as unknown as EditorWidget;
     case 'battery': return { ...base, label: '电池', batteryStyle: 'bar', showLevel: true, showCharging: true, showTemp: false, barColor: '#52c41a', lowColor: '#ff4d4f', lowThreshold: 20, dataSource: 'system.battery.level' } as unknown as EditorWidget;
-    case 'weather': return { ...base, type: 'weather', label: '天气', url: '', showScrollbar: true, backgroundColor: '#ffffff', displayMode: 'webpage', rssUrl: '', jsonUrl: '', refreshInterval: 0, titleField: 'title', descField: 'description', timeField: 'pubDate', linkField: 'link', preset: 'weather', bilibiliRoomId: '', city: '', apiKey: '', unit: 'c', refreshHours: 1, requestMethod: 'GET', requestUrl: 'https://top.atqx.cn/api/public/weather?q=${city}&f=wttr', requestHeaders: {}, extraParams: {}, responseMapping: { city: 'nearest_area[0].areaName[0].value', temp: 'current_condition[0].temp_C', condition: 'current_condition[0].weatherDesc[0].value', description: 'current_condition[0].weatherDesc[0].value', icon: 'current_condition[0].weatherCode', humidity: 'current_condition[0].humidity', wind_speed: 'current_condition[0].windspeedKmph', feels_like: 'current_condition[0].FeelsLikeC', forecast: 'weather' } } as unknown as EditorWidget;
+    case 'weather': return { ...base, type: 'weather', label: '天气', url: '', showScrollbar: true, backgroundColor: '#ffffff', displayMode: 'webpage', rssUrl: '', jsonUrl: '', refreshInterval: 0, titleField: 'title', descField: 'description', timeField: 'pubDate', linkField: 'link', preset: 'weather', bilibiliRoomId: '', city: '', apiKey: '', unit: 'c', refreshHours: 1, requestMethod: 'GET', requestUrl: 'https://api.pynen.com/api/public/weather?q=${city}&f=wttr', requestHeaders: {}, extraParams: {}, responseMapping: { city: 'nearest_area[0].areaName[0].value', temp: 'current_condition[0].temp_C', condition: 'current_condition[0].weatherDesc[0].value', description: 'current_condition[0].weatherDesc[0].value', icon: 'current_condition[0].weatherCode', humidity: 'current_condition[0].humidity', wind_speed: 'current_condition[0].windspeedKmph', feels_like: 'current_condition[0].FeelsLikeC', forecast: 'weather' } } as unknown as EditorWidget;
     default: return base as unknown as EditorWidget;
   }
 }
@@ -64,7 +64,7 @@ export function themeToEditor(t: ThemeMeta): EditorTheme {
       columns: p.layout.columns ?? 4, rows: p.layout.rows ?? 6,
       backgroundColor: (p.layout as unknown as Record<string, unknown>).backgroundColor as string | undefined,
       backgroundImage: (p.layout as unknown as Record<string, unknown>).backgroundImage as string | undefined,
-      // 传输层 'tile' → 编辑器 'repeat'，两边语义一致（平铺）
+      // transport 'tile' → editor 'repeat', same semantics (tiled)
       backgroundMode: ((p.layout as unknown as Record<string, unknown>).backgroundMode === 'tile'
         ? 'repeat'
         : (p.layout as unknown as Record<string, unknown>).backgroundMode) as EditorPage['backgroundMode'],
@@ -84,6 +84,31 @@ export function themeToEditor(t: ThemeMeta): EditorTheme {
   };
 }
 
+// keep AI-written / hand-typed widget fields inside sane bounds; grid spans are
+// clamped against the page so nothing saves with a span that runs off the screen
+export function sanitizeWidget<T extends { type: string; ringWidth?: number; gridCol?: number; gridRow?: number; gridW?: number; gridH?: number }>(w: T, page?: { columns?: number; rows?: number }): T {
+  const out = { ...w };
+  if (out.type === 'gauge' && out.ringWidth != null) {
+    out.ringWidth = Math.max(1, Math.min(Math.round(Number(out.ringWidth)) || 1, 6));
+  }
+  if (page) {
+    const cols = page.columns || 4;
+    const rows = page.rows || 6;
+    const col = Math.max(0, Math.min(out.gridCol ?? 0, cols - 1));
+    const row = Math.max(0, Math.min(out.gridRow ?? 0, rows - 1));
+    out.gridCol = col;
+    out.gridRow = row;
+    out.gridW = Math.max(1, Math.min(out.gridW ?? 1, cols - col));
+    out.gridH = Math.max(1, Math.min(out.gridH ?? 1, rows - row));
+  } else {
+    if (out.gridCol != null) out.gridCol = Math.max(0, out.gridCol);
+    if (out.gridRow != null) out.gridRow = Math.max(0, out.gridRow);
+    if (out.gridW != null) out.gridW = Math.max(1, out.gridW);
+    if (out.gridH != null) out.gridH = Math.max(1, out.gridH);
+  }
+  return out;
+}
+
 export function editorToThemeMeta(t: EditorTheme): ThemeMeta {
   return {
     id: t.id, name: t.name, version: t.version, author: t.author, description: t.description,
@@ -96,11 +121,11 @@ export function editorToThemeMeta(t: EditorTheme): ThemeMeta {
         columns: p.columns, rows: p.rows,
         backgroundColor: p.backgroundColor,
         backgroundImage: p.backgroundImage,
-        // 编辑器用 'repeat'，传输/Mobile 层用 'tile'：导出时归一化，保证手机端可识别
+        // editor uses 'repeat', transport/mobile uses 'tile': normalize on export so the phone understands it
         backgroundMode: (p.backgroundMode === 'repeat' ? 'tile' : p.backgroundMode) as PageDefinition['layout']['backgroundMode'],
         backgroundOpacity: p.backgroundOpacity,
       } as PageDefinition['layout'],
-      widgets: p.widgets as unknown as WidgetDefinition[],
+      widgets: p.widgets.map(w => sanitizeWidget(w, p) as unknown as WidgetDefinition),
     })),
   };
 }
@@ -130,7 +155,7 @@ export interface EditorState {
   setExporting: (v: boolean) => void;
   setSnapLines: (x: boolean, y: boolean) => void;
 
-  // 历史栈
+  // history stacks
   undoStack: EditorTheme[];
   redoStack: EditorTheme[];
   canUndo: boolean;
@@ -138,10 +163,10 @@ export interface EditorState {
   undo: () => void;
   redo: () => void;
   clearHistory: () => void;
-  // 供 AI 调用：初始化历史（清空栈），压入快照
+  // for AI: reset history (clear stacks) and push a snapshot
   resetHistory: (initial: EditorTheme) => void;
 
-  // 版本历史
+  // version history
   versionHistory: ThemeVersion[];
   currentVersionIdx: number;
   saveVersion: (changelog?: string) => void;
@@ -162,12 +187,12 @@ export interface EditorState {
   moveWidgetFree: (id: string, x: number, y: number) => void;
   resizeWidgetFree: (id: string, w: number, h: number) => void;
   updateWidget: (id: string, values: Record<string, unknown>) => void;
-  // 层级控制
+  // z-order
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
   moveUp: (id: string) => void;
   moveDown: (id: string) => void;
-  // 供 AI 调用：压入撤销快照
+  // for AI: push an undo snapshot
   pushUndoSnapshot: (snapshot: EditorTheme) => void;
 }
 
@@ -187,13 +212,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   loadTheme: (t) => {
     const themeId = t.id;
     set({ theme: themeToEditor(t), activePageIdx: 0, selectedWidgetId: null, undoStack: [], redoStack: [], canUndo: false, canRedo: false });
-    // 加载版本历史
     get().loadVersionHistory(themeId);
   },
   replaceTheme: (t) => {
     const themeId = t.id;
-    // 整包替换后：清空选择，并把活动页钳制到有效范围（AI 整页生成可能页面数更少，
-    // 若保留旧的 activePageIdx 越界会导致画布空白"看起来没生效"）
+    // after a full replace: clear selection and clamp the active page (AI generation may return fewer
+    // pages; a stale out-of-range idx leaves a blank canvas that "looks like nothing happened")
     const activePageIdx = Math.min(
       Math.max(t.pages.length - 1, 0),
       Math.max(get().activePageIdx, 0),
@@ -217,7 +241,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectWidget: (id) => set({ selectedWidgetId: id }),
   toggleOrientation: () => set(s => {
     const next: 'portrait' | 'landscape' = s.orientation === 'portrait' ? 'landscape' : 'portrait';
-    // 方向同时写入 theme.orientation，确保保存/导出/ＡＩ set_orientation 都能持久化
+    // write orientation into theme.orientation too so save/export/AI set_orientation all persist it
     return { orientation: next, theme: { ...s.theme, orientation: next } };
   }),
   setZoom: (z) => set({ zoom: Math.min(150, Math.max(50, z)) }),
@@ -256,12 +280,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clearHistory: () => set({ undoStack: [], redoStack: [], canUndo: false, canRedo: false }),
   resetHistory: (initial) => set({ theme: initial, undoStack: [], redoStack: [], canUndo: false, canRedo: false }),
 
-  // ─── 版本历史 ───────────────────────────────────────────
+  // ─── version history ────────────────────────────────────
 
   saveVersion: (changelog?) => {
     const s = get();
     const meta = editorToThemeMeta(s.theme);
-    // 估算快照大小，跳过 base64 图片内容过大的场景（超过 100KB 不存）
+    // skip snapshots carrying too much base64 (>100KB)
     const snapshot = JSON.parse(JSON.stringify(meta));
     const size = new Blob([JSON.stringify(snapshot)]).size;
     if (size > 100_000) {
@@ -277,7 +301,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const history = [...s.versionHistory, ver].slice(-20);
     const idx = history.length - 1;
     set({ versionHistory: history, currentVersionIdx: idx });
-    // 持久化到 localStorage（try-catch 防止 QuotaExceededError）
+    // persist to localStorage (quota errors swallowed)
     if (s.theme.id) {
       try {
         localStorage.setItem(`ilinkcat_version_history_${s.theme.id}`, JSON.stringify(history));
@@ -292,7 +316,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (idx < 0 || idx >= hist.length) return;
     const ver = hist[idx];
     if (ver) {
-      // 用快照替换编辑器状态
       const editorTheme = themeToEditor(ver.snapshot);
       set({
         theme: editorTheme,
@@ -405,10 +428,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateWidget: (id, values) => set(s => ({
     undoStack: [...s.undoStack, s.theme].slice(-50),
     redoStack: [], canUndo: true, canRedo: false,
-    theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(w => w.id === id ? { ...w, ...values } : w) } : p) },
+    theme: { ...s.theme, pages: s.theme.pages.map((p, i) => i === s.activePageIdx ? { ...p, widgets: p.widgets.map(w => w.id === id ? sanitizeWidget({ ...w, ...values }) : w) } : p) },
   })),
 
-  // ─── 层级控制 ───────────────────────────────────────────
+  // ─── z-order ────────────────────────────────────────────
 
   bringToFront: (id) => set(s => {
     const pg = wp(s); if (!pg) return s;
@@ -471,7 +494,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     };
   }),
 
-  // ─── 撤销快照（供 AI 调用） ─────────────────────────────
+  // ─── undo snapshots (for AI) ────────────────────────────
 
   pushUndoSnapshot: (snapshot) => set(s => ({
     undoStack: [...s.undoStack, snapshot].slice(-50),

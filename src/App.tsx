@@ -4,7 +4,7 @@ import { ConfigProvider, App as AntApp, theme as antTheme, Modal, Button, Typogr
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from './store/themeStore';
 import { useI18nStore } from './i18n/useI18nStore';
-import { APP_VERSION } from './config';
+import { APP_VERSION , APP_PLATFORM } from './config';
 import { clientVersionApi } from './api/clientVersionApi';
 import { initLogger } from './utils/logger';
 import AppLayout from './components/layout/AppLayout';
@@ -74,7 +74,7 @@ export default function App() {
     document.documentElement.classList.toggle('dark', mode === 'dark');
   }, [mode]);
 
-  // 启动时版本检查（只执行一次，防止 StrictMode 双调用）
+  // version check on startup (once only, StrictMode double-invokes effects)
   useEffect(() => {
     if (checked.current) return;
     checked.current = true;
@@ -98,7 +98,7 @@ export default function App() {
     }
 
     function doCheck() {
-      clientVersionApi.check('windows', APP_VERSION)
+      clientVersionApi.check(APP_PLATFORM, APP_VERSION)
         .then((resp) => {
           if (resp.code !== 200 || !resp.data) { allowEntry(); return; }
           const { version, announcements } = resp.data;
@@ -116,12 +116,12 @@ export default function App() {
             return;
           }
 
-          // 弹窗公告
+          // popup announcements
           const seen = getSeenIds();
           const now = new Date().toISOString();
           const valid = announcements.filter((a) => {
             if (a.status !== 1) return false;
-            if (a.targetPlatform && a.targetPlatform !== 'windows') return false;
+            if (a.targetPlatform && a.targetPlatform !== APP_PLATFORM) return false;
             if (a.popupType === 'once' && seen.has(a.id)) return false;
             if (a.startAt && a.startAt > now) return false;
             if (a.endAt && a.endAt < now) return false;
@@ -139,9 +139,9 @@ export default function App() {
         .catch(() => {
           if (!retried.current) {
             retried.current = true;
-            // 30 秒后重试一次
+            // retry once after 30s
             retryTimer = setTimeout(() => { doCheck(); }, 30000);
-            // 安全兜底：若重试请求悬挂超过 60 秒仍未完成则放行
+            // safety net: let the user in if the retry hangs past 60s
             fallbackTimer = setTimeout(() => { allowEntry(); }, 60000);
           } else {
             allowEntry();
@@ -157,7 +157,7 @@ export default function App() {
     };
   }, []);
 
-  // 检测首次启动，显示引导弹窗
+  // first launch → show the onboarding dialog
   useEffect(() => {
     if (allowed) {
       const done = localStorage.getItem(ONBOARDING_KEY);
@@ -280,7 +280,7 @@ export default function App() {
           </ErrorBoundary>
         )}
 
-        {/* 首次使用引导弹窗 */}
+        {/* first-launch onboarding */}
         <Modal
           open={onboardingOpen}
           closable={false}
@@ -302,7 +302,6 @@ export default function App() {
               {ONBOARDING_STEPS[onboardingStep].desc}
             </Text>
           </div>
-          {/* 步骤指示器 */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
             {ONBOARDING_STEPS.map((_, i) => (
               <div

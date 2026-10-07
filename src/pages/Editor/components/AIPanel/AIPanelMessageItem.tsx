@@ -6,9 +6,9 @@ import { instrTypeKey } from '../../../../hooks/useAICommands';
 
 const { Text, Paragraph } = Typography;
 
-/** 将 AI 回复按 ```json 围栏拆分为 [文本, JSON, 文本, ...]，JSON 段默认折叠。
- *  streaming=true 时 JSON 段以展开的 <pre> 渲染（不做折叠），避免流式过程中
- *  <details> 因内容增长反复重建导致折叠状态被重置的抖动。 */
+/** split an AI reply on ```json fences into [text, json, text, ...], json parts collapsed by default.
+ *  while streaming=true the json renders as an expanded <pre>: a growing <details> keeps getting
+ *  rebuilt mid-stream, which resets the collapsed state and jitters. */
 function renderContent(content: string, t: (key: string, opts?: Record<string, unknown>) => string, streaming: boolean): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   const regex = /```json\s*([\s\S]*?)```/gi;
@@ -26,7 +26,7 @@ function renderContent(content: string, t: (key: string, opts?: Record<string, u
     }
     const jsonText = m[1].trim();
     if (streaming) {
-      // 流式进行中：直接展开显示，避免折叠块重建抖动
+      // streaming: show expanded, avoids the collapsing/rebuilding jitter
       parts.push(<pre key={key++} style={preStyle}>{jsonText}</pre>);
     } else {
       parts.push(
@@ -46,7 +46,7 @@ function renderContent(content: string, t: (key: string, opts?: Record<string, u
   return parts.length > 0 ? parts : [content];
 }
 
-/** 生成一条指令的人类可读目标摘要（如 "CPU 监控"、"第 0 页"、"主题赛博朋克"） */
+/** human-readable target summary for one instruction */
 function describeTarget(instr: AIInstruction): string {
   const w = instr.widget as Record<string, unknown> | undefined;
   const p = instr.params as Record<string, unknown> | undefined;
@@ -90,7 +90,7 @@ function describeTarget(instr: AIInstruction): string {
   }
 }
 
-/** 单条指令：类型 + 目标摘要 + 状态 + 操作按钮 */
+/** one instruction: type + target summary + status + action buttons */
 function InstructionRow({ messageId, instr }: { messageId: string; instr: AIInstruction }) {
   const { t } = useTranslation();
   const { confirmInstruction, cancelInstruction } = useAIStore();

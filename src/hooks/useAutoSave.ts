@@ -15,15 +15,15 @@ export interface DraftPayload {
 }
 
 /**
- * 自动保存 hook：监听 editorStore 变化，防抖 5 秒后写入 localStorage。
- * 只在编辑器初始化完成后工作，保存进行中时跳过。
+ * autosave hook: debounce 5s after editorStore changes, then write the draft to localStorage.
+ * only runs once the editor finished initializing, skipped while a save is in progress.
  */
 export function useAutoSave() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readyRef = useRef(false);
   const lastSignatureRef = useRef<string>('');
 
-  // 标记编辑器已就绪（首次渲染完成 + 初始化逻辑已执行）
+  // editor considered ready after the first render
   useEffect(() => {
     readyRef.current = true;
   }, []);
@@ -31,7 +31,7 @@ export function useAutoSave() {
   useEffect(() => {
     const unsub = useEditorStore.subscribe((state) => {
       if (!readyRef.current) return;
-      // 正在保存到磁盘时不触发自动保存，避免覆盖草稿
+      // skip while saving to disk, don't clobber the draft
       if (state.saving) return;
 
       if (timerRef.current) {
@@ -39,7 +39,7 @@ export function useAutoSave() {
       }
 
       timerRef.current = setTimeout(() => {
-        // 增量检查：如果主题内容没变则跳过，避免不必要的序列化
+        // cheap diff: skip the serialization when the theme didn't change
         const signature = JSON.stringify(state.theme);
         if (signature === lastSignatureRef.current) return;
         lastSignatureRef.current = signature;
@@ -54,7 +54,7 @@ export function useAutoSave() {
         try {
           localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
         } catch {
-          // localStorage 可能已满或不可用，静默失败
+          // localStorage full or unavailable, fail silently
         }
       }, DEBOUNCE_MS);
     });
@@ -68,18 +68,18 @@ export function useAutoSave() {
   }, []);
 }
 
-/** 清除本地草稿（保存成功后调用） */
+/** clear the local draft (called after a successful save) */
 export function clearDraft(): void {
   localStorage.removeItem(DRAFT_KEY);
 }
 
-/** 获取本地草稿（解析失败或过期时自动清除） */
+/** load the local draft, removes it when expired or unparseable */
 export function getDraft(): DraftPayload | null {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return null;
     const payload = JSON.parse(raw) as DraftPayload;
-    // 检查草稿是否过期（超过 7 天自动清除）
+    // drop drafts older than 7 days
     if (payload.createdAt) {
       const age = Date.now() - new Date(payload.createdAt).getTime();
       if (age > DRAFT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000) {

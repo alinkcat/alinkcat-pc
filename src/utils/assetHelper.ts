@@ -1,17 +1,13 @@
 import { tauriInvoke } from './tauri';
 import type { ThemeMeta } from '../types/theme';
 
-/** 判断是否为相对路径（非 data URL、非 http/file URL） */
+// relative path = not a data URL and not an http/file URL
 export function isRelativePath(p: string): boolean {
   return !p.startsWith('data:') && !/^(https?|file):\/\//i.test(p);
 }
 
-/**
- * 解析图片引用为可显示地址：
- * - data: → 原样
- * - http(s)/file → 原样
- * - 相对路径（如 assets/bg.png）→ 通过 get_image 命令读取主题包内文件，返回 data URL
- */
+// data:/http(s)/file pass through as-is,
+// relative paths (assets/bg.png) are read from the theme pack via get_image and returned as data URLs
 export async function getAssetUrl(themeId: string, assetPath: string): Promise<string> {
   if (!assetPath) return '';
   if (assetPath.startsWith('data:')) return assetPath;
@@ -23,10 +19,8 @@ export async function getAssetUrl(themeId: string, assetPath: string): Promise<s
   }
 }
 
-/**
- * 加载主题包时，将 theme.json 中所有相对图片路径解析为 data URL，
- * 使编辑器内可直接显示背景图 / 控件图片 / 图标。
- */
+// resolve every relative image path in theme.json to a data URL on load,
+// so backgrounds / widget images / icons render directly in the editor
 export async function resolveThemeImages(meta: ThemeMeta): Promise<ThemeMeta> {
   const clone = JSON.parse(JSON.stringify(meta)) as ThemeMeta;
 

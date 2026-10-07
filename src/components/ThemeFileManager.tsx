@@ -50,7 +50,6 @@ function buildTree(files: ThemeFile[]): TreeNode[] {
       path = path ? `${path}/${parts[i]}` : parts[i];
 
       if (isLast && !f.isDir) {
-        // 叶子节点（文件）
         parent.push({
           key: path,
           isLeaf: true,
@@ -64,7 +63,6 @@ function buildTree(files: ThemeFile[]): TreeNode[] {
           size: f.size,
         });
       } else {
-        // 中间节点（文件夹）
         let children = map.get(path);
         if (!children) {
           children = [];
@@ -105,7 +103,6 @@ export default function ThemeFileManager({ themeId, open, onClose }: Props) {
     try {
       const result = await tauriInvoke<ThemeFile[]>('list_theme_files', { id: themeId });
       setFiles(result);
-      // 默认展开所有文件夹
       setExpandedKeys(result.filter((f) => f.isDir).map((f) => f.name));
     } catch (e) {
       console.error('Failed to list theme files:', e);

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Modal } from 'antd';
+import { message } from '../utils/message';
 import { i18n } from '../i18n';
 import { tauriInvoke } from '../utils/tauri';
 
@@ -26,14 +27,14 @@ function save(list: PendingDownload[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
 
-/** 从错误消息中解析已存在的主题 ID，如 "Theme 'xxx' already exists" */
+/** parse the already-existing theme id out of an error like "Theme 'xxx' already exists" */
 function parseExistingThemeId(err: string): string | null {
   const match = err.match(/Theme '([^']+)' already exists/);
   return match ? match[1] : null;
 }
 
-/** 若目标主题已存在则弹覆盖确认，确认后删除旧包再导入。返回是否真正导入成功。 */
-async function importThemeFileWithOverwrite(filePath: string): Promise<boolean> {
+/** confirm overwrite when the target theme already exists, deletes the old pack then imports. returns whether the import actually happened */
+export async function importThemeFileWithOverwrite(filePath: string): Promise<boolean> {
   try {
     await tauriInvoke('import_theme_from_file', { path: filePath });
     return true;
@@ -51,9 +52,16 @@ async function importThemeFileWithOverwrite(filePath: string): Promise<boolean> 
         okType: 'danger',
         cancelText: i18n.t('common.cancel') || 'Cancel',
         onOk: async () => {
-          if (themeId) await tauriInvoke('delete_theme', { id: themeId });
-          await tauriInvoke('import_theme_from_file', { path: filePath });
-          resolve(true);
+          try {
+            if (themeId) await tauriInvoke('delete_theme', { id: themeId });
+            await tauriInvoke('import_theme_from_file', { path: filePath });
+            resolve(true);
+          } catch (e) {
+            // without this the import promise never settles and the
+            // import buttons stay disabled until an app restart
+            message.error(String(e));
+            resolve(false);
+          }
         },
         onCancel: () => resolve(false),
       });
@@ -117,7 +125,7 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
         save([]);
         set({ queue: [] });
       } else {
-        // 保留失败的项，移除已成功的项
+        // keep failed items, drop the successful ones
         const failedIds = new Set(failedItems.map((i) => i.id));
         const rest = get().queue.filter((q) => !failedIds.has(q.id));
         save(rest);

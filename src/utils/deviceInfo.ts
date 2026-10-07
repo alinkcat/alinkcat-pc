@@ -3,7 +3,6 @@ import { tauriInvoke } from './tauri';
 
 const DEVICE_CODE_KEY = 'ilinkcat_device_code';
 
-/** 生成 UUID v4 */
 function generateUUID(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -13,11 +12,11 @@ function generateUUID(): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-/** 获取设备唯一标识码（优先 Rust 磁盘持久化，回退 localStorage） */
+// prefer rust-side disk persistence, fall back to localStorage
 export async function getDeviceCode(): Promise<string> {
   try {
     return await tauriInvoke<string>('get_device_code');
-  } catch { /* 非 Tauri 环境 */ }
+  } catch { /* not in tauri */ }
   let code = localStorage.getItem(DEVICE_CODE_KEY);
   if (!code) {
     code = generateUUID();
@@ -26,12 +25,10 @@ export async function getDeviceCode(): Promise<string> {
   return code;
 }
 
-/** 判断是否为 Tauri 桌面环境 */
 function isDesktop(): boolean {
   try { return '__TAURI_INTERNALS__' in window; } catch { return false; }
 }
 
-/** 解析操作系统名称与版本 */
 function detectOS(): { name: string; version: string } {
   const ua = navigator.userAgent;
   if (ua.includes('Windows')) {
@@ -59,7 +56,6 @@ function detectOS(): { name: string; version: string } {
   return { name: 'unknown', version: 'Unknown' };
 }
 
-/** 获取设备名称 */
 function detectDeviceName(): string {
   const platform = navigator.platform || '';
   if (platform.includes('Win')) return 'Windows PC';
@@ -68,7 +64,6 @@ function detectDeviceName(): string {
   return platform || 'Unknown Device';
 }
 
-/** 组装登录所需的设备信息 */
 export async function getDeviceInfo() {
   const os = detectOS();
   return {
@@ -80,5 +75,10 @@ export async function getDeviceInfo() {
   };
 }
 
-/** 判断当前是否为桌面应用环境（用于 deviceType 判断） */
+// true when running as the desktop app, used for deviceType
 export { isDesktop };
+
+/** platform name for the version gate / announcement targeting */
+export function getPlatformName(): string {
+  return detectOS().name;
+}

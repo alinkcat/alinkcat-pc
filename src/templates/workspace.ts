@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 工作台模板 - 竖屏
- * 待办事项+时钟+日历+应用启动，浅色
- */
+/** workspace template, portrait - todos + clock + calendar + launcher, light */
 const template: EditorTheme = {
   id: 'template-workspace',
   name: '工作台',

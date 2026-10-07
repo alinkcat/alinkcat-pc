@@ -20,7 +20,7 @@ const { Title, Text } = Typography;
 
 const PLAN_COLORS: Record<number, string> = { 1: '#faad14', 2: '#722ed1' };
 
-// 天气 Key 本地持久化（仅存"已申请"标记，不存明文；明文只展示一次后即丢）
+// weather key marker in localStorage ("applied" flag only, never the plaintext; plaintext is shown once then dropped)
 const WEATHER_KEY_STORAGE = 'ilinkcat_weather_key';
 
 function hasStoredWeatherKey(): boolean {
@@ -60,11 +60,11 @@ export default function Member() {
   const { plans, member, comparison, orders, fetchPlans, fetchMy, fetchComparison, fetchOrders, createOrder, redeemCard } = useMemberStore();
   const { balance, fetchBalance } = usePointsStore();
   const [cardCode, setCardCode] = useState('');
-  // 服务端返回的天气 Key 状态（status 接口为准）
+  // weather key status from the server (status endpoint is the source of truth)
   const [weatherInfo, setWeatherInfo] = useState<WeatherKeyInfo | null>(null);
-  // 本地"已申请"标记（status 接口异常时兜底展示已申请，避免误显示"未申请"）
+  // local "applied" flag, fallback display when the status endpoint is unreachable so we don't show "not applied" wrongly
   const [hasFallbackKey, setHasFallbackKey] = useState(hasStoredWeatherKey());
-  // 申请/重置后返回的明文 Key（仅本次展示，提示用户复制保存）
+  // plaintext key returned by apply/reset, shown once so the user can copy it
   const [freshToken, setFreshToken] = useState<string | null>(null);
   const [applyingWeather, setApplyingWeather] = useState(false);
   const [resettingWeather, setResettingWeather] = useState(false);
@@ -85,30 +85,29 @@ export default function Member() {
     }
   }, [isLoggedIn]);
 
-  // 加载当前天气 Key 状态（token 为掩码）。依赖 isLoggedIn：登录态变化后重新拉取，
-  // 避免未登录时 401 被吞掉导致登录成功后仍显示"未申请"。
+  // load the current weather key status (masked token). depends on isLoggedIn so it refetches on
+  // login changes — otherwise a swallowed 401 while logged out leaves "not applied" showing after login.
   useEffect(() => {
     if (!isLoggedIn) return;
     let cancelled = false;
-    // 本地已保存的 Key 兜底：仅作"已申请"占位，避免 status 接口异常时误显示"未申请"。
-    // 注意：这里不把明文 Key 渲染到最终显示层（见下），仅用于状态兜底。
+    // local fallback: only marks "applied" so a broken status endpoint doesn't show "not applied"
     setHasFallbackKey(hasStoredWeatherKey());
     weatherApi.status()
       .then((resp) => {
         if (cancelled) return;
         if (resp.code === 200) {
-          // 后端明确无 Key → 清除本地兜底，回到"未申请"（避免展示已吊销/无效的旧 Key）
+          // backend says no key → drop the local marker, back to "not applied" (revoked/invalid keys shouldn't linger)
           if (!resp.data) {
             clearWeatherKeyMarker();
             setHasFallbackKey(false);
             setWeatherInfo(null);
           } else {
-            // status 返回的是掩码 token，直接渲染，不要覆盖为明文
+            // status returns a masked token, render as-is — never overwrite with plaintext
             setHasFallbackKey(false);
             setWeatherInfo(resp.data);
           }
         }
-        // 非 200（网���/未登录）：保留本地兜底占位不降级
+        // non-200 (network/logged out): keep the local fallback, don't downgrade
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -218,13 +217,13 @@ export default function Member() {
         </Row>
       </Card>
 
-      {/* 天气服务（申请天气 Key） */}
+      {/* weather service (apply for a key) */}
       <Card
         style={{ marginBottom: 16 }}
         title={<span><CloudOutlined style={{ marginRight: 8 }} />{t('member.weather_service')}</span>}
       >
         {freshToken ? (
-          /* 刚申请/重置：展示完整 Key 仅一次（引用后端 warning 文案） */
+          /* just applied/reset: show the full key once (backend warning text included) */
           <Space direction="vertical" style={{ width: '100%' }} size={12}>
             <Alert
               type="warning"
@@ -260,7 +259,7 @@ export default function Member() {
             </Space>
           </Space>
         ) : weatherInfo ? (
-          /* 已有 Key：展示掩码、用量（可选）、重置 */
+          /* existing key: masked value, optional usage, reset */
           <Space direction="vertical" style={{ width: '100%' }} size={12}>
             <Alert
               type="success"
@@ -296,7 +295,7 @@ export default function Member() {
             </Button>
           </Space>
         ) : hasFallbackKey ? (
-          /* 本地兜底：已申请过但 status 接口暂不可用 → 不降级为"未申请"，提示稍后刷新 */
+          /* local fallback: applied before but status is unreachable → don't downgrade to "not applied" */
           <Space direction="vertical" style={{ width: '100%' }} size={12}>
             <Alert
               type="success"
@@ -317,7 +316,7 @@ export default function Member() {
             </Button>
           </Space>
         ) : (
-          /* 未申请：显示申请按钮 */
+          /* not applied yet: show the apply button */
           <Space direction="vertical" style={{ width: '100%' }} size={12}>
             <Alert
               type="info"

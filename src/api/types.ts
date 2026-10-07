@@ -270,8 +270,8 @@ export interface VersionStatus {
   latestVersion: string;
   latestVersionCode: number;
   needUpdate: boolean;
-  status: number;       // 0=正常 1=维护中 2=已废弃
-  forceUpdate: number;  // 0=可选 1=强制
+  status: number;       // 0=active 1=maintenance 2=deprecated
+  forceUpdate: number;  // 0=optional 1=forced
   updateUrl: string | null;
   changelog: string | null;
 }

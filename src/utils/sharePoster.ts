@@ -17,7 +17,7 @@ export async function generateSharePoster(theme: PosterTheme): Promise<string> {
     throw new Error('Canvas 2D context not available');
   }
 
-  // 背景渐变 + 装饰圆
+  // background gradient + decorative circles
   const gradient = ctx.createLinearGradient(0, 0, width, height);
   gradient.addColorStop(0, '#4F6EF7');
   gradient.addColorStop(0.5, '#7C5CFC');
@@ -42,7 +42,7 @@ export async function generateSharePoster(theme: PosterTheme): Promise<string> {
   ctx.fill();
   ctx.globalAlpha = 1.0;
 
-  // 标题（过长自动缩字号）+ 装饰线 + 版本/作者
+  // title (shrinks to fit) + divider + version/author
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 48px "PingFang SC", "Microsoft YaHei", sans-serif';
   ctx.textAlign = 'center';
@@ -73,7 +73,7 @@ export async function generateSharePoster(theme: PosterTheme): Promise<string> {
   ctx.font = '16px "PingFang SC", "Microsoft YaHei", sans-serif';
   ctx.fillText(`作者：${theme.author || '未知'}`, width / 2, height * 0.50);
 
-  // 封面图（失败则画占位框）
+  // cover image, placeholder box on failure
   if (theme.cover_url) {
     try {
       const img = new Image();

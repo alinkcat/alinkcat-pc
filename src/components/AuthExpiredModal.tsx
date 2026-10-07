@@ -7,7 +7,7 @@ import { useAuthStore } from '../store/authStore';
 
 const { Text } = Typography;
 
-// 每会话只弹一次：用户选择"暂不登录"后记录，本次运行不再弹
+// only shown once per session: remembered after the user picks "later"
 const DISMISS_KEY = 'ilinkcat_auth_expired_dismissed';
 
 function wasDismissed(): boolean {
@@ -18,13 +18,7 @@ function markDismissed() {
   try { sessionStorage.setItem(DISMISS_KEY, '1'); } catch { /* ignore */ }
 }
 
-/**
- * 登录过期提示（非强制）。
- * 监听 'auth:expired' 事件：
- * - 支持"暂不登录"关闭，用户拒绝后本次会话不再弹出
- * - 说明登录后可以享受的权益，引导用户自愿登录
- * - 登录成功后可再次触发（见 authStore.resetAuthExpiredFlag）
- */
+/** soft auth-expired prompt listening on 'auth:expired' — dismissible, shows login perks, can refire after re-login (see authStore.resetAuthExpiredFlag) */
 export default function AuthExpiredModal() {
   const [visible, setVisible] = useState(false);
   const navigate = useNavigate();

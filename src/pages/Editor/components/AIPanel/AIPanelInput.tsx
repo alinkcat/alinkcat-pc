@@ -86,7 +86,6 @@ export default function AIPanelInput() {
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
     >
-      {/* 预设按钮 */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
         {PRESETS.map((preset) => (
           <button
@@ -96,7 +95,7 @@ export default function AIPanelInput() {
               if (preset.prompt) {
                 sendMessage(preset.prompt);
               } else {
-                // 自定义：聚焦输入框让用户自己输入
+                // custom: focus the input for the user to type
                 textareaRef.current?.focus();
               }
             }}
@@ -124,7 +123,7 @@ export default function AIPanelInput() {
         ))}
       </div>
 
-      {/* 已上传图片预览（大图） */}
+      {/* dropped image previews */}
       {droppedImages.length > 0 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
           {droppedImages.map((img) => (
@@ -160,7 +159,6 @@ export default function AIPanelInput() {
         </div>
       )}
 
-      {/* 输入框 + 操作按钮 */}
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, border: '1px solid #d9d9d9', borderRadius: 10, padding: '4px 6px', background: 'var(--ai-input-bg, #fff)' }}>
         <button
           type="button"

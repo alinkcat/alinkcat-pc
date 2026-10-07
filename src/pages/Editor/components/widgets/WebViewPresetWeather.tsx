@@ -5,12 +5,13 @@ import { fetchWithMapping } from '../../../../services/fetch_generic_service';
 import type { EditorWidget } from '../../types';
 
 /**
- * 可配置的天气组件。所有请求细节（URL、method、header、body、附加参数）以及响应映射均从 widget JSON 中读取。
- * 通过 `fetchWithMapping` 完成占位符渲染、网络请求以及 JSON 路径映射，最终得到统一的天气数据结构。
- * 兼容旧版字段（weatherCity / weatherApiKey / weatherUnit / refreshInterval）。
+ * configurable weather widget. all request details (url, method, headers, body, extra params)
+ * plus the response mapping come from the widget JSON.
+ * `fetchWithMapping` handles placeholder rendering, the request and JSON path mapping into a
+ * unified weather structure. legacy fields still work (weatherCity / weatherApiKey / weatherUnit / refreshInterval).
  */
 
-/** 自建天气 API 常用响应映射：目标字段 → JSON 路径（后端返回 wttr.in j1 结构） */
+/** response mapping for the self-hosted weather API: target field → JSON path (backend returns wttr.in j1) */
 const OWM_MAPPING: Record<string, string> = {
   city: 'nearest_area[0].areaName[0].value',
   temp: 'current_condition[0].temp_C',
@@ -23,10 +24,10 @@ const OWM_MAPPING: Record<string, string> = {
   forecast: 'weather',
 };
 
-/** 自建天气 API 默认请求地址（免登录，X-API-Key 鉴权，Key 由 Android 端注入；未配置 requestUrl 时兜底使用） */
-const OWM_URL = 'https://top.atqx.cn/api/public/weather?q=${city}&f=wttr';
+/** default URL for the self-hosted weather API (no login, X-API-Key auth, key injected by the Android side; used when requestUrl is unset) */
+const OWM_URL = 'https://api.pynen.com/api/public/weather?q=${city}&f=wttr';
 
-/** wttr.in 使用的 Met Office 天气代码 → emoji（与 Android 端一致） */
+/** Met Office weather codes used by wttr.in → emoji (matches the Android side) */
 const CODE_ICONS: Record<number, string> = {
   113: '☀️', 116: '⛅', 119: '☁️', 122: '☁️', 143: '🌫️',
   176: '🌦️', 179: '🌨️', 182: '🌧️', 185: '🌧️', 200: '⛈️',
@@ -53,7 +54,7 @@ function weatherIconFor(code: any, desc: string): string {
   return '🌤️';
 }
 
-/** wttr.in j1 每日预报：条件/图标在 hourly[0]（weatherDesc / weatherCode），不在顶层 */
+/** wttr.in j1 daily forecast: condition/icon live in hourly[0] (weatherDesc / weatherCode), not at the top level */
 function dayIcon(day: any): string {
   const icon = day.icon || day.weather?.[0]?.icon || '';
   if (icon) return weatherIconFor(icon, day.description || '');
@@ -70,9 +71,9 @@ export default function WeatherWidget({ widget }: { widget: EditorWidget }) {
   const v = widget as Record<string, any>;
   const { t } = useTranslation();
 
-  // --- 读取 schema 定义的字段（含旧版字段兼容） ---------------------------------
-  // 自定义 URL 判断：未设置或与默认 OWM 地址一致时视为「使用默认地址」，
-  // 避免显式写入默认 URL 却仍被当成自定义地址、在缺少 API Key 时就去请求。
+  // --- read schema-defined fields (with legacy fallbacks) ---------------------------------
+  // custom URL detection: unset or identical to the default URL counts as "using the default",
+  // so a explicitly-stored default URL doesn't get treated as custom and fire without an API key.
   const hasCustomUrl = !!v.requestUrl && String(v.requestUrl).trim() !== OWM_URL;
   const requestUrl = (v.requestUrl as string) || OWM_URL;
   const requestMethod = (v.requestMethod as string) ?? 'GET';
@@ -83,12 +84,12 @@ export default function WeatherWidget({ widget }: { widget: EditorWidget }) {
   const apiKey = (v.apiKey as string) || (v.weatherApiKey as string) || '';
   const extraParams = v.extraParams as Record<string, string> | undefined;
   const unit = (v.unit as string) || (v.weatherUnit as string) || 'c';
-  // refreshHours 按小时；兼容旧版 refreshInterval（秒）
+  // refreshHours is per hour; legacy refreshInterval was seconds
   const refreshHours = Number(v.refreshHours ?? (v.refreshInterval ? (v.refreshInterval as number) / 3600 : 1));
 
   const responseMapping = (v.responseMapping as Record<string, string>) || OWM_MAPPING;
 
-  // 会员页申请后本地保存的天气 Key：PC 预览自动注入 X-API-Key，无需手填
+  // weather key saved locally after applying on the member page: PC preview injects X-API-Key automatically
   const savedKey = (typeof localStorage !== 'undefined' ? localStorage.getItem('ilinkcat_weather_key') : null) || '';
   const effectiveKey = apiKey || savedKey;
 
@@ -96,7 +97,7 @@ export default function WeatherWidget({ widget }: { widget: EditorWidget }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 组合占位符变量（useMemo 稳定身份，避免每次渲染重建导致 fetchData/effect 无限重触发）
+  // stable identity via useMemo, otherwise fetchData/effect re-trigger endlessly every render
   const vars: Record<string, string | number> = useMemo(() => ({
     city,
     apiKey: effectiveKey,
@@ -104,7 +105,7 @@ export default function WeatherWidget({ widget }: { widget: EditorWidget }) {
     ...(extraParams || {}),
   }), [city, effectiveKey, unit, extraParams]);
 
-  // 自动注入鉴权头：默认地址且本地有 Key 时补 X-API-Key
+  // auto-inject the auth header: default URL + local key → add X-API-Key
   const headers: Record<string, string> = useMemo(() => {
     const h: Record<string, string> = { ...(requestHeaders || {}) };
     if (!hasCustomUrl && effectiveKey && !Object.keys(h).some(k => k.toLowerCase() === 'x-api-key')) {
@@ -141,9 +142,9 @@ export default function WeatherWidget({ widget }: { widget: EditorWidget }) {
     }
   }, [fetchData, refreshHours]);
 
-  // ---------- UI 渲染 ------------------------------------------------------
-  // 已配置判断：默认地址只要有城市即可请求（Key 从会员页已申请处自动注入）；
-  // 自定义 URL 时需提供城市或 Key 之一。
+  // ---------- UI ----------------------------------------------------------
+  // configured check: default URL just needs a city (key is injected from the member page);
+  // custom URL needs a city or a key.
   const configured = hasCustomUrl ? Boolean(city || effectiveKey) : Boolean(city);
   if (!configured) {
     return (
@@ -154,7 +155,7 @@ export default function WeatherWidget({ widget }: { widget: EditorWidget }) {
       </div>
     );
   }
-  // 默认地址 + 有城市但未申请 Key：不发请求（避免 401），提示先去会员中心申请
+  // default URL + city but no key: don't fire (avoids 401), prompt to apply at the member center
   if (!hasCustomUrl && !effectiveKey) {
     return (
       <div className="cw-webview-empty">
@@ -190,7 +191,7 @@ export default function WeatherWidget({ widget }: { widget: EditorWidget }) {
       {info.forecast && info.forecast.length > 0 && (
         <div className="cw-weather-forecast">
           {info.forecast.map((day: any, i: number) => {
-            // 兼容归一化字段 / wttr.in（maxtempC / mintempC）/ OpenWeatherMap 原始字段
+            // handles normalized fields / wttr.in (maxtempC / mintempC) / raw OpenWeatherMap fields
             const date = day.date || day.dt_txt || (day.dt ? new Date(day.dt * 1000).toISOString().slice(0, 10) : '');
             const tMax = day.temp_max ?? day.maxtempC ?? day.temp?.max ?? day.temp;
             const tMin = day.temp_min ?? day.mintempC ?? day.temp?.min ?? day.temp;

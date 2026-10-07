@@ -16,7 +16,7 @@ export default function AIPanelHistory() {
   } = useAIStore();
 
   useEffect(() => {
-    // sessions 已在 initTheme 中加载
+    // sessions are loaded in initTheme
   }, [themeId, historyOpen]);
 
   const handleNewSession = () => {

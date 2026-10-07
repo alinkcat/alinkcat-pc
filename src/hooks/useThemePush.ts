@@ -7,19 +7,19 @@ import { INITIAL_PUSH_STATE } from '../types/push';
 
 type StartOpts = {
   themeId: string;
-  deviceId: string; // 单设备内部使用
+  deviceId: string; // single device, internal use
   startChunk?: number;
 };
 
-const AUTO_RETRY_DELAY = 3000; // 3 秒后自动重试
-const MAX_AUTO_RETRIES = 2;    // 最多重试 2 次
+const AUTO_RETRY_DELAY = 3000; // auto retry after 3s
+const MAX_AUTO_RETRIES = 2;    // at most 2 retries
 
 /**
- * 主题包推送 Hook：
- * - push_theme_to_device（后端分块推送 + awaiting_confirm + busy/超时重试）
- * - 监听 Tauri 事件 theme-push-progress / theme-push-complete / theme-push-failed
- * - 失败后支持「继续」（断点续传）与「重传」
- * - 自动重试：失败后等待 3 秒自动重试，最多 2 次，用户可取消
+ * theme pack push hook:
+ * - push_theme_to_device (chunked push on the backend + awaiting_confirm + busy/timeout retries)
+ * - listens to theme-push-progress / theme-push-complete / theme-push-failed events
+ * - resume (from last chunk) and retry-from-scratch after failure
+ * - auto retry: waits 3s, up to 2 times, user can cancel
  */
 export function useThemePush() {
   const [state, setState] = useState<PushState & { autoRetryCount: number }>({ ...INITIAL_PUSH_STATE, autoRetryCount: 0 });
@@ -28,7 +28,6 @@ export function useThemePush() {
   const unlisteners = useRef<UnlistenFn[]>([]);
   const autoRetryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 清理自动重试定时器
   const clearAutoRetry = useCallback(() => {
     if (autoRetryTimer.current !== null) {
       clearTimeout(autoRetryTimer.current);
@@ -58,12 +57,10 @@ export function useThemePush() {
       });
       const un3 = await listen<{ themeId: string; error: string }>('theme-push-failed', (e) => {
         setState((s) => {
-          // 已传输部分数据 → 可从下一块续传；否则从头开始
+          // partial data already sent → resume from the next chunk, else start over
           const resumeChunk = s.sentSize > 0 ? s.currentChunk + 1 : 0;
-          // 检查是否还能自动重试
           const retryCount = s.autoRetryCount || 0;
           if (retryCount < MAX_AUTO_RETRIES) {
-            // 进入 retrying 状态，稍后会自动重试
             return { ...s, status: 'retrying', waiting: false, resumeChunk, errorMessage: e.payload.error, autoRetryCount: retryCount + 1 };
           }
           return { ...s, status: 'failed', waiting: false, resumeChunk, errorMessage: e.payload.error, autoRetryCount: 0 };
@@ -79,19 +76,18 @@ export function useThemePush() {
     };
   }, [clearAutoRetry]);
 
-  // 当状态变为 retrying 时，自动启动重试定时器
   useEffect(() => {
     if (state.status === 'retrying') {
       clearAutoRetry();
       autoRetryTimer.current = setTimeout(() => {
         const cur = stateRef.current;
         if (cur.status !== 'retrying') return;
-        // 手机端采用全量覆盖接收：自动重试一律从头重传（不做块级续传，保证数据一致）
+        // phone side replaces everything on receive: auto retry always restarts from chunk 0 (no partial resume, keeps data consistent)
         doInvokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk: 0, isAutoRetry: true });
       }, AUTO_RETRY_DELAY);
     }
     return () => {
-      // 清理只清理自己设置的定时器，而不影响 autoRetryTimer 跨渲染
+      // only clears timers set on this render; autoRetryTimer survives across renders
     };
   }, [state.status, state.autoRetryCount, clearAutoRetry]);
 
@@ -134,21 +130,18 @@ export function useThemePush() {
 
   const startPush = useCallback(async (themeId: string, deviceIds: string[]) => {
     clearAutoRetry();
-    // 如果没有设备则直接返回
     if (!deviceIds || deviceIds.length === 0) return;
-    // 逐个设备顺序推送，UI 会随每次 startPush 更新 deviceId 状态
+    // push devices one by one, UI tracks the current deviceId per startPush
     for (let i = 0; i < deviceIds.length; i++) {
       const devId = deviceIds[i];
-      // 为当前设备重置状态（保留 themeId）
+      // reset state for this device (keep themeId)
       setState(() => ({ ...INITIAL_PUSH_STATE, autoRetryCount: 0, themeId, deviceId: devId }));
       // eslint-disable-next-line no-await-in-loop
       await doInvokePush({ themeId, deviceId: devId, startChunk: 0 });
     }
   }, [doInvokePush, clearAutoRetry]);
 
-  /**
-   * 断点续传（兼容保留）：手机端采用全量覆盖接收，续传即从头重传。
-   */
+  /** legacy resume: phone side replaces everything on receive, so "resume" just restarts from scratch */
   const resumePush = useCallback(() => {
     clearAutoRetry();
     const cur = stateRef.current;
@@ -157,7 +150,7 @@ export function useThemePush() {
     doInvokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk: 0 });
   }, [doInvokePush, clearAutoRetry]);
 
-  /** 重传：从头开始 */
+  /** retry from scratch */
   const retryPush = useCallback(() => {
     clearAutoRetry();
     const cur = stateRef.current;
@@ -166,7 +159,7 @@ export function useThemePush() {
     doInvokePush({ themeId: cur.themeId, deviceId: cur.deviceId, startChunk: 0 });
   }, [doInvokePush, clearAutoRetry]);
 
-  /** 取消自动重试（回到 failed 状态让用户手动操作） */
+  /** cancel auto retry, back to failed so the user can act manually */
   const cancelAutoRetry = useCallback(() => {
     clearAutoRetry();
     setState((s) => ({ ...s, status: 'failed', autoRetryCount: 0 }));

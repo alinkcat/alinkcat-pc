@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 游戏风格模板 - 横屏
- * 游戏主题配色，RGB灯效风格，按钮+监控+时钟
- */
+/** gaming style, landscape - rgb accent colors, buttons + monitor + clock */
 const template: EditorTheme = {
   id: 'template-gaming',
   name: '游戏风格',

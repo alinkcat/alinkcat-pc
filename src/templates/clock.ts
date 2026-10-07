@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 极简时钟模板 - 竖屏
- * 大字体时钟 + 日期 + 便签，适合作为手机桌面
- */
+/** minimal clock template, portrait - large clock + date + sticky note */
 const template: EditorTheme = {
   id: 'template-clock',
   name: '极简时钟',

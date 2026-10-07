@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 天气时钟模板 - 竖屏
- * 时钟 + 日期 + 天气 WebView + 快捷面板，适合日常使用
- */
+/** weather clock template, portrait - clock + date + weather webview + quick actions */
 const template: EditorTheme = {
   id: 'template-weather',
   name: '天气时钟',

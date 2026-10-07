@@ -1,6 +1,6 @@
 import type { ThemeMeta } from '../types/theme';
 
-// Canvas 直接绘制封面（不依赖 html2canvas），返回 PNG data URL 供 save_theme 写入 cover.png
+// draw the cover on canvas directly (no html2canvas), returns a PNG data URL for save_theme to write as cover.png
 export async function generateThemeCover(theme: ThemeMeta): Promise<string> {
   const canvas = document.createElement('canvas');
   canvas.width = 240;
@@ -8,14 +8,14 @@ export async function generateThemeCover(theme: ThemeMeta): Promise<string> {
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
 
-  // 渐变背景
+  // gradient background
   const grad = ctx.createLinearGradient(0, 0, 240, 170);
   grad.addColorStop(0, '#4F6EF7');
   grad.addColorStop(1, '#8c9eff');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 240, 170);
 
-  // 装饰圆
+  // decorative circles
   ctx.globalAlpha = 0.15;
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
@@ -26,7 +26,7 @@ export async function generateThemeCover(theme: ThemeMeta): Promise<string> {
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  // 主题包名称
+  // theme pack name
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -34,12 +34,12 @@ export async function generateThemeCover(theme: ThemeMeta): Promise<string> {
   ctx.font = 'bold 20px sans-serif';
   ctx.fillText(name.length > 12 ? `${name.slice(0, 12)}…` : name, 120, 78);
 
-  // 版本 + 页面数
+  // version + page count
   ctx.font = '12px sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
   ctx.fillText(`v${theme.version || '1.0.0'} · ${theme.pages.length} 个页面`, 120, 108);
 
-  // 底部品牌条
+  // bottom brand bar
   ctx.fillStyle = 'rgba(255,255,255,0.25)';
   ctx.fillRect(0, 150, 240, 20);
   ctx.fillStyle = '#fff';
@@ -49,7 +49,7 @@ export async function generateThemeCover(theme: ThemeMeta): Promise<string> {
   return canvas.toDataURL('image/png');
 }
 
-/** 生成默认占位封面（无页面时使用） */
+// default placeholder cover, used when the pack has no pages
 export async function generateDefaultCover(name: string): Promise<string> {
   const canvas = document.createElement('canvas');
   canvas.width = 240;

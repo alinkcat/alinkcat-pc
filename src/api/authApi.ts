@@ -17,7 +17,7 @@ export const authApi = {
     apiFetch<ApiResponse<RegisterStatus>>('/api/auth/register/status'),
   sendRegisterCode: (p: SendCodeParams) =>
     apiFetch<ApiResponse<void>>('/api/auth/send-register-code', { method: 'POST', body: p }),
-  // GitHub OAuth（接口模式，文档推荐）
+  // GitHub OAuth (api-based flow, recommended in docs)
   oauthCheck: () =>
     apiFetch<ApiResponse<void>>('/api/auth/oauth/check'),
   oauthLogin: () =>

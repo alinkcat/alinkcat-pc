@@ -2,13 +2,13 @@ import type { Locale } from 'antd/es/locale';
 
 export interface LanguageDef {
   code: string;
-  /** 用母语显示的语言名 */
+  /** language name in its own language */
   label: string;
-  /** antd 内置语言包，懒加载（外部导入语言包时返回 en_US 作为 fallback） */
+  /** built-in antd locale, lazy loaded (imported packs fall back to en_US) */
   antdLocale: () => Promise<{ default: Locale }>;
-  /** 该语言的全部翻译资源，按 namespace 聚合 */
+  /** all translation resources for this language, keyed by namespace */
   loadResources: () => Promise<Record<string, object>> | Record<string, object>;
-  /** 是否为外部导入的语言包 */
+  /** imported from an external language pack */
   imported?: boolean;
 }
 
@@ -27,23 +27,23 @@ export const BUILTIN_LANGUAGES: LanguageDef[] = [
   },
 ];
 
-// 运行时语言列表（可在设置页通过导入语言包动态扩展）
+// runtime language list, can grow via language pack imports in Settings
 export const LANGUAGES: LanguageDef[] = [...BUILTIN_LANGUAGES];
 
 export const DEFAULT_LANG = 'zh-CN';
 export const FALLBACK_LANG = 'en-US';
 
 /**
- * 导入外部语言包（JSON）。
- * 格式：{ "code": "ja-JP", "label": "日本語", "resources": { "common": { ... } } }
- * 或扁平格式：{ "code": "ja-JP", "label": "日本語", "common": { ... } }
+ * import an external language pack (JSON).
+ * shape: { "code": "ja-JP", "label": "日本語", "resources": { "common": { ... } } }
+ * or flat: { "code": "ja-JP", "label": "日本語", "common": { ... } }
  */
 export function addImportedLanguage(
   code: string,
   label: string,
   resources: Record<string, object>
 ): LanguageDef {
-  // 移除已存在的同名语言
+  // drop an existing language with the same code
   const idx = LANGUAGES.findIndex((l) => l.code === code);
   if (idx >= 0) LANGUAGES.splice(idx, 1);
 
@@ -58,9 +58,7 @@ export function addImportedLanguage(
   return def;
 }
 
-/**
- * 从 localStorage 恢复外部导入的语言包。
- */
+/** restore imported language packs from localStorage */
 const STORAGE_KEY = 'ilinkcat_custom_languages';
 
 export function saveCustomLanguages() {

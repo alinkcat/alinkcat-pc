@@ -34,7 +34,7 @@ export default function SystemMonitorWidget({ widget }: { widget: EditorWidget }
       try {
         const s = await tauriInvoke<PerfSnapshot>('get_current_snapshot');
         if (active) setSnap(s);
-      } catch { /* 监控服务未运行，保留上次数据 */ }
+      } catch { /* monitor service not running, keep last data */ }
     };
     poll();
     const id = setInterval(poll, refreshInterval * 1000);

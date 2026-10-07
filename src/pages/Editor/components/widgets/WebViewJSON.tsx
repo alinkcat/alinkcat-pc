@@ -6,7 +6,7 @@ import type { EditorWidget } from '../../types';
 import { useTranslation } from 'react-i18next';
 import { extractWeather, type WeatherExtracted } from '../../../../utils/weatherJson';
 
-// 模块级缓存：翻页/重挂载时避免重复请求，仅当超过刷新周期才重新拉取
+// module-level cache: avoids refetching on page switches/remounts, only refetches past the refresh period
 const jsonCache = new Map<string, { data: unknown; at: number }>();
 
 function getCachedJson(url: string, ttlMs: number): unknown | undefined {
@@ -40,7 +40,7 @@ function renderValue(data: unknown, cfg: {
 
     const first = data[0];
     if (first && typeof first === 'object') {
-      // 对象数组 → 卡片列表（使用字段映射）
+      // object array → card list (field mapping)
       return (
         <div className="cw-json-list">
           {data.map((raw, i) => {
@@ -64,7 +64,7 @@ function renderValue(data: unknown, cfg: {
         </div>
       );
     }
-    // 原始数组 → 简单列表
+    // plain array → simple list
     return (
       <div className="cw-json-list">
         {data.map((val, i) => (
@@ -75,7 +75,7 @@ function renderValue(data: unknown, cfg: {
   }
 
   if (data && typeof data === 'object') {
-    // 对象 → 键值对
+    // object → key/value pairs
     const entries = Object.entries(data as Record<string, unknown>);
     return (
       <div className="cw-json-kv">
@@ -113,8 +113,8 @@ export default function WebViewJSON({ widget }: { widget: EditorWidget }) {
     setLoading(true);
     setError('');
     try {
-      // generic_http 支持自定义 headers（JWT 鉴权），且不校验 HTTP 状态码，
-      // 401/403 等错误统一通过 body.code 判断（网关接口 HTTP 状态码不可靠）
+      // generic_http takes custom headers (JWT auth) and doesn't check the HTTP status code;
+      // errors like 401/403 are judged via body.code (gateway HTTP statuses are unreliable)
       const json = await tauriInvoke<unknown>('generic_http', {
         url,
         method: 'GET',
@@ -122,13 +122,13 @@ export default function WebViewJSON({ widget }: { widget: EditorWidget }) {
         body: null,
       });
       const obj = json as Record<string, unknown> | null;
-      // 后端网关：code != 200 即错误（403 配额/429 频率/500 上游挂/401 未登录）
+      // backend gateway: code != 200 means error (403 quota / 429 rate / 500 upstream / 401 not logged in)
       if (obj && typeof obj.code === 'number' && obj.code !== 200) {
         setError(String(obj.message || `错误代码: ${obj.code}`));
         setData(null);
         return;
       }
-      // 解包 { code, message, data: {...} } → 取内层天气结构
+      // unwrap { code, message, data: {...} } → the inner weather structure
       const inner = obj?.data && typeof obj.data === 'object' && !Array.isArray(obj.data)
         ? obj.data
         : json;
@@ -142,7 +142,7 @@ export default function WebViewJSON({ widget }: { widget: EditorWidget }) {
   }, [url, headers]);
 
   useEffect(() => {
-    // 命中缓存且未超过刷新周期 → 直接展示，避免翻页/重挂载重复请求
+    // cache hit within the refresh period → render straight away, no refetch on page switches
     const ttl = (refresh > 0 ? refresh : 3600) * 1000;
     const cached = getCachedJson(url, ttl);
     if (cached !== undefined) {
@@ -182,7 +182,7 @@ export default function WebViewJSON({ widget }: { widget: EditorWidget }) {
   );
 }
 
-/** wttr.in / OpenWeatherMap 结构 → 可视化天气仪表盘 */
+/** wttr.in / OpenWeatherMap shapes → visual weather dashboard */
 function WeatherDashboard({ weather }: { weather: WeatherExtracted }) {
   const { t } = useTranslation();
   const r = (n: number | null) => (n != null ? Math.round(n) : null);

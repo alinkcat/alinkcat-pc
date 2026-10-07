@@ -1,9 +1,6 @@
 import type { EditorTheme } from '../pages/Editor/types';
 
-/**
- * 自然风光模板 - 竖屏
- * 渐变绿色，时钟+日期+天气，清新自然
- */
+/** nature scenery template, portrait - green gradient, clock + date + weather */
 const template: EditorTheme = {
   id: 'template-nature',
   name: '自然风光',

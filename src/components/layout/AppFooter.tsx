@@ -19,14 +19,37 @@ export default function AppFooter() {
   const { running, port, deviceCount, fetchStatus } = useServerStatusStore();
 
   useEffect(() => {
-    // 初始拉取一次（无论开关如何，展示当前状态）
+    // fetch once up front, show current status regardless of the toggle
     fetchStatus();
-    // 定时轮询遵循设置：关闭时静默，不发起 IPC 请求
+    // the backend pushes this event on every device connect/disconnect, so the
+    // counter stays accurate even with status polling turned off
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    import('@tauri-apps/api/event')
+      .then(({ listen }) =>
+        listen<number>('ws-clients-changed', () => {
+          fetchStatus();
+        })
+      )
+      .then((fn) => {
+        if (disposed) fn();
+        else unlisten = fn;
+      })
+      .catch(() => {
+        // not running inside Tauri (vite dev in a plain browser)
+      });
+    // polling follows settings: silent when off, no IPC requests
     const settings = loadSettings();
-    if (!settings.status_polling) return;
-    const intervalMs = Math.max(1, settings.status_polling_interval || 3) * 1000;
-    const timer = setInterval(fetchStatus, intervalMs);
-    return () => clearInterval(timer);
+    let timer: ReturnType<typeof setInterval> | undefined;
+    if (settings.status_polling) {
+      const intervalMs = Math.max(1, settings.status_polling_interval || 3) * 1000;
+      timer = setInterval(fetchStatus, intervalMs);
+    }
+    return () => {
+      disposed = true;
+      unlisten?.();
+      if (timer) clearInterval(timer);
+    };
   }, [fetchStatus]);
 
   return (

@@ -3,7 +3,7 @@ import type { EditorWidget } from '../../types';
 import { useDataSubscription } from '../../hooks/useDataSubscription';
 import { useTranslation } from 'react-i18next';
 
-/** 数据源 → i18n 键（common 命名空间下 widgets.monitor.*） */
+/** data source → i18n key under the common namespace (widgets.monitor.*) */
 const SOURCE_LABEL_KEYS: Record<string, string> = {
   'system.cpu.usage': 'monitor.cpu',
   'system.memory.usage': 'monitor.memory',

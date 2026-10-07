@@ -93,7 +93,6 @@ export default function CardWidget({ widget }: { widget: EditorWidget }) {
 
   return (
     <div style={containerStyle}>
-      {/* 配图区域 */}
       <div style={{ ...imageStyle, order: orderImage }}>
         {cardImage ? (
           <img src={cardImage} alt={cardTitle} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -109,7 +108,6 @@ export default function CardWidget({ widget }: { widget: EditorWidget }) {
         )}
       </div>
 
-      {/* 文字内容区域 */}
       <div style={{ ...contentStyle, order: orderContent }}>
         {cardTitle && <div style={titleStyle}>{cardTitle}</div>}
         {cardDesc && <div style={descStyle}>{cardDesc}</div>}

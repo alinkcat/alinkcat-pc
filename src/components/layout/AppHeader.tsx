@@ -15,7 +15,7 @@ export default function AppHeader() {
   const { isDark, toggle } = useThemeStore();
   const { isLoggedIn } = useAuthStore();
 
-  // 仅登录后轮询未读通知；未登录时静默，避免无意义请求触发登录过期提示
+  // only poll unread notifications when logged in; pointless requests while logged out would trip the auth-expired prompt
   useEffect(() => {
     if (!isLoggedIn) {
       useNotificationStore.setState({ unread: 0 });

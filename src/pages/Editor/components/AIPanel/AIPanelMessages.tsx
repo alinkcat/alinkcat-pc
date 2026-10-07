@@ -13,8 +13,8 @@ export default function AIPanelMessages() {
   useEffect(() => {
     const el = bottomRef.current;
     if (!el) return;
-    // 流式逐 chunk 更新时用瞬时滚动（避免排队多个 smooth 动画导致的抖动）；
-    // 消息定型/新增用平滑滚动。
+    // instant scroll while streaming (queued smooth animations jitter);
+    // smooth scroll once a message settles or a new one arrives.
     el.scrollIntoView({ behavior: isStreaming ? 'auto' : 'smooth', block: 'end' });
   }, [messages, isStreaming]);
 

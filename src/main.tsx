@@ -5,7 +5,7 @@ import App from './App';
 import './i18n';
 import { useI18nStore } from './i18n/useI18nStore';
 
-// 只在配置了真实 DSN 时启用 Sentry
+// only enable Sentry when a real DSN is configured
 const SENTRY_DSN = 'https://your-dsn@sentry.io/your-project';
 if (SENTRY_DSN && !SENTRY_DSN.includes('your-dsn')) {
   Sentry.init({
@@ -16,7 +16,7 @@ if (SENTRY_DSN && !SENTRY_DSN.includes('your-dsn')) {
   });
 }
 
-// 预加载语言状态（含 antd locale），避免首帧语言闪烁
+// hydrate language state (incl. antd locale) up front so the first frame doesn't flicker
 useI18nStore.getState().hydrate().catch(console.error);
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

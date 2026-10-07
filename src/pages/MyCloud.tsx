@@ -11,6 +11,7 @@ import { cloudApi } from '../api/cloudApi';
 import { useAuthStore } from '../store/authStore';
 import { useMessage } from '../hooks/useMessage';
 import { tauriInvoke } from '../utils/tauri';
+import { importThemeFileWithOverwrite } from '../store/downloadStore';
 import type { CloudFile, CloudSpace } from '../api/types';
 import type { ThemeSummary } from '../types/theme';
 
@@ -106,7 +107,7 @@ export default function MyCloud() {
         // Download to downloads dir and import
         const filename = item.originalName || item.fileName;
         const filePath = await tauriInvoke<string>('download_theme_file', { url: resp.data, filename });
-        await tauriInvoke('import_theme_from_file', { path: filePath });
+        await importThemeFileWithOverwrite(filePath);
         msg.success(t('cloud.restored'));
         fetchData();
       } else {
@@ -125,7 +126,7 @@ export default function MyCloud() {
       }
       const filename = item.originalName || item.fileName;
       const filePath = await tauriInvoke<string>('download_theme_file', { url: resp.data, filename });
-      await tauriInvoke('import_theme_from_file', { path: filePath });
+        await importThemeFileWithOverwrite(filePath);
 
       // 2. Get connected devices
       const devices = await tauriInvoke<import('../types/theme').ClientInfo[]>('get_connections');

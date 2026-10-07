@@ -26,7 +26,7 @@ export const useRatingStore = create<RatingState>((set, get) => ({
   loading: false,
 
   setRating: async (themeId, value) => {
-    // 乐观更新
+    // optimistic update
     const map = { ...get().ratings };
     const prev = map[themeId] || 0;
     if (value > 0) {
@@ -36,13 +36,13 @@ export const useRatingStore = create<RatingState>((set, get) => ({
     }
     saveLocal(map);
     set({ ratings: map });
-    // 同步后端
+    // sync to backend
     try {
       if (value > 0) {
         await themeApi.rate(themeId, value);
       }
     } catch {
-      // 回滚
+      // rollback
       if (prev > 0) {
         map[themeId] = prev;
       } else {

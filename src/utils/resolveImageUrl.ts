@@ -1,10 +1,10 @@
 import { config } from '../config';
 
-/** 将相对路径或完整 URL 解析为可加载的图片地址 */
+/** resolve a relative path or full URL into a loadable image address */
 export function resolveImageUrl(url?: string | null): string {
   if (!url) return '';
-  // 已是完整 URL（http/https/data:）
+  // already absolute (http/https/data:/blob:)
   if (/^(https?:|data:|blob:)/i.test(url)) return url;
-  // 相对路径 → 拼接 API 基础地址
+  // relative → prefix with the API base
   return `${config.apiBaseUrl}${url.startsWith('/') ? url : `/${url}`}`;
 }

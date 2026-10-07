@@ -18,7 +18,7 @@ export default function AIPanelSettings() {
     try {
       const values = await form.validateFields();
       const models = values.models.split('\n').map((s: string) => s.trim()).filter(Boolean);
-      // defaultModel 必须落入已保存的模型列表，否则 Select 会出现不在 options 中的 value
+      // defaultModel must be one of the saved models, otherwise Select gets a value missing from options
       const defaultModel = values.defaultModel && models.includes(values.defaultModel)
         ? values.defaultModel
         : (models[0] ?? model);
@@ -48,7 +48,7 @@ export default function AIPanelSettings() {
 
       let ids: string[];
       if (isTauri()) {
-        // Tauri 环境：走 Rust 后端转发，绕过 CORS（与系统设置页一致）
+        // tauri: forwarded via the Rust backend to bypass CORS (same as the settings page)
         const result = await tauriInvoke<{ status: number; body: unknown }>('api_request', {
           url,
           method: 'GET',
@@ -58,7 +58,7 @@ export default function AIPanelSettings() {
         const json = result.body as { data?: { id: string }[] };
         ids = (json.data || []).map((m: { id: string }) => m.id).filter(Boolean);
       } else {
-        // 浏览器环境（开发）：原生 fetch
+        // browser (dev): plain fetch
         const resp = await fetch(url, { headers });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const json = await resp.json();

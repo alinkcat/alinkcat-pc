@@ -17,7 +17,7 @@ export default function BatteryWidget({ widget }: { widget: EditorWidget }) {
 
   const level = useMemo(() => {
     if (rawValue === null) {
-      // 编辑器预览模式：使用模拟数据
+      // editor preview: mock data
       return 75;
     }
     return Math.min(100, Math.max(0, Math.round(rawValue)));
@@ -26,7 +26,7 @@ export default function BatteryWidget({ widget }: { widget: EditorWidget }) {
   const isLow = level <= lowThreshold;
   const color = isLow ? lowColor : barColor;
   const display = rawValue === null ? `${level}` : `${level}`;
-  const isCharging = false; // 模拟数据，PC 端暂不推送充电状态
+  const isCharging = false; // mock, PC doesn't push charging state yet
 
   const textColor = widget.textColor || '#333';
 
@@ -75,7 +75,7 @@ export default function BatteryWidget({ widget }: { widget: EditorWidget }) {
     );
   }
 
-  // bar style - 水平电池条
+  // bar style
   return (
     <div className="cw-battery cw-battery-bar" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '8px 12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
@@ -103,7 +103,7 @@ export default function BatteryWidget({ widget }: { widget: EditorWidget }) {
           transition: 'width 0.5s ease',
           borderRadius: level === 100 ? 2 : 0,
         }} />
-        {/* 电池头部小尖 */}
+        {/* battery cap */}
         <div style={{
           position: 'absolute',
           right: -6,

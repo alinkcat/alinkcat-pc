@@ -52,7 +52,7 @@ function WidgetRenderer({ widget }: { widget: EditorWidget }) {
   const opacity = (widget.backgroundOpacity ?? 100) / 100;
   const isGradient = /gradient\(/i.test(bg);
 
-  // 渐变背景：直接写 background（background-color 不接受 gradient 值）
+  // gradient background goes into `background` (background-color won't take gradients)
   if (isGradient) {
     return (
       <>
@@ -84,5 +84,5 @@ function WidgetRenderer({ widget }: { widget: EditorWidget }) {
   );
 }
 
-// memo 避免父组件重渲染时所有 widget 重复渲染
+// memo so parent re-renders don't redraw every widget
 export default memo(WidgetRenderer);

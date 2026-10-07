@@ -10,10 +10,10 @@ import { tauriInvoke } from '../../../utils/tauri';
 
 const { Text } = Typography;
 
-// ─── 天气组件：自建天气 API 默认配置兜底（免登录，X-API-Key 鉴权，Key 由 Android 端注入） ─
-// 后端接口规范：GET /api/public/weather?q=${city}&f=wttr（Android 定位时替换为 ?g=lng,lat&f=wttr）
-// 返回 wttr.in j1 格式（current_condition[].temp_C、weatherDesc 等），渲染逻辑不变
-const OWM_URL = 'https://top.atqx.cn/api/public/weather?q=${city}&f=wttr';
+// ─── weather widget: fallback defaults for the self-hosted weather API (no login, X-API-Key auth, key injected by the Android side) ─
+// backend contract: GET /api/public/weather?q=${city}&f=wttr (Android swaps in ?g=lng,lat&f=wttr when locating)
+// returns wttr.in j1 shape (current_condition[].temp_C, weatherDesc, ...), rendering unchanged
+const OWM_URL = 'https://api.pynen.com/api/public/weather?q=${city}&f=wttr';
 const OWM_MAPPING: Record<string, string> = {
   city: 'nearest_area[0].areaName[0].value',
   temp: 'current_condition[0].temp_C',
@@ -205,7 +205,7 @@ function WidgetProperties() {
   const up = (key: string, val: unknown) => updateWidget(selectedWidgetId, { [key]: val });
   const isGrid = page!.layoutMode === 'grid';
 
-  /** 切换预设模板：选择天气时自动填充常用默认值（URL / 映射），用户只需再填城市与 Key */
+  /** preset switch: picking weather fills in the usual defaults (URL/mapping), user only adds city + key */
   const applyPreset = (val: string) => {
     up('preset', val);
     if (val === 'weather') {
@@ -266,7 +266,7 @@ function WidgetProperties() {
         </div>
       )}
 
-      {/* Z-Order 层级控制（仅自由模式） */}
+      {/* z-order controls (free layout only) */}
       {!isGrid && (
         <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
           <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.zOrder.section')}</Text>
@@ -735,11 +735,11 @@ function WidgetProperties() {
                 const result = await tauriInvoke<{ name: string; resolved_path: string }>('resolve_launcher_path', { path: file });
                 up('name', result.name);
                 up('path', result.resolved_path);
-                // 提取应用图标
+                // grab the app icon
                 try {
                   const iconData = await tauriInvoke<string>('extract_app_icon', { path: result.resolved_path });
                   if (iconData) up('icon', iconData);
-                } catch { /* 图标提取失败时忽略，保留默认占位图 */ }
+                } catch { /* icon extraction failed, keep the placeholder */ }
               } catch (e) { message.error(String(e)); }
             }}>
               {t('editor.propertyPanel.launcher.browse')}
@@ -892,7 +892,7 @@ function WidgetProperties() {
           <Input value={(v.cardFooter as string) || ''} onChange={e => up('cardFooter', e.target.value)} placeholder={t('editor.propertyPanel.card.footerPlaceholder')} />
         </Form.Item>
       </>)}
-      {/* 组件联动配置 - 所有控件通用 */}
+      {/* interaction config, shared by all widgets */}
       <div style={{ borderTop: '1px solid #3a3a3a', paddingTop: 10, marginTop: 4 }}>
         <Text style={{ fontSize: 11, color: '#aaa', display: 'block', marginBottom: 8 }}>{t('editor.propertyPanel.actionConfig.linkage')}</Text>
         <Form.Item label={t('editor.propertyPanel.actionConfig.triggerEvent')} style={{ marginBottom: 8 }}>

@@ -10,16 +10,16 @@ export interface AIInstruction {
   pageIndex?: number;
   widget?: Record<string, unknown>;
   params?: Record<string, unknown>;
-  /** 整页生成指令的完整主题 JSON */
+  /** full theme json for generate_full_theme */
   theme?: Record<string, unknown>;
   executed: boolean;
   confirmed: boolean;
   canceled?: boolean;
-  /** 执行失败标记（runInstructions 返回失败时置位） */
+  /** set when runInstructions fails on this instruction */
   failed?: boolean;
-  /** 失败原因（人类可读） */
+  /** human-readable failure reason */
   error?: string;
-  /** 破坏性指令（如 generate_full_theme）即使 autoExecute 也强制确认 */
+  /** dangerous instructions (generate_full_theme etc) need confirm even with autoExecute */
   severity?: 'normal' | 'danger';
 }
 
