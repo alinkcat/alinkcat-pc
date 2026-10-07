@@ -37,10 +37,7 @@ import com.ailinkcat.mobile.ui.theme.WarningOrange
 import com.ailinkcat.mobile.utils.ColorParser
 import kotlin.math.min
 
-/**
- * 仪表盘控件：支持 ring / number / bar 三种样式，数值平滑过渡，无数据时显示 "--"。
- * 环半径 = min(宽,高) × 0.35；文字大小随容器自适应。
- */
+/** gauge widget: ring / number / bar styles, animated value, "--" without data. */
 @Composable
 fun GaugeWidgetRenderer(
     widget: GaugeWidget,
@@ -48,7 +45,7 @@ fun GaugeWidgetRenderer(
 ) {
     val min = (widget.min ?: 0).toFloat()
     val max = (widget.max ?: 100).toFloat()
-    // 先滤 NaN/无穷再 clamp（coerceIn 会放过 NaN）；文本与图形共用同一值
+    // filter NaN/infinity before clamping (coerceIn lets NaN through)
     val displayValue = value?.takeIf { it.isFinite() }?.coerceIn(min, max)
     val rawRatio = if (displayValue != null && max > min) {
         ((displayValue - min) / (max - min)).coerceIn(0f, 1f)
@@ -88,11 +85,11 @@ private fun RingGauge(widget: GaugeWidget, value: Float?, ratio: Float, color: C
 
         Box(contentAlignment = Alignment.Center) {
             Canvas(modifier = Modifier.aspectRatio(1f).fillMaxSize()) {
-                val thickness = (widget.ringThickness ?: 14).dp.toPx()
-                val halfStroke = thickness / 2f
-                // 圆心居中，半径留出描边宽度，圆不超出边界
                 val cx = size.width / 2f
                 val cy = size.height / 2f
+                // cap the stroke at 30% of the radius so a bad ringWidth can't turn the ring into a pie
+                val thickness = min((widget.ringThickness ?: 8).dp.toPx(), min(cx, cy) * 0.30f)
+                val halfStroke = thickness / 2f
                 val radius = min(cx, cy) - halfStroke - 2.dp.toPx()
                 val topLeft = Offset(cx - radius, cy - radius)
                 val arcSize = Size(radius * 2, radius * 2)
@@ -115,12 +112,21 @@ private fun RingGauge(widget: GaugeWidget, value: Float?, ratio: Float, color: C
                     style = Stroke(width = thickness, cap = StrokeCap.Round)
                 )
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // keep the text inside the inner circle, "12.3 %" tends to spill past the ring otherwise
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = (widget.ringThickness ?: 8).dp + 8.dp)
+            ) {
                 Text(
                     text = formatValue(value, widget.unit),
                     color = Color.White,
                     fontSize = adaptiveValueSize,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false
                 )
                 if (widget.label.isNotBlank()) {
                     Spacer(Modifier.height(2.dp))

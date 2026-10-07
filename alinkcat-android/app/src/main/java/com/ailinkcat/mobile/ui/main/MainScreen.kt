@@ -47,10 +47,7 @@ enum class MainTab(val labelRes: Int, val emoji: String) {
     PROFILE(R.string.tab_profile, "👤")
 }
 
-/**
- * 主界面：Material 3 底部导航框架，承载主题包 / 配置 / 我的三个 Tab，
- * 顶部 App Bar 显示连接状态指示器。
- */
+/** main screen with a Material 3 bottom nav; the app bar shows a connection status dot. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -110,9 +107,6 @@ fun MainScreen(
     }
 }
 
-/**
- * 连接状态指示器：已连接为绿色圆点，未连接为灰色圆点。
- */
 @Composable
 fun ConnectionStatusIndicator(status: ConnectionStatus) {
     Row(

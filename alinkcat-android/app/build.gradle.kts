@@ -16,7 +16,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Native (JNI) 配置
+        // native (JNI)
         externalNativeBuild {
             cmake {
                 cppFlags += ""
@@ -42,11 +42,10 @@ android {
 
     buildTypes {
         release {
-            // AGP 9 新 DSL：开启 R8 优化（内联、合并等）
+            // new AGP 9 dsl, turns on r8 optimizations (inlining, merging, etc.)
             optimization {
                 enable = true
             }
-            // 标准属性：开启代码缩减 + 混淆 + 资源压缩
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -63,7 +62,7 @@ android {
     }
     buildFeatures {
         compose = true
-        // 生成 BuildConfig（用于区分 debug 本地 / release 云端服务器地址）
+        // BuildConfig needed to switch debug (local) / release (cloud) server addresses
         buildConfig = true
     }
     lint {

@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,7 +28,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import kotlin.math.min
 import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.domain.models.Action
 import com.ailinkcat.mobile.domain.models.SystemMonitorWidget
@@ -37,9 +40,8 @@ import com.ailinkcat.mobile.ui.theme.WarningOrange
 import com.ailinkcat.mobile.utils.FileUtils
 
 /**
- * 系统性能监控组件：卡片式布局展示 CPU、内存、磁盘、网络实时数据。
- * 数据通过 widgetData 从 WebSocket 的 monitor.data / data.update 推送获得。
- * 支持多个可能的键名（如 cpu / cpuUsage），兼容不同 PC 端数据格式。
+ * System monitor widget: CPU / memory / disk / network cards. Data comes from
+ * the monitor.data push; several key spellings are accepted per metric.
  */
 @Composable
 fun SystemMonitorWidgetRenderer(
@@ -47,12 +49,12 @@ fun SystemMonitorWidgetRenderer(
     widgetData: Map<String, Float>,
     onClick: (Action) -> Unit = {}
 ) {
-    // 多键名回退查找：尝试多个可能的键名
+    // first key that has data wins
     fun v(keys: List<String>): Float? = keys.firstNotNullOfOrNull { widgetData[it] }
 
     val clickAction = widget.clickAction
     val hasClick = clickAction != null && clickAction.type != "none"
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(4.dp)
@@ -61,6 +63,11 @@ fun SystemMonitorWidgetRenderer(
             .padding(10.dp)
             .then(if (hasClick) Modifier.clickable { onClick(clickAction!!) } else Modifier)
     ) {
+        // fonts scale with the cell: 50dp cell -> label 13sp; smaller -> shrink
+        val labelSize = adaptiveSp(min(maxWidth.value, maxHeight.value), null, 13f, 9f, 18f)
+        val rowSize = (labelSize.value * 0.92f).coerceAtLeast(8f).sp
+        val smallSize = (labelSize.value * 0.77f).coerceAtLeast(7f).sp
+        val speedSize = (labelSize.value * 1.08f).coerceAtLeast(9f).sp
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -71,7 +78,7 @@ fun SystemMonitorWidgetRenderer(
                 Text(
                     text = widget.label,
                     color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 13.sp,
+                    fontSize = labelSize,
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(Modifier.height(2.dp))
@@ -83,7 +90,8 @@ fun SystemMonitorWidgetRenderer(
                     label = stringResource(R.string.cpu),
                     value = cpu,
                     suffix = "%",
-                    color = pickColor(cpu, 50f, 80f)
+                    color = pickColor(cpu, 50f, 80f),
+                    labelSize = labelSize, valueSize = rowSize
                 )
             }
             if (widget.showMemory) {
@@ -92,7 +100,8 @@ fun SystemMonitorWidgetRenderer(
                     label = stringResource(R.string.memory),
                     value = mem,
                     suffix = "%",
-                    color = pickColor(mem, 60f, 85f)
+                    color = pickColor(mem, 60f, 85f),
+                    labelSize = labelSize, valueSize = rowSize
                 )
             }
             if (widget.showDisk) {
@@ -101,7 +110,8 @@ fun SystemMonitorWidgetRenderer(
                     label = stringResource(R.string.disk),
                     value = disk,
                     suffix = "%",
-                    color = pickColor(disk, 70f, 90f)
+                    color = pickColor(disk, 70f, 90f),
+                    labelSize = labelSize, valueSize = rowSize
                 )
             }
             if (widget.showNetwork) {
@@ -115,13 +125,15 @@ fun SystemMonitorWidgetRenderer(
                         label = stringResource(R.string.upload),
                         value = up,
                         suffix = "B/s",
-                        color = Color(0xFF4F6EF7)
+                        color = Color(0xFF4F6EF7),
+                        labelSize = smallSize, valueSize = speedSize
                     )
                     MetricSmall(
                         label = stringResource(R.string.download),
                         value = down,
                         suffix = "B/s",
-                        color = Color(0xFF34C759)
+                        color = Color(0xFF34C759),
+                        labelSize = smallSize, valueSize = speedSize
                     )
                 }
             }
@@ -134,7 +146,9 @@ private fun MetricRow(
     label: String,
     value: Float?,
     suffix: String,
-    color: Color
+    color: Color,
+    labelSize: TextUnit,
+    valueSize: TextUnit
 ) {
     val animatedValue by animateFloatAsState(
         targetValue = (value ?: 0f) / 100f,
@@ -156,13 +170,13 @@ private fun MetricRow(
             Text(
                 text = label,
                 color = Color.White.copy(alpha = 0.8f),
-                fontSize = 12.sp,
+                fontSize = valueSize,
                 fontWeight = FontWeight.Medium
             )
             Text(
                 text = displayText,
                 color = color,
-                fontSize = 12.sp,
+                fontSize = valueSize,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -190,18 +204,20 @@ private fun MetricSmall(
     label: String,
     value: Float?,
     suffix: String,
-    color: Color
+    color: Color,
+    labelSize: TextUnit,
+    valueSize: TextUnit
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = label,
             color = Color.White.copy(alpha = 0.6f),
-            fontSize = 10.sp
+            fontSize = labelSize
         )
         Text(
             text = formatNetworkSpeed(value),
             color = color,
-            fontSize = 14.sp,
+            fontSize = valueSize,
             fontWeight = FontWeight.Bold
         )
     }

@@ -59,10 +59,7 @@ import com.ailinkcat.mobile.ui.theme.SuccessGreen
 import com.ailinkcat.mobile.ui.theme.WarningOrange
 import java.io.File
 
-/**
- * 主题包渲染主页面：加载 / 错误 / 渲染三态 + 全屏沉浸式交互。
- * 支持横竖屏自适应和安全区域（刘海屏/挖孔屏）适配。
- */
+/** theme render screen: loading / error / render states, immersive full-screen. */
 @Composable
 fun ThemeRenderScreen(
     viewModel: ThemeRenderViewModel,
@@ -71,7 +68,6 @@ fun ThemeRenderScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // 显示操作错误提示（如启动应用失败）
     LaunchedEffect(uiState.actionError) {
         uiState.actionError?.let { msg ->
             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
@@ -79,7 +75,7 @@ fun ThemeRenderScreen(
         }
     }
 
-    // 主题加载成功后才进入订阅；错误页不连接 WebSocket（离开时取消）
+    // only subscribe once the theme actually loads; the error page never opens the websocket
     LaunchedEffect(uiState.theme) {
         uiState.theme?.let { viewModel.enterTheme() }
     }
@@ -151,7 +147,7 @@ private fun RenderContent(
     val pagerState = rememberPagerState(pageCount = { theme.pages.size })
     val themeDir = File(context.filesDir, "themes")
 
-    // 主题无页面：显示提示而非黑屏
+    // theme has no pages: show a message instead of a black screen
     if (theme.pages.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize().background(Color(0xFF101320)),
@@ -176,11 +172,10 @@ private fun RenderContent(
         viewModel.onPageChanged(pagerState.currentPage)
     }
 
-    // 使用 BoxWithConstraints 检测屏幕方向
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isLandscape = maxWidth > maxHeight
 
-        // 沉浸式隐藏：3 秒无操作自动隐藏顶部控件，点击唤醒，断开常显
+        // controls auto-hide after 3s, tap to wake; always visible while disconnected
         val isConnected = uiState.connectionStatus == ConnectionStatus.Connected
         var showControls by remember { mutableStateOf(true) }
 
@@ -212,7 +207,7 @@ private fun RenderContent(
                 }
             }
 
-            // 透明唤醒条——仅顶部 40dp 区域监听点击，不干扰 HorizontalPager 滑动
+            // invisible tap strip along the top; scoped to 40dp so pager swipes still work
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -223,7 +218,6 @@ private fun RenderContent(
                     }
             )
 
-            // 顶部悬浮控件（渐隐渐显），通过 safeDrawing insets 避开刘海区域
             AnimatedVisibility(
                 visible = showControls || !isConnected,
                 enter = fadeIn(),
@@ -281,7 +275,6 @@ private fun RenderContent(
                 }
             }
 
-            // 底部页面指示点，通过 safeDrawing insets 避开导航栏
             if (theme.pages.size > 1) {
                 DotsIndicator(
                     pageCount = theme.pages.size,
@@ -306,7 +299,7 @@ private fun RenderContent(
             text = { Text(stringResource(R.string.exit_theme_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
-                    // leaveTheme 由 DisposableEffect onDispose 统一执行，避免重复发送
+                    // leaveTheme runs from DisposableEffect's onDispose; don't send it twice
                     viewModel.releaseConnection()
                     onExit()
                 }) {

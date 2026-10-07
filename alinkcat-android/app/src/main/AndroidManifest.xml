@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- 定位：天气组件按当前位置查询（粗定位城市级即可） -->
+    <!-- coarse location is enough, weather only needs city-level accuracy -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <uses-feature
@@ -14,6 +14,7 @@
         android:required="false" />
 
     <application
+        android:name=".AlinkcatApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -37,7 +38,7 @@
             </intent-filter>
         </activity>
 
-        <!-- 主题包渲染页：全屏横屏 -->
+        <!-- theme render activity, fullscreen landscape -->
         <activity
             android:name=".ui.render.ThemeRenderActivity"
             android:exported="false"

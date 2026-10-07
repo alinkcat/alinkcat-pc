@@ -42,9 +42,6 @@ import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
-/**
- * 日历控件：显示当月日历，支持高亮今天。
- */
 @Composable
 fun CalendarWidgetRenderer(
     widget: CalendarWidget,
@@ -53,7 +50,7 @@ fun CalendarWidgetRenderer(
     val background = ColorParser.parse(widget.backgroundColor, Color(0xFF1A1A2E))
     val textColor = ColorParser.parse(widget.textColor, Color.White)
 
-    // 午夜 ticker：跨天自动刷新「今天」高亮与月份标题
+    // midnight ticker so the "today" highlight and month label roll over
     var today by remember { mutableStateOf(LocalDate.now()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -79,7 +76,7 @@ fun CalendarWidgetRenderer(
         val headerSize = (cw * 0.055f).coerceIn(10f, 14f).sp
         val dateSize = (cw * 0.05f).coerceIn(9f, 13f).sp
 
-        // 内容超高时纵向滚动（对齐 PC 端 overflow:auto）
+        // vertical scroll when content overflows, like the PC editor's overflow:auto
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -94,7 +91,6 @@ fun CalendarWidgetRenderer(
                 modifier = Modifier.padding(bottom = 4.dp)
             )
 
-            // 星期行
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -121,7 +117,6 @@ fun CalendarWidgetRenderer(
 
             Spacer(Modifier.height(2.dp))
 
-            // 日期网格
             val firstDay = currentMonth.atDay(1)
             val startDayOfWeek = firstDay.dayOfWeek.value % 7 // 0=Sun, 1=Mon, ...
             val daysInMonth = currentMonth.lengthOfMonth()

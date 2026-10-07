@@ -7,11 +7,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
 
-/**
- * 可配置的天气组件模型，字段直接映射主题 JSON。
- * 默认走自建天气 API（AILINK_URL，X-API-Key 鉴权），响应映射已预设，主题只需填 city 和 apiKey。
- * 兼容旧版 OpenWeatherMap（OWM_URL）直连模式。
- */
+/** configurable weather widget, fields map straight to the theme JSON.
+ *  defaults to the self-hosted weather API (X-API-Key auth) where the theme only fills city
+ *  and apiKey; legacy OpenWeatherMap direct mode still works */
 data class WeatherWidget(
     override val id: String,
     override val type: WidgetType = WidgetType.WEATHER,
@@ -25,18 +23,20 @@ data class WeatherWidget(
     val extraParams: Map<String, String> = emptyMap(),
     val unit: String = "c",
     val refreshHours: Double = 1.0,
-    // 响应映射（JMESPath 表达式）
+    // response mapping (JMESPath)
     val responseMapping: Map<String, String> = emptyMap()
 ) : Widget() {
     companion object {
         private const val TAG = "WeatherWidget"
-        /** 兼容旧版 OpenWeatherMap 直连地址（支持 ${city} / ${apiKey} 占位符） */
+        /** default fallback city (data default, not UI copy; city list in CityOptions) */
+        const val DEFAULT_CITY = "Beijing"
+        /** legacy OpenWeatherMap direct url, supports ${city}/${apiKey} placeholders */
         const val OWM_URL = "https://api.openweathermap.org/data/2.5/weather?q=\${city}&appid=\${apiKey}&units=metric"
 
-        /** 自建天气 API 地址（免登录，X-API-Key 鉴权，返回 wttr.in j1 格式） */
-        const val AILINK_URL = "https://top.atqx.cn/api/public/weather?q=\${city}&f=wttr"
+        /** self-hosted weather API, X-API-Key auth, returns wttr.in j1 format */
+        const val AILINK_URL = "https://api.pynen.com/api/public/weather?q=\${city}&f=wttr"
 
-        /** 自建 API 的默认响应映射（适配后端返回的 wttr.in j1 结构） */
+        /** default response mapping for the self-hosted API (backend wttr.in j1 shape) */
         private val DEFAULT_AILINK_MAPPING = mapOf(
             "city" to "nearest_area[0].areaName[0].value",
             "temp" to "current_condition[0].temp_C",
@@ -49,13 +49,10 @@ data class WeatherWidget(
             "forecast" to "weather"
         )
 
-        /** 自建 API 的默认请求头 */
         private val DEFAULT_AILINK_HEADERS = mapOf("X-API-Key" to "\${apiKey}")
 
-        /**
-         * 按路径段精确判定天气接口，避免 `contains("api/weather/")` 误伤自定义路径。
-         * 匹配 `/api/weather/...` 与 `/api/public/weather` 两种规范路径。
-         */
+        /** exact path-segment match for the weather api, avoids contains() false
+         *  positives on custom paths; matches /api/weather/... and /api/public/weather */
         private fun isWeatherApiUrl(url: String): Boolean {
             val path = url.substringBefore('?').substringBefore('#')
             val segments = path.split('/').filter { it.isNotBlank() }
@@ -65,20 +62,18 @@ data class WeatherWidget(
         }
 
         /**
-         * 天气接口 URL 归一化：统一指向后端 /api/public/weather（wttr 格式）。
-         * 后端接口规范：GET {host}/api/public/weather?g=<lng>,<lat>&f=wttr，header X-API-Key，返回 wttr.in j1 格式。
-         * debug 保留主题原始 host（局域网联调），release 统一云端 https://top.atqx.cn。
-         * 定位后 URL 可能已含 g= / lng / lat 参数；无定位时用 [fallbackCity] 兜底；非天气接口原样返回。
+         * normalize a legacy weather url to the backend /api/public/weather (wttr format).
+         * debug keeps the theme's original host for LAN debugging, release goes to the cloud.
+         * accepts g= or lng/lat params, falls back to [fallbackCity]; non-weather urls pass through
          */
-        fun normalizeLegacyUrl(url: String, fallbackCity: String = "北京"): String {
+        fun normalizeLegacyUrl(url: String, fallbackCity: String = DEFAULT_CITY): String {
             if (!isWeatherApiUrl(url)) return url
-            // host：debug 保留局域网，release 用云端；默认统一为 AuthApi.BASE_URL
             val host = if (BuildConfig.DEBUG) {
                 Regex("""^https?://[^/]+""").find(url)?.value ?: AuthApi.BASE_URL
             } else {
                 AuthApi.BASE_URL
             }
-            // 经纬度：优先 g=<lng>,<lat>，其次 lng=/lat= 参数
+            // coords: prefer g=<lng>,<lat>, fall back to lng=/lat= params
             val g = Regex("[?&]g=([^&]*)").find(url)?.groupValues?.get(1)
                 ?.takeIf { it.isNotBlank() && !it.contains("\${") }
                 ?: run {
@@ -87,23 +82,23 @@ data class WeatherWidget(
                     if (lng != null && lat != null && lng.isNotBlank() && lat.isNotBlank()) "$lng,$lat" else null
                 }
             if (g != null) return "$host/api/public/weather?g=$g&f=wttr"
-            // 城市兜底：q= / city= 参数（字面 ${city} 视为未提供），否则 fallbackCity
-            // 百分号编码，避免中文/空格破坏 query
+            // city: q=/city= param (literal ${city} means not provided), else fallbackCity;
+            // percent-encoded so spaces/cjk don't break the query
             val city = Regex("[?&](city|q)=([^&]*)").find(url)?.groupValues?.get(2)
                 ?.takeIf { it.isNotBlank() && !it.startsWith("lng") && !it.contains("\${") }
-                ?: fallbackCity.ifBlank { "北京" }
+                ?: fallbackCity.ifBlank { DEFAULT_CITY }
             return "$host/api/public/weather?q=${URLEncoder.encode(city, "UTF-8")}&f=wttr"
         }
 
         fun fromJson(json: JSONObject, layout: WidgetLayout, fallbackId: String = ""): WeatherWidget? = try {
-            // requestHeaders 支持 ${} 占位符
+            // requestHeaders support ${} placeholders
             val requestHeaders = mutableMapOf<String, String>()
             val headersObj = json.optJSONObject("requestHeaders")
             if (headersObj != null) {
                 val keys = headersObj.keys()
                 while (keys.hasNext()) {
                     val k = keys.next()
-                    // optString：数字/布尔等非字符串值不抛异常，避免控件被吞成 null
+                    // optString won't throw on numeric/bool values, so the widget doesn't get dropped
                     requestHeaders[k] = headersObj.optString(k)
                 }
             }
@@ -125,15 +120,14 @@ data class WeatherWidget(
                     mapping[k] = mapObj.optString(k)
                 }
             }
-            // 未指定 URL / 新版接口 / 旧版 JWT 接口都算自建 API
-            // debug/release 同一鉴权（X-API-Key），仅 host 不同
+            // blank url, new api or legacy JWT endpoint all count as self-hosted;
+            // same X-API-Key auth for debug/release, only the host differs
             val rawUrl = json.optString("requestUrl")
             val url = if (rawUrl.isBlank()) AILINK_URL else WeatherWidget.normalizeLegacyUrl(rawUrl)
             val isDefaultAilink = WeatherWidget.isWeatherApiUrl(url)
-            // 自建 API 始终注入默认请求头（X-API-Key），自定义头在其基础上合并
+            // self-hosted API always gets the X-API-Key header, custom headers merge on top
             val effectiveHeaders = if (isDefaultAilink) {
                 val merged = requestHeaders.toMutableMap()
-                // 已有 X-API-Key 则保留，否则注入默认占位符
                 if (!merged.containsKey("X-API-Key")) {
                     merged.putAll(DEFAULT_AILINK_HEADERS)
                 }
@@ -141,7 +135,7 @@ data class WeatherWidget(
             } else {
                 requestHeaders
             }
-            // refreshHours <1 视为无效，回退默认 1.0
+            // refreshHours < 1 is invalid, fall back to 1.0
             val refreshHours = json.optDouble("refreshHours", 1.0).takeIf { it >= 1.0 } ?: 1.0
             WeatherWidget(
                 id = json.optString("id", "").ifBlank { fallbackId },
@@ -155,7 +149,7 @@ data class WeatherWidget(
                 extraParams = extra,
                 unit = json.optString("unit", "c"),
                 refreshHours = refreshHours,
-                // 自建 API 未配置映射时用默认映射
+                // default mapping when the theme didn't configure one
                 responseMapping = if (isDefaultAilink && mapping.isEmpty()) DEFAULT_AILINK_MAPPING else mapping
             )
         } catch (e: Exception) {

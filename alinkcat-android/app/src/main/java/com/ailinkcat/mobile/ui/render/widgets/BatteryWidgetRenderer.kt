@@ -39,12 +39,8 @@ import com.ailinkcat.mobile.utils.ColorParser
 import kotlin.math.min
 
 /**
- * 电池状态控件：支持 bar / ring / number 三种样式。
- * - bar: 横条电池（圆角矩形 + 电量填充 + 右侧小尖角）
- * - ring: 环形进度条
- * - number: 大数字 + '%'
- * 低电量（<= lowThreshold）时使用 lowColor。
- * 数据来自 widgetData[battery]；无数据时显示 "--"。
+ * Battery widget: bar / ring / number styles, lowColor kicks in below
+ * lowThreshold. Value comes from widgetData["battery"]; shows "--" without data.
  */
 @Composable
 fun BatteryWidgetRenderer(
@@ -60,7 +56,7 @@ fun BatteryWidgetRenderer(
     val lowColor = ColorParser.parse(widget.lowColor, ErrorRed)
     val lowThreshold = (widget.lowThreshold ?: 20).toFloat().coerceIn(0f, 100f)
 
-    // 先滤 NaN/无穷再 clamp（coerceIn 会放过 NaN）；文本与图形共用同一值，显示与绘制一致
+    // filter NaN/infinity before clamping (coerceIn lets NaN through)
     val displayValue = value?.takeIf { it.isFinite() }?.coerceIn(0f, 100f)
     val level = displayValue ?: 0f
     val ratio by animateFloatAsState(
@@ -284,7 +280,6 @@ private fun BarBattery(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 电池主体（圆角矩形 + 填充）
                 Box(
                     modifier = Modifier
                         .height(barHeight)
@@ -300,7 +295,6 @@ private fun BarBattery(
                             .background(color)
                     )
                 }
-                // 电池右侧小尖角
                 Spacer(Modifier.width(1.dp))
                 Box(
                     modifier = Modifier
@@ -319,7 +313,7 @@ private fun formatLevel(value: Float?): String {
     return if (value % 1f == 0f) value.toInt().toString() else String.format("%.1f", value)
 }
 
-/** 温度数据暂未在 widgetData 中推送，预留参数；取值时从 widgetData 读取（未来扩展）。 */
+/** temperature isn't pushed in widgetData yet; param kept for future use. */
 private fun formatTemp(widget: BatteryWidget, temp: Float?): String {
     if (temp == null || !temp.isFinite()) return "--°C"
     return String.format("%.1f°C", temp)

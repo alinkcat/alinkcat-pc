@@ -163,6 +163,7 @@
     <string name="connection_timeout">连接超时：请检查防火墙设置</string>
     <string name="port_closed">端口未开放：请检查 PC 端服务是否启动</string>
     <string name="network_unreachable">网络不可达：请检查手机和 PC 是否在同一局域网</string>
+    <string name="duplicate_connection">连接已断开：同名设备在其他地方建立了连接</string>
 
     <!-- Weekday Short Names -->
     <string name="sun_short">日</string>
@@ -191,4 +192,99 @@
     <string name="device_name_label">设备名称</string>
     <string name="saved">已保存</string>
     <string name="save">保存</string>
+
+    <!-- Language &amp; Language Packs -->
+    <string name="lang_group_title">语言</string>
+    <string name="lang_current">应用语言</string>
+    <string name="lang_import_pack">导入语言包</string>
+    <string name="lang_download_url">从 URL 下载</string>
+    <string name="lang_download">下载</string>
+    <string name="lang_export_template">导出英文模板</string>
+    <string name="lang_manage_packs">管理语言包</string>
+    <string name="lang_no_packs">暂无导入的语言包</string>
+    <string name="lang_export">导出</string>
+    <string name="lang_install_confirm_title">安装该语言包？</string>
+    <string name="lang_install_coverage">已翻译键：%1$d / %2$d</string>
+    <string name="lang_install_mismatch">%1$d 个键占位符不一致（将回退英文）</string>
+    <string name="lang_install_unknown">%1$d 个未知键将被忽略</string>
+    <string name="lang_install_fallback_hint">缺失的键将回退到英文</string>
+
+    <!-- Settings Screen (hardcoded extraction) -->
+    <string name="group_device">设备</string>
+    <string name="group_weather">天气</string>
+    <string name="group_about">关于</string>
+    <string name="weather_api_key">天气 API Key</string>
+    <string name="weather_refresh_rate">天气刷新频率</string>
+    <string name="weather_refresh_minutes_fmt">%1$d 分钟</string>
+    <string name="weather_fallback_city">定位失败兜底城市</string>
+    <string name="weather_follow_theme">跟随主题</string>
+    <string name="not_set">未设置</string>
+    <string name="weather_refresh_dialog_title">天气刷新频率（分钟）</string>
+    <string name="weather_refresh_dialog_hint">留空 = 跟随主题默认</string>
+    <string name="clear_pairing_confirm_text">确定要清除当前设备的配对信息吗？此操作不可撤销。</string>
+    <string name="clear_confirm">清除</string>
+    <string name="city_picker_title">选择兜底城市</string>
+    <string name="city_picker_search_hint">搜索城市，如 北京 / 上海</string>
+    <string name="city_picker_no_match">未找到匹配的城市</string>
+    <string name="city_picker_clear">清空</string>
+    <string name="weather_key_dialog_title">天气 API Key</string>
+    <string name="weather_key_dialog_hint">在 PC 端「会员中心 → 天气服务」申请后复制粘贴到这里。Key 仅展示一次，请妥善保存。</string>
+    <string name="weather_key_placeholder">ALM-xxxxxxxxxxxxxxxxxxxxxxxx</string>
+
+    <!-- Navigation weather key prompt -->
+    <string name="weather_key_prompt_title">配置天气 Key</string>
+    <string name="weather_key_prompt_text">为天气组件配置 API Key 即可显示实时天气。Key 在 PC 端会员中心申请，仅展示一次，请妥善保存。</string>
+    <string name="weather_key_prompt_secondary">不配置也可正常使用其他功能。</string>
+    <string name="weather_key_prompt_go_settings">去设置</string>
+    <string name="weather_key_prompt_later">暂不</string>
+
+    <!-- Service layer / widget error messages -->
+    <string name="disk_write_failed">磁盘写入失败：%1$s</string>
+    <string name="operation_failed">操作失败</string>
+    <string name="unsupported_link">不支持的链接：%1$s</string>
+    <string name="cannot_open_link">无法打开链接</string>
+    <string name="camera_start_failed">相机启动失败</string>
+    <string name="camera_start_failed_msg">相机启动失败：%1$s</string>
+    <string name="weather_key_not_configured">未配置天气密钥</string>
+    <string name="weather_key_not_configured_hint">在设置中填写天气 API Key 后使用</string>
+
+    <!-- WebView JSON widget (weather / generic) -->
+    <string name="locating">📍 定位中…</string>
+    <string name="location_failed_with_city">⚠️ 定位失败，已使用 %1$s，点击重试</string>
+    <string name="location_failed_default_city">⚠️ 定位失败，已使用默认城市，点击重试</string>
+    <string name="location_off_with_city">未开启定位，使用 %1$s，点击重试</string>
+    <string name="location_off_default_city">未开启定位，使用默认城市，点击重试</string>
+    <string name="requesting_location_permission">📍 正在请求定位权限…</string>
+    <string name="weather_key_missing_toast">未配置天气密钥，请在设置中填写</string>
+    <string name="weather_key_missing_error">未配置天气密钥，请在设置中填写天气 Key</string>
+    <string name="error_code_fmt">错误代码：%1$s</string>
+    <string name="configure_json_url">请在编辑器中配置 JSON 地址</string>
+    <string name="tap_to_authorize_location">点击授权定位以获取本地天气</string>
+    <string name="no_data">无数据</string>
+    <string name="use_current_location">📍 使用当前位置</string>
+    <string name="relocate">📍 重新定位</string>
+    <string name="json_item_default_title">条目</string>
+    <string name="weather_default_title">天气</string>
+    <string name="weather_default_city_fallback">北京</string>
+    <string name="rss_configure_hint">请在 PC 端编辑器配置 RSS 订阅地址</string>
+    <string name="rss_parse_failed">RSS 订阅源解析失败</string>
+    <string name="privacy_consent_prefix">我已阅读并同意</string>
+    <string name="privacy_terms_link">《用户协议》</string>
+    <string name="privacy_policy_link">《隐私政策》</string>
+    <string name="device_limit">已达设备数量上限：请先在 PC 端断开其他设备，再重新连接</string>
+    <string name="pack_invalid_json">JSON 文件格式错误</string>
+    <string name="pack_missing_field">缺少必要字段</string>
+    <string name="pack_wrong_platform">这是 PC 端语言包</string>
+    <string name="pack_version_unsupported">语言包版本不受支持，请升级 App</string>
+    <string name="pack_too_many_keys">词条数量超出限制</string>
+    <string name="pack_value_too_long">某个词条超出长度限制</string>
+    <string name="pack_invalid_code">语言代码无效</string>
+    <string name="pack_file_too_large">文件过大（上限 2MB）</string>
+    <string name="pack_invalid_url">URL 无效</string>
+    <string name="pack_download_failed_http">下载失败：%1$s</string>
+    <string name="pack_network_error">网络错误</string>
+    <string name="lang_installed">语言包已安装</string>
+    <string name="lang_deleted">语言包已删除</string>
+    <string name="qr_not_found_in_image">图片中未识别到二维码</string>
+    <string name="open_system_settings">打开系统设置</string>
 </resources>

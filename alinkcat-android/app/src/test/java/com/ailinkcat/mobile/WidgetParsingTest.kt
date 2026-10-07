@@ -11,10 +11,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Widget JSON 解析单元测试。
- * 验证 Widget.fromJson 能正确解析各类组件 JSON，未知类型安全降级。
- */
+/** widget json parsing tests, unknown types degrade to null */
 class WidgetParsingTest {
 
     @Test
@@ -129,7 +126,6 @@ class WidgetParsingTest {
     @Test
     fun `malformed json returns null`() {
         val json = JSONObject("""{"id": "bad"}""")
-        // 缺 type 字段，optString 返回空串落入 else 分支 → null
         val widget = Widget.fromJson(json)
         assertNull(widget)
     }

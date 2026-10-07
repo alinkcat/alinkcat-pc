@@ -2,6 +2,7 @@ package com.ailinkcat.mobile.ui.render.widgets
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -15,10 +16,8 @@ import com.ailinkcat.mobile.domain.models.Action
 import com.ailinkcat.mobile.domain.models.TextWidget
 import com.ailinkcat.mobile.ui.render.parseFontWeight
 import com.ailinkcat.mobile.utils.ColorParser
+import kotlin.math.min
 
-/**
- * 文本控件：颜色、大小、字重、对齐。支持点击动作。
- */
 @Composable
 fun TextWidgetRenderer(
     widget: TextWidget,
@@ -31,19 +30,21 @@ fun TextWidgetRenderer(
     }
     val action = widget.clickAction
     val hasClick = action != null && action.type != "none"
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(6.dp)
             .then(if (hasClick) Modifier.clickable { onClick(action!!) } else Modifier)
     ) {
+        val edge = min(maxWidth.value, maxHeight.value)
         Text(
             text = widget.text,
             color = ColorParser.parse(widget.textColor, Color.White),
-            fontSize = (widget.fontSize ?: 20).sp,
+            fontSize = adaptiveSp(edge, widget.fontSize, 20f, 9f, 64f),
             fontWeight = parseFontWeight(widget.fontWeight),
             textAlign = align,
             modifier = Modifier.fillMaxSize()
         )
     }
 }
+

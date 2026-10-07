@@ -40,10 +40,7 @@ import com.ailinkcat.mobile.ui.theme.ErrorRed
 import com.ailinkcat.mobile.ui.theme.SuccessGreen
 import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
 
-/**
- * Tab 3：我的。设备信息 + 功能入口。
- * 无登录概念：所有功能本地可用，云端数据通过「天气 API Key」配置。
- */
+/** profile tab: device info + shortcuts. No login; cloud data goes through the weather API key. */
 @Composable
 fun ProfileScreen(
     viewModel: ConnectionViewModel,
@@ -102,7 +99,6 @@ fun ProfileScreen(
             }
         }
 
-        // 设备信息卡片
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -154,7 +150,6 @@ fun ProfileScreen(
             }
         }
 
-        // 功能入口
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),

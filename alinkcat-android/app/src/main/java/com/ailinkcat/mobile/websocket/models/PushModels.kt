@@ -2,9 +2,7 @@ package com.ailinkcat.mobile.websocket.models
 
 import org.json.JSONObject
 
-/**
- * PC 端推送主题包的消息模型（JSON-RPC 通知）。
- */
+/** message models for theme pack push (JSON-RPC notifications from the PC) */
 
 data class ThemePushStart(
     val themeId: String,
@@ -33,7 +31,7 @@ data class ThemePushStart(
 data class ThemePushChunk(
     val themeId: String,
     val chunkIndex: Int,
-    val data: String, // Base64 编码
+    val data: String, // base64
     val isLast: Boolean
 ) {
     companion object {
@@ -96,13 +94,13 @@ data class ThemePushError(
     }
 }
 
-// 接收状态
+// receive state
 
 enum class ReceiveStatus {
     IDLE,
-    PENDING_CONFIRM, // 已收到 start，等待用户确认
+    PENDING_CONFIRM, // start received, waiting for user confirm
     RECEIVING,
-    INTERRUPTED, // 连接中断，保留 .part 等待恢复
+    INTERRUPTED, // connection dropped, .part kept for resume
     COMPLETED,
     CANCELLED,
     FAILED
@@ -120,10 +118,10 @@ data class ReceiveState(
     val progress: Float = 0f, // 0.0 - 1.0
     val speed: Float = 0f, // KB/s
     val errorMessage: String? = null,
-    val isResume: Boolean = false // 是否为断点续传
+    val isResume: Boolean = false // resuming from an interrupted transfer
 )
 
-// 已安装主题元数据
+// installed theme metadata
 
 data class ThemeMeta(
     val themeId: String,

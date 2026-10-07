@@ -1,9 +1,9 @@
 package com.ailinkcat.mobile.ui.config
 
 /**
- * 中国大陆地区常用城市列表（下拉选择，防止误输入）。
- * 数据整理自 province-city-china（GB/T 2260 行政区划），已去除自治州/地区/盟等非标准建制，
- * 并补齐直辖市与港澳台。天气组件据此生成 ?city=<城市名> 请求。
+ * Common mainland China cities for the dropdown (avoids typos). Compiled from
+ * the province-city-china dataset (GB/T 2260); the weather widget builds
+ * ?city=<name> requests from this list.
  */
 object CityOptions {
     val cities: List<String> = listOf(

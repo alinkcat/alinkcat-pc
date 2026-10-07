@@ -8,17 +8,14 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 
-/**
- * 主题包存储操作：内部存储，无需额外权限。
- * - 最终存储：files/themes/{themeId}/
- * - 临时文件：cache/push_temp/{themeId}.alc.part
- */
+/** theme pack storage in internal storage, no extra permissions needed:
+ *  installed at files/themes/{themeId}/, chunks land in cache/push_temp/ */
 class ThemeRepository(private val context: Context) {
 
     private val themesDir = File(context.filesDir, "themes")
     private val tempDir = File(context.cacheDir, "push_temp")
 
-    /** 串行化 saveMeta / loadThemes，避免并发读写 meta.json 的竞态（写一半读一半 / 相互覆盖）。 */
+    // serializes saveMeta/loadThemes so concurrent readers never see a half-written meta.json
     private val metaLock = Any()
 
     init {
@@ -38,12 +35,9 @@ class ThemeRepository(private val context: Context) {
 
     fun themeExists(themeId: String): Boolean = themeDir(themeId).exists() && themeFile(themeId).exists()
 
-    /** 封面图路径：files/themes/{themeId}/cover.png */
+    /** cover image at files/themes/{themeId}/cover.png */
     fun getCoverFile(themeId: String): File = File(themeDir(themeId), "cover.png")
 
-    /**
-     * 加载主题包定义（files/themes/{themeId}/theme.json）。
-     */
     suspend fun loadTheme(themeId: String): Result<Theme> = withContext(Dispatchers.IO) {
         runCatching {
             val file = themeFile(themeId)
@@ -99,9 +93,7 @@ class ThemeRepository(private val context: Context) {
         runCatching { tempFile(themeId).delete() }
     }
 
-    /**
-     * 清理超过 [maxAgeMs] 的临时文件（应用启动时调用）。
-     */
+    /** deletes temp files older than [maxAgeMs], called on app start */
     fun cleanupStaleTempFiles(maxAgeMs: Long = 24L * 3600L * 1000L) {
         val now = System.currentTimeMillis()
         tempDir.listFiles()?.forEach { file ->

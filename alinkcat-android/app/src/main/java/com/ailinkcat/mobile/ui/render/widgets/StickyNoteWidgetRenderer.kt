@@ -31,10 +31,7 @@ import androidx.compose.ui.res.stringResource
 import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.utils.ColorParser
 
-/**
- * 便签控件：标题 + 垂直列表显示条目，点击条目触发文本输入到 PC。
- * 文字大小随容器等比缩放，内容可滚动。
- */
+/** sticky note widget: title + item list; tapping an item injects the text on the PC. */
 @Composable
 fun StickyNoteWidgetRenderer(
     widget: StickyNoteWidget,
@@ -77,7 +74,6 @@ fun StickyNoteWidgetRenderer(
                     .background(textColor.copy(alpha = 0.2f))
             )
 
-            // 便签条目
             widget.notes.forEach { note ->
                 Row(
                     modifier = Modifier

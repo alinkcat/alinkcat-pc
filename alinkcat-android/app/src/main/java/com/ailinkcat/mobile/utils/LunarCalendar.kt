@@ -2,13 +2,11 @@ package com.ailinkcat.mobile.utils
 
 import java.time.LocalDate
 
-/**
- * 农历工具，查表法，覆盖 1900-2100 年。
- * 数据表每行 16 位二进制（实际用到 17 位）：位 0-3 闰月月份（0=无闰月）；
- * 位 4-15 每月大小（1=大月 30 天，0=小月 29 天），bit (16-month)；位 16 (0x10000) 闰月大小。
- */
+/** lunar calendar via lookup table covering 1900-2100.
+ *  each row packs: bits 0-3 leap month (0 = none), bits 4-15 month lengths
+ *  (1 = 30 days, 0 = 29 days), bit 16 leap month length */
 object LunarCalendar {
-    // 1900-2100 年农历数据表
+    // lunar data 1900-2100
     private val LUNAR_INFO = intArrayOf(
         0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2, // 1900-1909
         0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977, // 1910-1919
@@ -43,22 +41,22 @@ object LunarCalendar {
         "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十"
     )
 
-    /** 闰月月份（0=无闰月）。 */
+    /** leap month number, 0 = none */
     private fun leapMonth(info: Int): Int = info and 0xf
 
-    /** 闰月天数（无闰月为 0），大小由 bit16 (0x10000) 决定。 */
+    /** leap month days, length decided by bit16 (0x10000) */
     private fun leapMonthDays(info: Int): Int {
         val leap = leapMonth(info)
         if (leap == 0) return 0
         return if (info and 0x10000 != 0) 30 else 29
     }
 
-    /** 某月天数（29 小月 / 30 大月）。 */
+    /** days in a month, 29 small / 30 big */
     private fun lunarMonthDays(info: Int, month: Int): Int {
         return if (info and (0x10000 shr month) != 0) 30 else 29
     }
 
-    /** 农历年总天数（12 个月 + 闰月）。 */
+    /** total days in a lunar year incl. leap month */
     private fun yearDays(info: Int): Int {
         var days = 0
         for (m in 1..12) {
@@ -67,13 +65,12 @@ object LunarCalendar {
         return days + leapMonthDays(info)
     }
 
-    /** 公历转农历字符串，如 "正月廿三" / "闰二月十五"。支持 1900-01-31 至 2100 年，超出返回空串。 */
+    /** solar to lunar string like "正月廿三" / "闰二月十五", empty outside 1900-01-31..2100 */
     fun solarToLunar(solar: LocalDate): String {
-        // 距 1900-01-31（农历 1900-01-01）的天数
+        // days since 1900-01-31 (lunar 1900-01-01)
         var offset = solar.toEpochDay() - LocalDate.of(1900, 1, 31).toEpochDay()
         if (offset < 0) return ""
 
-        // 逐年推算农历年份
         var lunarYear = 1900
         while (lunarYear <= 2100) {
             val yearInfo = LUNAR_INFO[lunarYear - 1900]
@@ -89,7 +86,6 @@ object LunarCalendar {
         var isLeap = false
         var lunarMonth = 1
 
-        // 按月推算农历月份（含闰月）
         for (m in 1..12) {
             val monthDays = lunarMonthDays(yearInfo, m)
             if (offset < monthDays) {
@@ -98,7 +94,7 @@ object LunarCalendar {
             }
             offset -= monthDays
 
-            // 该月之后紧跟闰月
+            // a leap month may follow this month
             if (m == leap) {
                 val leapDays = leapMonthDays(yearInfo)
                 if (leapDays > 0) {
@@ -112,7 +108,7 @@ object LunarCalendar {
             }
         }
 
-        // 月份/日须落在合法区间，否则视为表外数据（如 2100 年末残余 offset）
+        // month/day must be in range, guards against leftover offset past the table (late 2100)
         if (lunarMonth !in 1..12) return ""
         val lunarDay = offset.toInt() + 1
         if (lunarDay !in 1..30) return ""

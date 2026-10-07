@@ -163,6 +163,7 @@
     <string name="connection_timeout">Connection timed out: please check firewall settings</string>
     <string name="port_closed">Port not open: please check if PC service is running</string>
     <string name="network_unreachable">Network unreachable: please check if phone and PC are on the same network</string>
+    <string name="duplicate_connection">Disconnected: another device connected with the same device name</string>
 
     <!-- Weekday Short Names -->
     <string name="sun_short">Sun</string>
@@ -191,4 +192,99 @@
     <string name="device_name_label">Device Name</string>
     <string name="saved">Saved</string>
     <string name="save">Save</string>
+
+    <!-- Language &amp; Language Packs -->
+    <string name="lang_group_title">Language</string>
+    <string name="lang_current">App Language</string>
+    <string name="lang_import_pack">Import Language Pack</string>
+    <string name="lang_download_url">Download from URL</string>
+    <string name="lang_download">Download</string>
+    <string name="lang_export_template">Export English Template</string>
+    <string name="lang_manage_packs">Manage Language Packs</string>
+    <string name="lang_no_packs">No imported language packs</string>
+    <string name="lang_export">Export</string>
+    <string name="lang_install_confirm_title">Install language pack?</string>
+    <string name="lang_install_coverage">Translated keys: %1$d / %2$d</string>
+    <string name="lang_install_mismatch">%1$d keys have mismatched placeholders (will fall back to English)</string>
+    <string name="lang_install_unknown">%1$d unknown keys will be ignored</string>
+    <string name="lang_install_fallback_hint">Missing keys will fall back to English</string>
+
+    <!-- Settings Screen (hardcoded extraction) -->
+    <string name="group_device">Device</string>
+    <string name="group_weather">Weather</string>
+    <string name="group_about">About</string>
+    <string name="weather_api_key">Weather API Key</string>
+    <string name="weather_refresh_rate">Weather Refresh Rate</string>
+    <string name="weather_refresh_minutes_fmt">%1$d min</string>
+    <string name="weather_fallback_city">Fallback City on Location Failure</string>
+    <string name="weather_follow_theme">Follow theme</string>
+    <string name="not_set">Not set</string>
+    <string name="weather_refresh_dialog_title">Weather Refresh Rate (minutes)</string>
+    <string name="weather_refresh_dialog_hint">Leave empty = follow theme default</string>
+    <string name="clear_pairing_confirm_text">Clear pairing info for this device? This cannot be undone.</string>
+    <string name="clear_confirm">Clear</string>
+    <string name="city_picker_title">Select Fallback City</string>
+    <string name="city_picker_search_hint">Search city, e.g. Beijing / Shanghai</string>
+    <string name="city_picker_no_match">No matching city found</string>
+    <string name="city_picker_clear">Clear</string>
+    <string name="weather_key_dialog_title">Weather API Key</string>
+    <string name="weather_key_dialog_hint">Apply in PC member center (Weather Service), then paste here. The key is shown only once, keep it safe.</string>
+    <string name="weather_key_placeholder">ALM-xxxxxxxxxxxxxxxxxxxxxxxx</string>
+
+    <!-- Navigation weather key prompt -->
+    <string name="weather_key_prompt_title">Configure Weather Key</string>
+    <string name="weather_key_prompt_text">Configure an API Key for the weather widget to show live weather. Apply in the PC member center; it is shown only once, keep it safe.</string>
+    <string name="weather_key_prompt_secondary">Other features work fine without it.</string>
+    <string name="weather_key_prompt_go_settings">Go to Settings</string>
+    <string name="weather_key_prompt_later">Later</string>
+
+    <!-- Service layer / widget error messages -->
+    <string name="disk_write_failed">Disk write failed: %1$s</string>
+    <string name="operation_failed">Operation failed</string>
+    <string name="unsupported_link">Unsupported link: %1$s</string>
+    <string name="cannot_open_link">Cannot open link</string>
+    <string name="camera_start_failed">Camera failed to start</string>
+    <string name="camera_start_failed_msg">Camera failed to start: %1$s</string>
+    <string name="weather_key_not_configured">Weather key not configured</string>
+    <string name="weather_key_not_configured_hint">Fill in Weather API Key in Settings to use</string>
+
+    <!-- WebView JSON widget (weather / generic) -->
+    <string name="locating">📍 Locating…</string>
+    <string name="location_failed_with_city">⚠️ Location failed, using %1$s, tap to retry</string>
+    <string name="location_failed_default_city">⚠️ Location failed, using default city, tap to retry</string>
+    <string name="location_off_with_city">Location off, using %1$s, tap to retry</string>
+    <string name="location_off_default_city">Location off, using default city, tap to retry</string>
+    <string name="requesting_location_permission">📍 Requesting location permission…</string>
+    <string name="weather_key_missing_toast">Weather key not configured, fill in Settings</string>
+    <string name="weather_key_missing_error">Weather key not configured, fill in Weather Key in Settings</string>
+    <string name="error_code_fmt">Error code: %1$s</string>
+    <string name="configure_json_url">Configure JSON URL in the editor</string>
+    <string name="tap_to_authorize_location">Tap to authorize location for local weather</string>
+    <string name="no_data">No data</string>
+    <string name="use_current_location">📍 Use current location</string>
+    <string name="relocate">📍 Relocate</string>
+    <string name="json_item_default_title">Item</string>
+    <string name="weather_default_title">Weather</string>
+    <string name="weather_default_city_fallback">Beijing</string>
+    <string name="rss_configure_hint">Configure an RSS feed URL in the PC editor</string>
+    <string name="rss_parse_failed">Failed to parse RSS feed</string>
+    <string name="privacy_consent_prefix">I have read and agree to the</string>
+    <string name="privacy_terms_link">Terms of Service</string>
+    <string name="privacy_policy_link">Privacy Policy</string>
+    <string name="device_limit">Device limit reached: disconnect the other device on the PC first, then reconnect</string>
+    <string name="pack_invalid_json">Invalid JSON file</string>
+    <string name="pack_missing_field">Missing required field</string>
+    <string name="pack_wrong_platform">This is a PC language pack</string>
+    <string name="pack_version_unsupported">Pack version not supported, update the app</string>
+    <string name="pack_too_many_keys">Too many keys</string>
+    <string name="pack_value_too_long">A value exceeds the length limit</string>
+    <string name="pack_invalid_code">Invalid language code</string>
+    <string name="pack_file_too_large">File too large (max 2MB)</string>
+    <string name="pack_invalid_url">Invalid URL</string>
+    <string name="pack_download_failed_http">Download failed: %1$s</string>
+    <string name="pack_network_error">Network error</string>
+    <string name="lang_installed">Language pack installed</string>
+    <string name="lang_deleted">Language pack deleted</string>
+    <string name="qr_not_found_in_image">No QR code found in this image</string>
+    <string name="open_system_settings">打开系统设置</string>
 </resources>

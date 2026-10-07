@@ -17,17 +17,14 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import kotlin.coroutines.resume
 
-/** 设备定位：天气组件按当前位置查询（零三方依赖，系统 LocationManager）。 */
+/** device location for weather lookups, plain LocationManager, no third-party deps */
 object LocationUtil {
 
     private const val TAG = "WeatherLoc"
 
-    /**
-     * 获取当前经纬度（城市级天气足够）。
-     * ① 优先最后已知位置；② 取不到时主动请求一次（网络优先，GPS 兜底，10 秒超时）。
-     * 未授权/不可用返回 null，由调用方回退主题配置城市。
-     * @return (纬度 latitude, 经度 longitude)
-     */
+    /** returns (lat, lng), city-level accuracy is plenty. last known location first, then a
+     *  single active fix (network preferred, 10s timeout); null when unauthorized/unavailable,
+     *  caller falls back to the theme's configured city */
     suspend fun getLastLocation(context: Context): Pair<Double, Double>? {
         return withContext(Dispatchers.IO) {
             try {
@@ -41,7 +38,6 @@ object LocationUtil {
                 val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
                     ?: run { Log.w(TAG, "无 LocationManager"); return@withContext null }
 
-                // ① 最后已知位置（快速）
                 val last = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
                     ?: lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                 if (last != null) {
@@ -49,7 +45,6 @@ object LocationUtil {
                     return@withContext last.latitude to last.longitude
                 }
 
-                // ② 主动请求一次定位（网络优先，10 秒超时）
                 Log.d(TAG, "无最后已知位置，主动请求定位…")
                 val active = withTimeoutOrNull(10_000) {
                     requestSingleFix(lm)
@@ -67,7 +62,7 @@ object LocationUtil {
         }
     }
 
-    /** 主动请求一次定位（网络定位优先，失败则 GPS），超时由外层 withTimeoutOrNull 控制。 */
+    /** single active fix, network first then GPS; timeout handled by the caller */
     private suspend fun requestSingleFix(lm: LocationManager): Location? {
         return suspendCancellableCoroutine { cont ->
             val listener = object : LocationListener {
@@ -95,27 +90,21 @@ object LocationUtil {
         }
     }
 
-    /**
-     * 把 URL 中的 city / q 参数替换为经纬度（g=<lng>,<lat>，符合后端规范）。
-     * 例：?city=北京 → ?g=116.4074,39.9042；都不含时原样返回。
-     */
+    /** replaces city/q params with g=<lng>,<lat>; url returned as-is when neither is present */
     fun replaceCityWithCoordinates(url: String, lat: Double, lng: Double): String {
         if (!url.contains("city=") && !url.contains("q=")) return url
         val coord = String.format(Locale.US, "g=%.4f,%.4f", lng, lat)
-        // 先替换 city=（旧版接口）
+        // city= first (legacy endpoint)
         val afterCity = url.replace(Regex("([?&])city=[^&]*")) { m ->
             m.groupValues[1] + coord
         }
-        // 再替换 q=（新版接口）
+        // then q= (new endpoint)
         return afterCity.replace(Regex("([?&])q=[^&]*")) { m ->
             m.groupValues[1] + coord
         }
     }
 
-    /**
-     * 把 URL 中的 city / q 参数替换为另一城市名（定位失败兜底）。
-     * 例：?city=北京 → ?city=上海；都不含时原样返回。
-     */
+    /** swaps city/q params for a fallback city name when location fails */
     fun replaceCityWithAnotherCity(url: String, city: String): String {
         if (!url.contains("city=") && !url.contains("q=")) return url
         val enc = java.net.URLEncoder.encode(city, "UTF-8")

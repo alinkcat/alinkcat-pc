@@ -22,9 +22,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.domain.models.WeatherWidget
 import com.ailinkcat.mobile.service.GenericWeatherService
 import com.ailinkcat.mobile.service.GenericWeatherService.WeatherInfo
@@ -34,10 +36,8 @@ import kotlinx.coroutines.isActive
 import kotlin.math.roundToInt
 
 /**
- * 天气控件：根据 widget 配置读取天气数据并展示。
- * 读取与 PC 端一致的字段（requestUrl / requestMethod / requestHeaders / requestBody /
- * city / apiKey / extraParams / unit / refreshHours / responseMapping 嵌套对象），
- * 数据获取交给 GenericWeatherService，支持按小时自动刷新。
+ * Weather widget: reads the same config fields as the PC editor and delegates
+ * fetching to GenericWeatherService, refreshing every refreshHours.
  */
 @Composable
 fun WeatherWidgetRenderer(widget: WeatherWidget) {
@@ -45,9 +45,8 @@ fun WeatherWidgetRenderer(widget: WeatherWidget) {
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
 
-    // 全局天气 API Key（设置页可配置）：主题未配置 Key 时兜底。
-    // 响应式读取：监听 SharedPreferences 变化写入 StateFlow 并 collect，
-    // 设置页修改 Key 后本控件立即生效，而非一次性读取（旧实现改 Key 后需等重组才生效）。
+    // global API key (settings page) as fallback when the theme has none;
+    // read reactively from SharedPreferences so key changes apply immediately
     val context = LocalContext.current
     val appContext = context.applicationContext
     val apiKeyFlow = remember(appContext) {
@@ -67,7 +66,6 @@ fun WeatherWidgetRenderer(widget: WeatherWidget) {
         onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
     val globalApiKey by apiKeyFlow.collectAsState()
-    // 主题配置的 Key 优先，其次全局 Key
     val effectiveApiKey = widget.apiKey.ifBlank { globalApiKey }
     val effectiveCity = widget.city
 
@@ -106,10 +104,9 @@ fun WeatherWidgetRenderer(widget: WeatherWidget) {
         }
     }
 
-    // 已配置判断（与 PC 端一致）：
-    // - 使用默认 URL（自建天气 API 或旧版 OWM 直连）时，必须同时提供城市与 API Key
-    // - 自定义 URL 时，提供城市或 Key 之一即可（其余参数可作为占位符）
-    // 路径匹配而非精确相等：normalizeLegacyUrl 已把 ${city} 替换为实际城市，字面常量无法命中
+    // same configured rules as the PC: default URLs need both city and key,
+    // custom URLs accept either. Match by path because normalizeLegacyUrl
+    // already substituted ${city}, so exact literals never hit
     val isDefault = widget.requestUrl.isBlank() ||
         widget.requestUrl.contains("api/public/weather") ||
         widget.requestUrl.contains("api/weather/") ||
@@ -120,13 +117,12 @@ fun WeatherWidgetRenderer(widget: WeatherWidget) {
         effectiveCity.isNotBlank() || effectiveApiKey.isNotBlank()
     }
     if (!configured) {
-        // 未配置天气密钥：不渲染天气，直接显示配置提示
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("🌤️", fontSize = 28.sp)
-                Text("未配置天气密钥", fontSize = 13.sp, color = Color.Gray)
+                Text(stringResource(R.string.weather_key_not_configured), fontSize = 13.sp, color = Color.Gray)
                 Text(
-                    text = "在设置中填写天气 API Key 后使用",
+                    text = stringResource(R.string.weather_key_not_configured_hint),
                     fontSize = 11.sp,
                     color = Color.Gray.copy(alpha = 0.7f)
                 )
@@ -194,7 +190,7 @@ fun WeatherWidgetRenderer(widget: WeatherWidget) {
     }
 }
 
-/** 把 PC 端嵌套 responseMapping 对象（目标字段 → JSON 路径）转换为服务层所需的映射结构 */
+/** maps the PC's nested responseMapping (field -> JSON path) to the service layer's shape */
 private fun mapToResponseMapping(map: Map<String, String>): GenericWeatherService.ResponseMapping =
     GenericWeatherService.ResponseMapping(
         city = map["city"],

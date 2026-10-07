@@ -3,7 +3,7 @@ package com.ailinkcat.mobile.domain.models
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** 主题包数据模型（对应 files/themes/{themeId}/theme.json）。 */
+/** theme pack model, mirrors files/themes/{themeId}/theme.json */
 data class Theme(
     val id: String,
     val name: String,
@@ -52,17 +52,17 @@ data class Page(
         fun fromJson(json: JSONObject?): Page? {
             if (json == null) return null
 
-            // PC 端结构：page.layout = { type, columns, rows, backgroundColor, backgroundImage, backgroundMode, backgroundOpacity }
+            // new PC-side structure: page.layout = { type, columns, rows, backgroundColor, ... }
             val layout = json.optJSONObject("layout")
 
-            // 旧扁平结构：page.layoutMode / page.columns 等
+            // old flat structure: page.layoutMode / page.columns etc.
             val layoutType = layout?.optString("type")
                 ?: json.optString("layoutMode", "grid")
 
             val widgetsArray = json.optJSONArray("widgets") ?: JSONArray()
             val widgets = buildList {
                 for (i in 0 until widgetsArray.length()) {
-                    // JSON 缺 id 时以 widget-{index} 兜底，避免控件被静默丢弃
+                    // missing id falls back to widget-{index} so widgets aren't silently dropped
                     Widget.fromJson(widgetsArray.optJSONObject(i), fallbackId = "widget-$i")?.let(::add)
                 }
             }

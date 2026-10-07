@@ -19,15 +19,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/**
- * 推送接收状态管理：注册 PushReceiveListener，驱动确认/进度对话框、Snackbar 与自动关闭。
- *
- * 状态流转：
- *   IDLE -> (收到 theme.push.start) -> PENDING_CONFIRM（弹确认框，10 秒无操作自动拒绝）
- *        -> 用户"接收" -> 回复 ready -> RECEIVING（进度对话框）
- *        -> 用户"拒绝" -> 回复 rejected（-32020）-> CANCELLED
- *        -> RECEIVING -> COMPLETED / CANCELLED / FAILED / INTERRUPTED（连接中断，保留 .part）
- */
+/** registers as PushReceiveListener and drives the confirm/progress dialogs, snackbars and auto-close.
+ *  IDLE -> PENDING_CONFIRM (10s auto-reject) -> RECEIVING (progress dialog)
+ *  -> COMPLETED / CANCELLED / FAILED / INTERRUPTED */
 class PushReceiveViewModel(
     application: Application,
     private val manager: PushReceiveManager,
@@ -58,7 +52,7 @@ class PushReceiveViewModel(
         _state.value = state
         _dialogVisible.value = true
 
-        // 确认阶段：10 秒无操作自动拒绝
+        // 10s auto-reject while awaiting confirm
         if (state.status == ReceiveStatus.PENDING_CONFIRM) {
             Log.d(TAG, "Awaiting user confirm for ${state.themeName} (10s timeout)")
             confirmTimeoutJob = viewModelScope.launch {
@@ -92,7 +86,7 @@ class PushReceiveViewModel(
         val app = getApplication<Application>()
         showSnackbar(if (wasConfirming) app.getString(R.string.push_rejected) else app.getString(R.string.push_cancelled))
         if (wasConfirming) {
-            // 确认阶段被拒绝：直接关闭确认对话框
+            // rejected during confirm, close the dialog right away
             _dialogVisible.value = false
         } else {
             autoClose()
@@ -106,24 +100,23 @@ class PushReceiveViewModel(
         autoClose()
     }
 
-    /** 用户点击"接收"：回复 ready 并开始接收。 */
+    /** user tapped accept: reply ready and start receiving */
     fun acceptReceive() {
         confirmTimeoutJob?.cancel()
         manager.acceptPending()
     }
 
-    /** 用户点击"拒绝" / 10 秒超时：回复 rejected（-32020）。 */
+    /** user tapped reject / 10s timeout: reply rejected (-32020) */
     fun rejectReceive() {
         confirmTimeoutJob?.cancel()
         manager.rejectPending()
     }
 
-    /** 接收中取消：发送拒绝消息并清理临时文件。 */
+    /** cancel while receiving: reject and clean up temp files */
     fun cancelReceive() {
         manager.cancelReceive()
     }
 
-    /** 用户点击"关闭"，立即隐藏对话框。 */
     fun dismiss() {
         confirmTimeoutJob?.cancel()
         autoCloseJob?.cancel()
@@ -138,7 +131,7 @@ class PushReceiveViewModel(
         _snackbarMessage.value = message
     }
 
-    /** 接收结束后 3 秒自动关闭对话框（中断状态不自动关闭）。 */
+    /** auto-close the dialog 3s after a terminal state, except when interrupted */
     private fun autoClose() {
         autoCloseJob?.cancel()
         autoCloseJob = viewModelScope.launch {

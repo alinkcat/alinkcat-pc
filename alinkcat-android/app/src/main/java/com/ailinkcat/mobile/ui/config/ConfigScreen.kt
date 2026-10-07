@@ -63,9 +63,7 @@ import com.ailinkcat.mobile.ui.theme.WarningOrange
 import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
 import org.json.JSONObject
 
-/**
- * Tab 2：连接配置。表单 + 扫码（跳转 ScannerScreen）+ 历史记录 + 连接状态管理。
- */
+/** connection config tab: form, scan-to-fill (opens ScannerScreen), history, status. */
 @Composable
 fun ConfigScreen(
     viewModel: ConnectionViewModel,
@@ -78,7 +76,7 @@ fun ConfigScreen(
     var ip by remember { mutableStateOf(config.ip) }
     var port by remember { mutableStateOf(config.port) }
     var pairCode by remember { mutableStateOf(config.pairCode) }
-    // 仅首次加载时填充表单，避免连接成功后 config 更新覆盖正在编辑的内容
+    // only fill the form once, otherwise a config refresh after connect clobbers in-progress edits
     var formInitialized by remember { mutableStateOf(false) }
 
     LaunchedEffect(config) {
@@ -90,7 +88,6 @@ fun ConfigScreen(
         }
     }
 
-    // 扫码结果解析后填充表单
     LaunchedEffect(pendingScan) {
         val content = pendingScan ?: return@LaunchedEffect
         applyScanContent(content)?.let { (newIp, newPort, newCode) ->
@@ -108,7 +105,6 @@ fun ConfigScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 连接状态
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -145,7 +141,6 @@ fun ConfigScreen(
             }
         }
 
-        // 配置表单
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -200,7 +195,6 @@ fun ConfigScreen(
             }
         }
 
-        // 上次连接历史
         if (config.lastConnectedIp.isNotBlank()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -256,7 +250,6 @@ fun ConfigScreen(
             }
         }
 
-        // 断开连接
         if (state.status == ConnectionStatus.Connected) {
             OutlinedButton(
                 onClick = { viewModel.disconnect() },
@@ -298,9 +291,7 @@ fun ConnectionStatusChip(status: ConnectionStatus) {
     }
 }
 
-/**
- * 连接状态圆点：未连接为灰色圆点，连接中为带旋转动画的黄色圆环，已连接为绿色圆点。
- */
+/** status dot: gray when idle, spinning ring while connecting, green when connected. */
 @Composable
 private fun ConnectionStatusDot(status: ConnectionStatus, color: Color) {
     if (status == ConnectionStatus.Connecting) {
@@ -336,9 +327,9 @@ private fun ConnectionStatusDot(status: ConnectionStatus, color: Color) {
 }
 
 /**
- * 解析扫码结果，支持 JSON（{"ip","port","pairCode"}）、URL（ws://ip:port?pairCode=xxxx）
- * 及纯文本（ip:port:code）三种形式，自动填充输入框。
- * 优先走 JSONObject（真机可用），失败时退回正则解析，保证 JVM 单元测试同样可测。
+ * Parses scan results as JSON ({"ip","port","pairCode"}), a ws:// URL or plain
+ * ip:port:code text. Tries JSONObject first (works on device), falls back to
+ * regex parsing so JVM unit tests can exercise it too.
  */
 fun applyScanContent(content: String): Triple<String, String, String>? {
     var newIp: String? = null
@@ -357,7 +348,6 @@ fun applyScanContent(content: String): Triple<String, String, String>? {
     }
 
     if (!jsonParsed) {
-        // 非 JSON 形式：正则提取
         Regex("\\d{1,3}(\\.\\d{1,3}){3}").find(content)?.let { newIp = it.value }
 
         Regex("\"? (?:port|pairCode|pair_code)\"?\\s*[:=]\\s*\"?([0-9A-Za-z.-]+)\"?", RegexOption.IGNORE_CASE)
@@ -396,19 +386,16 @@ fun applyScanContent(content: String): Triple<String, String, String>? {
     }
 
     newIp ?: return null
-    // 注入防护：填充前统一校验
-    // IP 必须为合法 IPv4，防 http://evil.com 之类注入 ws://$ip:$port
+    // validate everything before filling, so crafted qr content can't smuggle
+    // something like http://evil.com into ws://$ip:$port
     if (!isValidIpv4(newIp)) return null
-    // port 为 1-65535 数字，缺省 9527
     val portInt = (newPort ?: "9527").toIntOrNull()
     if (portInt == null || portInt !in 1..65535) return null
-    // pairCode 缺省允许为空；提供时必须为 4 位数字
     val code = newCode ?: ""
     if (code.isNotEmpty() && !(code.length == 4 && code.all { it.isDigit() })) return null
     return Triple(newIp, portInt.toString(), code)
 }
 
-/** 严格 IPv4 校验：每段 0-255，四段点分。 */
 fun isValidIpv4(ip: String?): Boolean {
     if (ip.isNullOrBlank()) return false
     val segments = ip.split('.')

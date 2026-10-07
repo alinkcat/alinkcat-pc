@@ -36,11 +36,10 @@ import com.ailinkcat.mobile.websocket.models.ReceiveState
 import com.ailinkcat.mobile.websocket.models.ReceiveStatus
 
 /**
- * 推送接收进度对话框。
- * - 不可通过返回键 / 点击外部关闭（防止用户意外中断）
- * - 接收中显示取消按钮（刚开始时为"拒绝接收"，向 PC 发送拒绝消息 -32020）
- * - 完成后显示关闭按钮；完成后 3 秒自动关闭（由 ViewModel 控制）
- * - 中断（INTERRUPTED）时保持打开，显示"传输中断，等待恢复…"，不自动关闭
+ * Theme pack transfer progress dialog. Back/outside dismissal is off so the
+ * transfer can't be interrupted by accident; cancel while receiving (reject
+ * at the start), close when done (auto-closes after 3s via the ViewModel).
+ * Stays open on INTERRUPTED while waiting for a resume.
  */
 @Composable
 fun ReceiveProgressDialog(

@@ -9,10 +9,7 @@ import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/**
- * 通用 HTTP 服务：GET/POST，Headers 与 Body 可自定义。
- * request() 返回 JSONObject；requestText() 返回原始响应文本（供 JSON 数据组件解析）。
- */
+/** generic GET/POST with custom headers/body; request() parses JSON, requestText() returns raw text */
 object GenericHttpService {
     private val client = OkHttpClient()
 
@@ -62,7 +59,8 @@ object GenericHttpService {
     ): String = withContext(Dispatchers.IO) {
         val call = client.newCall(buildRequest(url, method, headers, body))
         val response = call.execute()
-        // 网关接口状态码不可靠（401/403 也可能是错误体）；allowHttpError=true 时非 2xx 也返回 body，由调用方解析
+        // gateway status codes aren't reliable (401/403 can carry an error body);
+        // with allowHttpError the caller gets the body even on non-2xx
         if (!response.isSuccessful && !allowHttpError) {
             throw IOException("HTTP ${response.code}")
         }

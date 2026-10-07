@@ -28,12 +28,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 
-/**
- * 连接状态管理：WebSocket 连接 + JSON-RPC 握手（配对码验证）+ 配置持久化 + 主题包数据。
- */
+/** connection state: websocket + JSON-RPC handshake (pairing code), config persistence, theme package data. */
 class ConnectionViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val appVersion = "1.0.0"
+    // reported during handshake, kept in sync with versionName
+    private val appVersion = com.ailinkcat.mobile.BuildConfig.VERSION_NAME
 
     private val dataStore = DataStoreManager(application)
 
@@ -49,21 +48,17 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     private val _pendingScanResult = MutableStateFlow<String?>(null)
     val pendingScanResult: StateFlow<String?> = _pendingScanResult.asStateFlow()
 
-    /** PC 端远程切换主题事件（theme.switch）。replay=1：防止收集者晚注册时事件被 DROP 丢失。 */
+    /** remote theme.switch event from the PC; replay=1 so late collectors don't miss it */
     private val _themeSwitchEvent = MutableSharedFlow<String>(replay = 1)
     val themeSwitchEvent: SharedFlow<String> = _themeSwitchEvent.asSharedFlow()
 
-    /** 快捷启动应用列表（来自 PC 端 launcher.list）。 */
     private val _launcherApps = MutableStateFlow<List<LauncherApp>>(emptyList())
     val launcherApps: StateFlow<List<LauncherApp>> = _launcherApps.asStateFlow()
 
-    /** 文本片段列表（来自 PC 端 snippet.list）。 */
     private val _snippetItems = MutableStateFlow<List<SnippetItem>>(emptyList())
     val snippetItems: StateFlow<List<SnippetItem>> = _snippetItems.asStateFlow()
 
-    /**
-     * 主题包推送接收管理器（与 WebSocket 共用同一连接）。
-     */
+    /** push receive manager; shares the websocket connection */
     val pushReceiveManager = PushReceiveManager(application)
 
     private val webSocket = WebSocketManager(
@@ -87,7 +82,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             override fun onConnectionClosed() {
-                // 连接断开时清理中止的接收
+                // clean up interrupted transfers on disconnect
                 pushReceiveManager.handleConnectionLost()
                 _state.value = ConnectionState(status = ConnectionStatus.Disconnected)
             }
@@ -99,14 +94,23 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                     errorType = errorType,
                     errorMessage = message
                 )
-                onAutoConnectFailed()
+                if (errorType == ConnectionErrorType.DUPLICATE_CONNECTION ||
+                    errorType == ConnectionErrorType.DEVICE_LIMIT
+                ) {
+                    // kicked by a same-named device: don't auto-reconnect or the
+                    // two ends keep kicking each other. device limit: retrying
+                    // won't lift it either
+                    isAutoConnecting = false
+                } else {
+                    onAutoConnectFailed()
+                }
             }
         },
         pushHandler = pushReceiveManager,
         rawListener = { text -> handleMacroMessage(text) }
     )
 
-    /** 启动时自动连接重试 */
+    /** auto-connect retry state */
     private var autoRetryCount = 0
     private var isAutoConnecting = false
 
@@ -138,7 +142,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     init {
-        // 推送确认/拒绝/忙碌响应通过 WebSocket 发送
+        // push accept/reject/busy responses go out over the websocket
         pushReceiveManager.setResponseSender { json -> webSocket.sendResponse(json) }
         webSocket.themeSwitchListener = { themeId ->
             viewModelScope.launch {
@@ -152,10 +156,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         autoConnect()
     }
 
-    /**
-     * 连接：校验输入 -> 持久化 -> 建立 WebSocket 连接并发送握手请求（携带配对码）。
-     * URL 格式：ws://{ip}:{port}
-     */
+    /** connect: validate, persist, then open ws://{ip}:{port} and handshake with the pairing code. */
     fun connect(ip: String, port: String, pairCode: String) {
         val app = getApplication<Application>()
         if (ip.isBlank()) {
@@ -191,7 +192,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun disconnect() {
-        // 接收中的传输保留 .part 标记中断，等待恢复
+        // in-flight transfers keep their .part marker as interrupted, waiting for resume
         pushReceiveManager.handleConnectionLost()
         webSocket.close()
         _state.value = ConnectionState(status = ConnectionStatus.Disconnected)
@@ -209,23 +210,20 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    /** 保存天气刷新间隔（秒）；<=0 表示跟随主题默认。 */
+    /** save weather refresh interval (seconds); <=0 means follow the theme default */
     fun saveWeatherRefreshSeconds(seconds: Int) {
         viewModelScope.launch {
             dataStore.saveWeatherRefreshSeconds(seconds)
         }
     }
 
-    /** 保存定位失败兜底城市名；空表示跟随主题默认。 */
+    /** save the fallback city for failed location fixes; empty means follow the theme default */
     fun saveFallbackCity(city: String) {
         viewModelScope.launch {
             dataStore.saveFallbackCity(city)
         }
     }
 
-    /**
-     * 扫码页返回的原始内容，配置页收集后解析并填充表单。
-     */
     fun submitScanResult(content: String) {
         _pendingScanResult.value = content
     }
@@ -235,10 +233,9 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * 处理宏/片段相关消息（launcher.list / snippet.list）。
-     * 兼容两种形式：PC 端主动推送（method 非空，数据在 params）与
-     * JSON-RPC 响应（method 为空，数据在 result）。
-     * 由 WebSocket rawListener 调用。
+     * Handles launcher.list / snippet.list arriving either as PC pushes
+     * (method set, data in params) or RPC responses (data in result).
+     * Called from the websocket rawListener.
      */
     private fun handleMacroMessage(text: String) {
         try {
@@ -281,7 +278,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                         _snippetItems.value = list
                     }
                 }
-                // 无 method 的响应：PC 端 result 不带 method，按结构嗅探
+                // method-less responses: the PC's result carries no method, sniff by structure
                 "" -> {
                     val appsArray = params.optJSONArray("apps") ?: params.optJSONArray("list")
                     val snippetsArray = params.optJSONArray("snippets")
@@ -315,23 +312,19 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         } catch (_: Exception) {}
     }
 
-    /** 请求 PC 端发送快捷启动列表。 */
     fun requestLauncherList() {
         webSocket.send(com.ailinkcat.mobile.data.JsonRpc.buildRequest("launcher.list", org.json.JSONObject(), nextRequestId()))
     }
 
-    /** 请求 PC 端发送文本片段列表。 */
     fun requestSnippetList() {
         webSocket.send(com.ailinkcat.mobile.data.JsonRpc.buildRequest("snippet.list", org.json.JSONObject(), nextRequestId()))
     }
 
-    /** 通知 PC 端打开指定快捷启动项。 */
     fun openLauncher(appId: String) {
         webSocket.send(com.ailinkcat.mobile.data.JsonRpc.buildRequest("launcher.open",
             org.json.JSONObject().put("id", appId), nextRequestId()))
     }
 
-    /** 注入文本片段到 PC 端光标位置。 */
     fun injectSnippet(content: String) {
         webSocket.send(com.ailinkcat.mobile.data.JsonRpc.buildRequest("snippet.inject",
             org.json.JSONObject().put("text", content), nextRequestId()))
@@ -345,9 +338,6 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         super.onCleared()
     }
 
-    /**
-     * 从已安装目录刷新主题包列表（接收完成后调用）。
-     */
     fun refreshThemePackages() {
         viewModelScope.launch {
             val metas = withContext(Dispatchers.IO) { pushReceiveManager.getInstalledThemes() }
@@ -370,9 +360,6 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    /**
-     * 删除本地主题包并刷新列表。
-     */
     fun deleteTheme(themeId: String) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) { pushReceiveManager.deleteInstalledTheme(themeId) }
@@ -381,9 +368,9 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * 握手成功后填充主题列表。
-     * 展示一律以本地安装数据（含真实 pageCount/themeId）为准，保证已安装主题可打开；
-     * PC 端列表仅在本地无任何主题时作为"可推送"提示（themeId 为空，点击提示未下载）。
+     * Fills the theme list after the handshake. Local installs are the source
+     * of truth (real pageCount/themeId, so installed themes can open); the PC
+     * list only shows as a "pushable" hint when nothing is installed locally.
      */
     private fun populateThemePackages(themeList: List<String>) {
         viewModelScope.launch {
@@ -402,7 +389,7 @@ class ConnectionViewModel(application: Application) : AndroidViewModel(applicati
                     )
                 }
             } else if (themeList.isNotEmpty()) {
-                // 本地无主题：以 PC 列表展示，仅提示不可打开
+                // nothing installed locally: show the PC list as a non-openable hint
                 _themePackages.value = themeList.mapIndexed { index, name ->
                     ThemePackage(
                         name = name,

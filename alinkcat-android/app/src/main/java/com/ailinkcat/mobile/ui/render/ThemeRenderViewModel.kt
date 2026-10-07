@@ -14,6 +14,7 @@ import com.ailinkcat.mobile.data.model.ConnectionStatus
 import com.ailinkcat.mobile.data.model.StoredConfig
 import com.ailinkcat.mobile.domain.models.Action
 import com.ailinkcat.mobile.domain.models.MediaState
+import com.ailinkcat.mobile.i18n.LanguageManager
 import com.ailinkcat.mobile.domain.models.Theme
 import com.ailinkcat.mobile.domain.repository.ThemeRepository
 import com.ailinkcat.mobile.websocket.WebSocketManager
@@ -28,9 +29,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * 主题包渲染状态管理：加载主题、建立数据连接、订阅实时数据、控件交互。
- */
+/** theme render viewmodel: loads the theme, opens the data connection, subscribes to live data, handles widget actions. */
 class ThemeRenderViewModel(
     application: Application,
     private val themeId: String
@@ -38,7 +37,7 @@ class ThemeRenderViewModel(
 
     private val repository = ThemeRepository(application)
     private val dataStore = DataStoreManager(application)
-    private val appVersion = "1.0.0"
+    private val appVersion = com.ailinkcat.mobile.BuildConfig.VERSION_NAME
 
     data class RenderUiState(
         val theme: Theme? = null,
@@ -60,11 +59,11 @@ class ThemeRenderViewModel(
     private var reconnectJob: Job? = null
     private var reconnectAttempt = 0
 
-    /** 标记是否已进入主题（enterTheme 已调用），用于在 handshake 完成后补发订阅。跨线程（OkHttp 回调）可见。 */
+    /** true once enterTheme ran, so the handshake callback can resend the subscribe. Read from OkHttp threads, hence @Volatile. */
     @Volatile
     private var entered = false
 
-    /** theme.enter 是否已成功发出（避免重复发送；连接可用性由 send 返回值判定）。 */
+    /** whether theme.enter actually went out; send's return value doubles as the connectivity check. */
     @Volatile
     private var enterSent = false
 
@@ -79,13 +78,16 @@ class ThemeRenderViewModel(
             ) {
                 _uiState.update { it.copy(connectionStatus = ConnectionStatus.Connected) }
                 reconnectAttempt = 0
-                // 如果 enterTheme 在 handshake 完成前已被调用，补发订阅
+                // enterTheme fired before the handshake finished, resend now
                 if (entered && !enterSent) {
                     if (sendThemeEnter()) enterSent = true
                 }
             }
 
             override fun onConnectionClosed() {
+                // the new connection must re-send theme.enter/media.subscribe,
+                // otherwise the page renders a frozen snapshot forever
+                enterSent = false
                 _uiState.update { it.copy(connectionStatus = ConnectionStatus.Disconnected) }
                 scheduleReconnect()
             }
@@ -94,6 +96,7 @@ class ThemeRenderViewModel(
                 errorType: com.ailinkcat.mobile.data.model.ConnectionErrorType,
                 message: String
             ) {
+                enterSent = false
                 _uiState.update { it.copy(connectionStatus = ConnectionStatus.Error) }
                 scheduleReconnect()
             }
@@ -129,7 +132,7 @@ class ThemeRenderViewModel(
 
     private fun connect(config: StoredConfig) {
         if (config.ip.isBlank()) return
-        // 预览连接使用独立设备名，避免与主界面连接互踢
+        // separate device name so this display connection doesn't kick the main one
         val app = getApplication<Application>()
         val deviceName = config.deviceName.ifBlank { app.getString(R.string.default_device_name) }
         webSocket.connect(
@@ -158,8 +161,8 @@ class ThemeRenderViewModel(
     }
 
     /**
-     * 用户进入主题包页面：发送 theme.enter 并订阅数据。
-     * 如果 WebSocket 尚未连接，标记为待发送，handshake 完成后自动补发（幂等）。
+     * Enter the theme page: send theme.enter + subscribe. Queued until the
+     * handshake completes if the socket isn't up yet (idempotent).
      */
     fun enterTheme() {
         entered = true
@@ -168,20 +171,16 @@ class ThemeRenderViewModel(
         }
     }
 
-    /** @return theme.enter 是否已真正下发（连接不可用时返回 false，等待握手后补发）。 */
+    /** @return true if theme.enter actually went out; false means it's queued for after the handshake. */
     private fun sendThemeEnter(): Boolean {
         val ok = webSocket.send(JsonRpc.buildRequest("theme.enter",
             JSONObject().put("themeId", themeId), nextId()))
         subscribeData()
-        // 主动拉取当前媒体状态
         webSocket.send(JsonRpc.buildRequest("media.get_current",
             JSONObject(), nextId()))
         return ok
     }
 
-    /**
-     * 用户离开主题包页面：发送 theme.leave 并取消订阅。
-     */
     fun leaveTheme() {
         entered = false
         enterSent = false
@@ -191,8 +190,8 @@ class ThemeRenderViewModel(
     }
 
     /**
-     * 断线重连：指数退避（5s → 10s → 20s → 40s → 60s 封顶）+ 随机抖动，
-     * 避免 PC 离线时每 5s 一次长连接尝试持续耗电与刷服务端日志。
+     * Reconnect with exponential backoff (5s -> 60s cap) + jitter; retrying
+     * every 5s against an offline PC drains battery and spams server logs.
      */
     private fun scheduleReconnect() {
         reconnectJob?.cancel()
@@ -212,16 +211,16 @@ class ThemeRenderViewModel(
     private fun handleRawMessage(text: String) {
         try {
             val root = JSONObject(text)
-            // 处理 JSON-RPC error 响应（如 launcher.open 失败）
             if (root.has("error") && root.optJSONObject("error") != null) {
                 val err = root.optJSONObject("error")
-                val msg = err?.optString("message") ?: "操作失败"
+                val msg = err?.optString("message") ?: LanguageManager.get(getApplication()).getString(R.string.operation_failed)
                 _uiState.update { it.copy(actionError = msg) }
                 return
             }
             val method = root.optString("method")
             if (method.isBlank()) {
-                // 无 method 的响应只取媒体状态（media.get_current 拉取的 result），其余 RPC 响应忽略，避免污染 mediaState
+                // method-less responses: only pick up media state, ignore the rest
+                // so random RPC replies don't pollute mediaState
                 val result = root.optJSONObject("result")
                 if (result != null && (
                         result.has("position") || result.has("title") || result.has("duration")
@@ -243,7 +242,7 @@ class ThemeRenderViewModel(
     }
 
     private fun parseMediaState(root: JSONObject) {
-        // 兼容主动推送（params）和 get_current 响应（result）
+        // handles both pushes (params) and get_current responses (result)
         val params = root.optJSONObject("params")
             ?: root.optJSONObject("result")
             ?: return
@@ -256,7 +255,9 @@ class ThemeRenderViewModel(
                 artist = state.optString("artist").ifBlank { null }
                     ?: state.optString("singer").ifBlank { null },
                 coverUrl = state.optString("coverUrl").ifBlank { null }
-                    ?: state.optString("cover").ifBlank { null },
+                    ?: state.optString("cover").ifBlank { null }
+                    // the PC side names its cover field "thumbnail"
+                    ?: state.optString("thumbnail").ifBlank { null },
                 isPlaying = state.optBoolean("isPlaying", false),
                 position = serverPosition,
                 duration = state.optLong("duration", 0L),
@@ -268,9 +269,8 @@ class ThemeRenderViewModel(
     }
 
     /**
-     * 解析实时数据快照，扁平化 network 对象：
-     * {cpu, memory, disk, uptime, network:{upload, download}}
-     * 兼容备用字段名：cpuUsage, memoryUsage, diskUsage, uploadSpeed, downloadSpeed, net_up, net_down
+     * Flattens live data snapshots ({cpu, memory, disk, uptime,
+     * network:{upload, download}}) and accepts the PC's alternate field names.
      */
     private fun parseDataUpdate(root: JSONObject) {
         val params = root.optJSONObject("params") ?: return
@@ -298,7 +298,7 @@ class ThemeRenderViewModel(
                 net.optDouble("upload").takeIf { !it.isNaN() }?.let { map["network.upload"] = it.toFloat() }
                 net.optDouble("download").takeIf { !it.isNaN() }?.let { map["network.download"] = it.toFloat() }
             } else if (key == "battery") {
-                // 兼容两种推送格式：battery: 80 或 battery: { level: 80, charging: true }
+                // battery arrives either as 80 or { level: 80, charging: true }
                 val batteryObj = dataObj.optJSONObject("battery")
                 if (batteryObj != null) {
                     batteryObj.optDouble("level").takeIf { !it.isNaN() }?.let { map["battery"] = it.toFloat() }
@@ -312,14 +312,16 @@ class ThemeRenderViewModel(
             } else {
                 val raw = dataObj.optDouble(key).takeIf { !it.isNaN() }?.toFloat()
                 if (raw != null) {
-                    // 同时写入原始键和别名映射后的标准键，确保渲染器两种都能读到
+                    // store under the raw key and the aliased standard key so
+                    // renderers can read either
                     map[key] = raw
                     ALIASES[key]?.let { alias -> map[alias] = raw }
                 }
             }
         }
         if (map.isNotEmpty()) {
-            // 白名单过滤：防止随机键导致 widgetData 无限增长；整体替换避免陈旧值残留
+            // whitelist keys so widgetData can't grow unbounded; replace
+            // wholesale so stale values don't linger
             val filtered = map.filterKeys { it in DataSourceResolver.INTERNAL_KEYS }
             if (filtered.isNotEmpty()) {
                 _uiState.update { it.copy(widgetData = filtered) }
@@ -328,14 +330,9 @@ class ThemeRenderViewModel(
     }
 
     /**
-     * 控件点击：根据动作类型分发处理。
-     * - switch_page: 切换页面
-     * - toggle_widget: 切换控件可见性
-     * - open_link: 用浏览器打开链接
-     * - system_command: 通过 WebSocket 发送 action.execute
-     * - launcher_open: 启动应用
-     * - media_*: 媒体控制
-     * - 其他: 发送 action.execute RPC 到 PC
+     * Widget tap dispatch: switch_page / toggle_widget are handled locally,
+     * media_* maps to media.control, everything else goes to the PC as
+     * action.execute.
      */
     fun executeAction(widgetId: String, action: Action) {
         when (action.type) {
@@ -356,7 +353,8 @@ class ThemeRenderViewModel(
             "open_link", "url" -> {
                 val url = action.content
                 if (!url.isNullOrBlank()) {
-                    // 安全：只允许 http/https，防止主题包拉起任意应用（file:/javascript: 等 scheme）
+                    // http/https only, so a theme pack can't fire arbitrary
+                    // schemes like file: or javascript:
                     val uri = try {
                         android.net.Uri.parse(url)
                     } catch (_: Exception) {
@@ -364,7 +362,7 @@ class ThemeRenderViewModel(
                     }
                     val scheme = uri?.scheme?.lowercase()
                     if (scheme != "http" && scheme != "https") {
-                        _uiState.update { it.copy(actionError = "不支持的链接: $url") }
+                        _uiState.update { it.copy(actionError = LanguageManager.get(getApplication()).getString(R.string.unsupported_link, url)) }
                         return
                     }
                     try {
@@ -373,7 +371,7 @@ class ThemeRenderViewModel(
                         getApplication<android.app.Application>().startActivity(intent)
                     } catch (e: Exception) {
                         Log.e(TAG, "open_link failed: ${e.message}")
-                        _uiState.update { it.copy(actionError = "无法打开链接") }
+                        _uiState.update { it.copy(actionError = LanguageManager.get(getApplication()).getString(R.string.cannot_open_link)) }
                     }
                 }
                 return
@@ -409,23 +407,16 @@ class ThemeRenderViewModel(
             webSocket.send(JsonRpc.buildRequest("media.control", params, nextId()))
             return
         }
-        // 默认：发送 action.execute RPC
         val params = JSONObject()
             .put("widgetId", widgetId)
             .put("action", action.asJsonValue())
         webSocket.send(JsonRpc.buildRequest("action.execute", params, nextId()))
     }
-    
-    /**
-     * 设置当前页面索引（用于 switch_page 联动）。
-     */
+
     fun setPage(index: Int) {
         onPageChanged(index)
     }
-    
-    /**
-     * 切换指定控件的可见性（用于 toggle_widget 联动）。
-     */
+
     fun toggleWidgetVisibility(widgetId: String) {
         webSocket.send(JsonRpc.buildRequest("action.execute",
             JSONObject()
@@ -434,18 +425,12 @@ class ThemeRenderViewModel(
             nextId()))
     }
 
-    /**
-     * 便签点击：发送 snippet.inject 指令将文本注入 PC 端光标位置。
-     */
+    /** sticky note tap: inject the text at the PC cursor */
     fun executeSnippet(content: String) {
         webSocket.send(JsonRpc.buildRequest("snippet.inject",
             JSONObject().put("text", content), nextId()))
     }
 
-    /**
-     * 媒体控制指令：发送 media.control。
-     * action: "play_pause" | "next" | "previous" | "volume_set"
-     */
     fun executeMediaCommand(action: String) {
         webSocket.send(JsonRpc.buildRequest("media.control",
             JSONObject().put("action", action), nextId()))
@@ -472,7 +457,6 @@ class ThemeRenderViewModel(
         viewModelScope.launch { connect(dataStore.config.first()) }
     }
 
-    /** 退出前关闭数据连接。 */
     fun releaseConnection() {
         reconnectJob?.cancel()
         webSocket.close()
@@ -486,10 +470,7 @@ class ThemeRenderViewModel(
         super.onCleared()
     }
 
-    /**
-     * 横竖屏切换时由 Activity 调用，触发状态更新。
-     * 实际的布局重新计算由 Compose BoxWithConstraints 自动完成。
-     */
+    /** called by the activity on rotation; layout recomputes via BoxWithConstraints */
     fun onConfigurationChanged(isLandscape: Boolean) {
         _uiState.update { it.copy(isLandscape = isLandscape) }
     }

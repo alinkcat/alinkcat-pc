@@ -3,10 +3,7 @@ package com.ailinkcat.mobile.util
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * 极简的 JSONPath 实现，仅支持点号 (.) 与数组下标 [] 表达式。
- * 例如："weather[0].icon"、"main.temp"。
- */
+/** minimal JSONPath, only dot notation and array indexes, e.g. "weather[0].icon" or "main.temp" */
 object JsonPath {
     fun get(json: JSONObject, path: String): Any? {
         var current: Any = json

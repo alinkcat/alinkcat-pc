@@ -60,9 +60,7 @@ import android.widget.LinearLayout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 
-/**
- * 控件路由：按控件类型分发到对应渲染器；未知/失败控件显示占位视图。
- */
+/** widget router: dispatches each type to its widget renderer, unknown types get a placeholder. */
 @Suppress("REDUNDANT_ELSE_IN_WHEN")
 @Composable
 fun WidgetRenderer(
@@ -176,9 +174,6 @@ private fun PlaceholderWidget(widgetId: String) {
     }
 }
 
-/**
- * 字体权重解析。
- */
 internal fun parseFontWeight(value: String?): FontWeight {
     return when (value?.lowercase()) {
         "bold" -> FontWeight.Bold

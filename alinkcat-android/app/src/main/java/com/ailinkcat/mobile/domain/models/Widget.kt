@@ -6,7 +6,7 @@ import org.json.JSONObject
 
 private const val WIDGET_TAG = "Widget"
 
-/** 数值字段兼容字符串数字：先按字符串解析，失败再回退数值读取（PC 端可能导出字符串数字）。 */
+/** PC exports may write numbers as strings, try string first then numeric */
 private fun optFloatCompat(json: JSONObject, key: String): Float? {
     if (json.isNull(key)) return null
     val s = json.optString(key)
@@ -26,11 +26,9 @@ private fun optIntCompat(json: JSONObject, key: String, default: Int = -1): Int 
 
 enum class WidgetType { BUTTON, GAUGE, BATTERY, STICKY_NOTE, IMAGE, TEXT, SHAPE, WEBVIEW, MEDIA_CONTROL, SYSTEM_MONITOR, LAUNCHER_ICON, CLOCK, DATE, CALENDAR, CARD, QUICK_ACTION, WEATHER }
 
-/**
- * 控件定位。
- * - 自由布局(FREE)：PC 端实际字段 freeX/freeY/freeW/freeH 为百分比 (0-100)；旧字段 x/y/width/height 为设计像素（按 1280x720 等比缩放）
- * - 网格布局(GRID)：gridRow/gridCol 为行列索引，rowSpan/colSpan 为跨行跨列数；PC 端实际字段 gridW -> colSpan，gridH -> rowSpan
- */
+/** widget placement. FREE: freeX/freeY/freeW/freeH are percent 0-100, legacy x/y/width/height
+ *  are design pixels (scaled from 1280x720). GRID: gridRow/gridCol indexes, PC-side
+ *  gridW -> colSpan and gridH -> rowSpan */
 data class WidgetLayout(
     val x: Float? = null,
     val y: Float? = null,
@@ -46,7 +44,7 @@ data class WidgetLayout(
     val colSpan: Int? = null
 )
 
-/** 按钮 / 便签的交互动作。序列化：仅 type -> 字符串；含 content -> {type, content}。 */
+/** button/sticky-note action; serialized as the type string alone, or {type, content} with content */
 data class Action(
     val type: String = "click",
     val content: String? = null
@@ -64,22 +62,19 @@ data class Action(
 
 data class NoteItem(val label: String, val content: String)
 
-/** 控件密封类：JSON 中通过 "type" 字段区分具体子类。 */
+/** widget variants, discriminated by the "type" field in JSON */
 sealed class Widget {
     abstract val id: String
     abstract val type: WidgetType
     abstract val layout: WidgetLayout
 
     companion object {
-        /**
-         * 解析控件 JSON。
-         * [fallbackId]：JSON 缺 id 或 id 为空时使用（如 "widget-{index}"）。
-         */
+        /** [fallbackId] is used when the JSON has no id (e.g. "widget-{index}") */
         fun fromJson(json: JSONObject?, fallbackId: String = ""): Widget? {
             if (json == null) return null
 
-            // PC 端实际坐标字段：freeX/freeY/freeW/freeH（百分比 0-100），gridW/gridH（跨列/跨行）
-            // 旧字段：x/y/width/height（设计像素）、rowSpan/colSpan；数值兼容字符串数字
+            // current PC-side fields: freeX/freeY/freeW/freeH (percent 0-100), gridW/gridH (span)
+            // legacy: x/y/width/height (design pixels), rowSpan/colSpan; numbers may be strings
             val layout = WidgetLayout(
                 x = optFloatCompat(json, "x"),
                 y = optFloatCompat(json, "y"),
@@ -148,7 +143,7 @@ data class ButtonWidget(
                         content = it.optString("content").ifBlank { null }
                     )
                 } ?: json.optString("action").ifBlank { null }?.let {
-                    // PC 端 action 可能是字符串（如 "keyboard"）
+                    // action can be a plain string on the PC side (e.g. "keyboard")
                     Action(type = it)
                 },
                 backgroundColor = json.optString("backgroundColor").ifBlank { null },
@@ -187,14 +182,20 @@ data class GaugeWidget(
                 layout = layout,
                 label = json.optString("label", "Gauge"),
                 dataSource = json.optString("dataSource", ""),
-                min = json.optInt("min", -1).takeIf { it >= 0 },
-                max = json.optInt("max", -1).takeIf { it >= 0 },
+                // PC side calls these minValue/maxValue
+                min = json.optInt("min", -1).takeIf { it >= 0 }
+                    ?: json.optInt("minValue", -1).takeIf { it >= 0 },
+                max = json.optInt("max", -1).takeIf { it >= 0 }
+                    ?: json.optInt("maxValue", -1).takeIf { it >= 0 },
                 unit = json.optString("unit").ifBlank { null },
-                displayStyle = json.optString("displayStyle").ifBlank { null },
+                // PC side calls this gaugeStyle, same values
+                displayStyle = json.optString("displayStyle").ifBlank { json.optString("gaugeStyle").ifBlank { null } },
                 ringColorLow = json.optString("ringColorLow").ifBlank { null },
                 ringColorMid = json.optString("ringColorMid").ifBlank { null },
                 ringColorHigh = json.optString("ringColorHigh").ifBlank { null },
+                // PC ringWidth is 1-6, scaled 1:2 to dp
                 ringThickness = json.optInt("ringThickness", -1).takeIf { it > 0 }?.coerceIn(1, 100)
+                    ?: json.optInt("ringWidth", -1).takeIf { it > 0 }?.times(2)?.coerceIn(4, 20)
             )
         } catch (e: Exception) {
             Log.w(WIDGET_TAG, "GaugeWidget.fromJson failed, id=${json.optString("id")}", e)
@@ -250,7 +251,7 @@ data class StickyNoteWidget(
 ) : Widget() {
     companion object {
         fun fromJson(json: JSONObject, layout: WidgetLayout, fallbackId: String = ""): StickyNoteWidget? = try {
-            // PC 端字段为 snippets: [{id,label,content}]；items、notes 为旧版字段
+            // PC field is snippets: [{id,label,content}]; items/notes are legacy
             val notesArray = json.optJSONArray("snippets")
                 ?: json.optJSONArray("items")
                 ?: json.optJSONArray("notes")
@@ -295,7 +296,7 @@ data class ImageWidget(
             ImageWidget(
                 id = json.optString("id", "").ifBlank { fallbackId },
                 layout = layout,
-                // PC 端字段名为 src
+                // PC field name is src
                 imagePath = json.optString("imagePath").ifBlank { json.optString("src").ifBlank { null } },
                 scaleMode = json.optString("scaleMode").ifBlank { null }
                     ?: json.optString("objectFit").ifBlank { null },
@@ -330,10 +331,10 @@ data class TextWidget(
             TextWidget(
                 id = json.optString("id", "").ifBlank { fallbackId },
                 layout = layout,
-                // PC 端字段名为 content
+                // PC field name is content
                 text = json.optString("text").ifBlank { json.optString("content", "") },
                 fontSize = json.optInt("fontSize", -1).takeIf { it > 0 }?.coerceIn(1, 200),
-                // PC 端字段名为 color
+                // PC field name is color
                 textColor = json.optString("textColor").ifBlank { json.optString("color").ifBlank { null } },
                 fontWeight = json.optString("fontWeight").ifBlank { null },
                 textAlign = json.optString("textAlign").ifBlank { null },
@@ -364,14 +365,29 @@ data class ShapeWidget(
 ) : Widget() {
     companion object {
         fun fromJson(json: JSONObject, layout: WidgetLayout, fallbackId: String = ""): ShapeWidget? = try {
+            // PC uses gradientStart/End for fills, borderColor/Width for strokes
+            val fillType = json.optString("fillType", "solid")
+            val shapeTypeRaw = json.optString("shapeType").ifBlank { null }?.lowercase()
             ShapeWidget(
                 id = json.optString("id", "").ifBlank { fallbackId },
                 layout = layout,
-                shapeType = json.optString("shapeType").ifBlank { null },
-                fillColor = json.optString("fillColor").ifBlank { null },
-                gradientTo = json.optString("gradientTo").ifBlank { null },
-                strokeColor = json.optString("strokeColor").ifBlank { null },
-                strokeWidth = json.optInt("strokeWidth", -1).takeIf { it >= 0 }?.coerceIn(0, 100),
+                shapeType = when (shapeTypeRaw) {
+                    "rounded-rect" -> "rounded"
+                    else -> shapeTypeRaw
+                },
+                fillColor = if (fillType == "gradient") {
+                    json.optString("gradientStart").ifBlank { json.optString("fillColor").ifBlank { null } }
+                } else {
+                    json.optString("fillColor").ifBlank { null }
+                },
+                gradientTo = if (fillType == "gradient") {
+                    json.optString("gradientEnd").ifBlank { json.optString("gradientTo").ifBlank { null } }
+                } else {
+                    json.optString("gradientTo").ifBlank { null }
+                },
+                strokeColor = json.optString("strokeColor").ifBlank { json.optString("borderColor").ifBlank { null } },
+                strokeWidth = json.optInt("strokeWidth", -1).takeIf { it >= 0 }?.coerceIn(0, 100)
+                    ?: json.optInt("borderWidth", -1).takeIf { it >= 0 }?.coerceIn(0, 100),
                 borderRadius = json.optInt("borderRadius", -1).takeIf { it >= 0 }?.coerceIn(0, 200)
             )
         } catch (e: Exception) {
@@ -386,15 +402,17 @@ data class WebViewWidget(
     override val type: WidgetType = WidgetType.WEBVIEW,
     override val layout: WidgetLayout,
     val url: String?,
-    // JSON 数据展示模式（对应 PC 端 WebViewJSON）
+    // json display mode (PC-side WebViewJSON)
     val displayMode: String = "webpage", // webpage / rss / json
     val jsonUrl: String = "",
+    // feed url when displayMode=rss
+    val rssUrl: String = "",
     val titleField: String = "title",
     val descField: String = "description",
     val timeField: String = "pubDate",
     val linkField: String = "link",
-    val refreshInterval: Int = 0, // 秒
-    val headers: Map<String, String> = emptyMap() // 自定义请求头（如 Authorization: Bearer <token>）
+    val refreshInterval: Int = 0, // seconds
+    val headers: Map<String, String> = emptyMap() // custom headers, e.g. Authorization: Bearer <token>
 ) : Widget() {
     companion object {
         fun fromJson(json: JSONObject, layout: WidgetLayout, fallbackId: String = ""): WebViewWidget? = try {
@@ -405,6 +423,7 @@ data class WebViewWidget(
                 url = json.optString("url").ifBlank { null },
                 displayMode = json.optString("displayMode", "webpage"),
                 jsonUrl = json.optString("jsonUrl", ""),
+                rssUrl = json.optString("rssUrl", ""),
                 titleField = json.optString("titleField", "title"),
                 descField = json.optString("descField", "description"),
                 timeField = json.optString("timeField", "pubDate"),
@@ -435,13 +454,16 @@ data class MediaControlWidget(
     companion object {
         fun fromJson(json: JSONObject, layout: WidgetLayout, fallbackId: String = ""): MediaControlWidget? = try {
             val props = json.optJSONObject("properties")
+            // PC puts the toggles at top level, properties is the legacy format
             MediaControlWidget(
                 id = json.optString("id", "").ifBlank { fallbackId },
                 layout = layout,
                 label = json.optString("label", "Music Control"),
                 displayMode = json.optString("displayMode", "always"),
-                showCover = props?.optBoolean("showCover", true) ?: true,
-                showProgress = props?.optBoolean("showProgress", true) ?: true
+                showCover = if (props?.has("showCover") == true) props.optBoolean("showCover", true)
+                else json.optBoolean("showCover", true),
+                showProgress = if (props?.has("showProgress") == true) props.optBoolean("showProgress", true)
+                else json.optBoolean("showProgress", true)
             )
         } catch (e: Exception) {
             Log.w(WIDGET_TAG, "MediaControlWidget.fromJson failed, id=${json.optString("id")}", e)
@@ -450,7 +472,7 @@ data class MediaControlWidget(
     }
 }
 
-/** PC 端实时推送的媒体播放状态。basePosition / baseSystemTime 用于本地插值，实现进度条平滑滚动。 */
+/** media state pushed live from the PC; basePosition/baseSystemTime drive local progress interpolation */
 data class MediaState(
     val title: String? = null,
     val artist: String? = null,
@@ -477,14 +499,19 @@ data class SystemMonitorWidget(
     companion object {
         fun fromJson(json: JSONObject, layout: WidgetLayout, fallbackId: String = ""): SystemMonitorWidget? = try {
             val props = json.optJSONObject("properties")
+            // toggles at top level, CPU is uppercase showCPU
+            fun readBool(key: String, pcKey: String = key): Boolean =
+                if (props?.has(key) == true) props.optBoolean(key, true)
+                else if (json.has(pcKey)) json.optBoolean(pcKey, true)
+                else true
             SystemMonitorWidget(
                 id = json.optString("id", "").ifBlank { fallbackId },
                 layout = layout,
                 label = json.optString("label", "System Monitor"),
-                showCpu = props?.optBoolean("showCpu", true) ?: true,
-                showMemory = props?.optBoolean("showMemory", true) ?: true,
-                showDisk = props?.optBoolean("showDisk", true) ?: true,
-                showNetwork = props?.optBoolean("showNetwork", true) ?: true,
+                showCpu = readBool("showCpu", "showCPU"),
+                showMemory = readBool("showMemory"),
+                showDisk = readBool("showDisk"),
+                showNetwork = readBool("showNetwork"),
                 clickAction = json.optJSONObject("clickAction")?.let {
                     Action(
                         type = it.optString("type", "click"),
@@ -532,7 +559,7 @@ data class ClockWidget(
     val showSeconds: Boolean,
     val showAmpm: Boolean = false,
     val clockDisplay: String = "digital", // digital / analog
-    val showWeekday: Boolean = false,     // 在时间下方显示星期几
+    val showWeekday: Boolean = false,     // weekday under the time
     val tickMarks: Boolean = true,
     val showNumbers: Boolean = true,
     val handStyle: String = "classic",   // classic / modern / thin
@@ -546,7 +573,7 @@ data class ClockWidget(
                 id = json.optString("id", "").ifBlank { fallbackId },
                 layout = layout,
                 label = json.optString("label", "Clock"),
-                // 字段可能在 properties 或顶层（PC 端通常在顶层）
+                // fields may live in properties or top level (PC usually top level)
                 format24h = props?.optBoolean("format24h") ?: json.optBoolean("format24h", true),
                 showSeconds = props?.optBoolean("showSeconds") ?: json.optBoolean("showSeconds", true),
                 showAmpm = props?.optBoolean("showAmpm") ?: json.optBoolean("showAmpm", false),
@@ -579,7 +606,9 @@ data class DateWidget(
                 id = json.optString("id", "").ifBlank { fallbackId },
                 layout = layout,
                 label = json.optString("label", "Date"),
-                showLunar = props?.optBoolean("showLunar", false) ?: false
+                // showLunar is top level on the PC side
+                showLunar = if (props?.has("showLunar") == true) props.optBoolean("showLunar", false)
+                else json.optBoolean("showLunar", false)
             )
         } catch (e: Exception) {
             Log.w(WIDGET_TAG, "DateWidget.fromJson failed, id=${json.optString("id")}", e)
@@ -612,10 +641,8 @@ data class CalendarWidget(
     }
 }
 
-/**
- * 信息卡片：文本（标题/描述）+ 配图 + 标签 + 底部辅助文字。
- * PC 端字段：cardTitle/cardDesc/cardImage/cardImagePosition(top/left/right)/cardTags[]/cardFooter。
- */
+/** info card: title/desc text + image + tags + footer text
+ *  (PC fields: cardTitle/cardDesc/cardImage/cardImagePosition/cardTags[]/cardFooter) */
 data class CardWidget(
     override val id: String,
     override val type: WidgetType = WidgetType.CARD,
@@ -666,17 +693,14 @@ data class CardWidget(
     }
 }
 
-/** 快捷面板中的文本片段项。 */
+/** text snippet item inside a quick action cell */
 data class QuickActionSnippetItem(
     val id: String = "",
     val label: String = "",
     val content: String = ""
 )
 
-/**
- * 快捷面板中的单个单元格。
- * - launcher: type/name/path；snippet: type/title/snippets
- */
+/** single quick action cell: launcher (type/name/path) or snippet (type/title/snippets) */
 data class QuickActionCell(
     val type: String, // "launcher" or "snippet"
     val name: String = "",
@@ -685,7 +709,7 @@ data class QuickActionCell(
     val snippets: List<QuickActionSnippetItem> = emptyList()
 )
 
-/** 快捷面板：2x2 或自定义行列网格，每格为启动器或文本片段集合。PC 端字段：columns, rows, cells[]。 */
+/** quick action panel: 2x2 or custom grid of launcher/snippet cells (PC fields: columns, rows, cells[]) */
 data class QuickActionWidget(
     override val id: String,
     override val type: WidgetType = WidgetType.QUICK_ACTION,

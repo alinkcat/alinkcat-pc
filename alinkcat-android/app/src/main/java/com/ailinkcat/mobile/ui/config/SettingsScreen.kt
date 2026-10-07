@@ -55,8 +55,8 @@ import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
 
 /**
- * 独立设置页：iOS 分组设置风格。
- * 顶部导航栏显示「设置」+ 返回，主体为分组列表（设备 / 天气 / 危险操作 / 关于）。
+ * Standalone settings screen, iOS grouped style:
+ * device / language / weather / danger zone / about.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,7 +75,6 @@ fun SettingsScreen(
     var showWeatherKeyDialog by remember { mutableStateOf(false) }
     var showClearConfirm by remember { mutableStateOf(false) }
 
-    // 天气 API Key（存 SharedPreferences）
     val prefs = context.applicationContext.getSharedPreferences("ilinkcat_prefs", Context.MODE_PRIVATE)
     var weatherKey by remember { mutableStateOf(prefs.getString("weather_api_key", "") ?: "") }
     val weatherKeyDisplay = if (weatherKey.length > 10) weatherKey.take(10) + "****"
@@ -83,7 +82,7 @@ fun SettingsScreen(
         else ""
 
     val refreshValue = if (config.weatherRefreshSeconds > 0) {
-        "${config.weatherRefreshSeconds / 60} 分钟"
+        stringResource(R.string.weather_refresh_minutes_fmt, config.weatherRefreshSeconds / 60)
     } else ""
 
     val toastSaved = { Toast.makeText(context, context.getString(R.string.saved), Toast.LENGTH_SHORT).show() }
@@ -118,8 +117,7 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
-            // 设备
-            SettingsGroup(title = "设备") {
+            SettingsGroup(title = stringResource(R.string.group_device)) {
                 SettingsRow(
                     label = stringResource(R.string.device_name_label),
                     value = config.deviceName,
@@ -128,30 +126,30 @@ fun SettingsScreen(
                 )
             }
 
-            // 天气
-            SettingsGroup(title = "天气") {
+            LanguageSettingsSection()
+
+            SettingsGroup(title = stringResource(R.string.group_weather)) {
                 SettingsRow(
-                    label = "天气 API Key",
+                    label = stringResource(R.string.weather_api_key),
                     value = weatherKeyDisplay,
-                    placeholder = "未设置",
+                    placeholder = stringResource(R.string.not_set),
                     onClick = { showWeatherKeyDialog = true }
                 )
                 SettingsRow(
-                    label = "天气刷新频率",
+                    label = stringResource(R.string.weather_refresh_rate),
                     value = refreshValue,
-                    placeholder = "跟随主题",
+                    placeholder = stringResource(R.string.weather_follow_theme),
                     onClick = { showRefreshDialog = true }
                 )
                 SettingsRow(
-                    label = "定位失败兜底城市",
+                    label = stringResource(R.string.weather_fallback_city),
                     value = config.fallbackCity,
-                    placeholder = "跟随主题",
+                    placeholder = stringResource(R.string.weather_follow_theme),
                     showDivider = false,
                     onClick = { showCityDialog = true }
                 )
             }
 
-            // 危险操作
             SettingsGroup(title = "") {
                 SettingsDangerRow(
                     text = stringResource(R.string.clear_pairing_info),
@@ -159,8 +157,7 @@ fun SettingsScreen(
                 )
             }
 
-            // 关于
-            SettingsGroup(title = "关于") {
+            SettingsGroup(title = stringResource(R.string.group_about)) {
                 SettingsRow(
                     label = stringResource(R.string.privacy_policy),
                     showDivider = false,
@@ -176,10 +173,10 @@ fun SettingsScreen(
         SettingsEditDialog(
             title = stringResource(R.string.device_name_label),
             initialValue = config.deviceName,
-            placeholder = "My Android",
+            placeholder = stringResource(R.string.default_device_name),
             onDismiss = { showDeviceNameDialog = false },
             onConfirm = {
-                viewModel.renameDevice(it.ifBlank { "My Android" })
+                viewModel.renameDevice(it.ifBlank { context.getString(R.string.default_device_name) })
                 toastSaved()
             }
         )
@@ -187,11 +184,11 @@ fun SettingsScreen(
 
     if (showRefreshDialog) {
         SettingsEditDialog(
-            title = "天气刷新频率（分钟）",
+            title = stringResource(R.string.weather_refresh_dialog_title),
             initialValue = if (config.weatherRefreshSeconds > 0) {
                 (config.weatherRefreshSeconds / 60).toString()
             } else "".trim(),
-            placeholder = "留空 = 跟随主题默认",
+            placeholder = stringResource(R.string.weather_refresh_dialog_hint),
             numberOnly = true,
             onDismiss = { showRefreshDialog = false },
             onConfirm = {
@@ -233,27 +230,25 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showClearConfirm = false },
             title = { Text(stringResource(R.string.clear_pairing_info)) },
-            text = { Text("确定要清除当前设备的配对信息吗？此操作不可撤销。") },
+            text = { Text(stringResource(R.string.clear_pairing_confirm_text)) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         viewModel.clearPairingInfo()
                         showClearConfirm = false
                     }
-                ) { Text("清除", color = MaterialTheme.colorScheme.error) }
+                ) { Text(stringResource(R.string.clear_confirm), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { showClearConfirm = false }) { Text("取消") }
+                TextButton(onClick = { showClearConfirm = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
 }
 
-/**
- * iOS 分组：小灰标题 + 圆角卡片（组内行由 [SettingsRow]/[SettingsDangerRow] 组成）。
- */
+/** iOS-style group: small gray header + rounded card. */
 @Composable
-private fun SettingsGroup(
+internal fun SettingsGroup(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -283,11 +278,11 @@ private fun SettingsGroup(
 }
 
 /**
- * 标准设置行：左侧标签，右侧当前值（灰色）+ chevron。
- * [placeholder] 在值为空时显示（如「跟随主题」），并以更淡的灰色呈现。
+ * Standard settings row: label on the left, current value + chevron on the
+ * right. [placeholder] shows in a fainter gray when the value is empty.
  */
 @Composable
-private fun SettingsRow(
+internal fun SettingsRow(
     label: String,
     value: String? = null,
     placeholder: String? = null,
@@ -336,9 +331,7 @@ private fun SettingsRow(
     }
 }
 
-/**
- * 危险操作行：整行居中红色文字（iOS 红色操作风格）。
- */
+/** danger row: centered red text, iOS destructive-action style. */
 @Composable
 private fun SettingsDangerRow(
     text: String,
@@ -361,9 +354,7 @@ private fun SettingsDangerRow(
     }
 }
 
-/**
- * 编辑单个字符串/数字的弹窗：用于修改设备名、刷新频率、兜底城市。
- */
+/** dialog for editing a single string/number (device name, refresh rate, fallback city). */
 @Composable
 private fun SettingsEditDialog(
     title: String,
@@ -399,14 +390,14 @@ private fun SettingsEditDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }
 
 /**
- * 城市选择弹窗：顶部搜索框 + 可滚动城市列表（数据来自 [CityOptions]），防止误输入。
- * 点击城市即选中；「清空」表示恢复跟随主题默认城市。
+ * City picker: search box + scrollable list from [CityOptions] so users can't
+ * mistype. Tapping a city selects it; "clear" restores the theme default.
  */
 @Composable
 private fun CityPickerDialog(
@@ -423,20 +414,20 @@ private fun CityPickerDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("选择兜底城市") },
+        title = { Text(stringResource(R.string.city_picker_title)) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("搜索城市，如 北京 / 上海") },
+                    placeholder = { Text(stringResource(R.string.city_picker_search_hint)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(10.dp))
                 if (filtered.isEmpty()) {
                     Text(
-                        text = "未找到匹配的城市",
+                        text = stringResource(R.string.city_picker_no_match),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -483,18 +474,16 @@ private fun CityPickerDialog(
         },
         confirmButton = {
             TextButton(onClick = { onClear(); onDismiss() }) {
-                Text("清空", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.city_picker_clear), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }
 
-/**
- * 天气 API Key 编辑弹窗：从 PC 端会员中心复制粘贴，支持清空。
- */
+/** weather API key dialog; paste from the PC membership center, can also be cleared. */
 @Composable
 private fun WeatherKeyDialog(
     initialValue: String,
@@ -504,11 +493,11 @@ private fun WeatherKeyDialog(
     var text by remember { mutableStateOf(initialValue) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("天气 API Key") },
+        title = { Text(stringResource(R.string.weather_key_dialog_title)) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "在 PC 端「会员中心 → 天气服务」申请后复制粘贴到这里。Key 仅展示一次，请妥善保存。",
+                    text = stringResource(R.string.weather_key_dialog_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -516,7 +505,7 @@ private fun WeatherKeyDialog(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it.trim() },
-                    placeholder = { Text("ALM-xxxxxxxxxxxxxxxxxxxxxxxx") },
+                    placeholder = { Text(stringResource(R.string.weather_key_placeholder)) },
                     singleLine = false,
                     minLines = 2,
                     maxLines = 4,
@@ -530,7 +519,7 @@ private fun WeatherKeyDialog(
             ) { Text(stringResource(R.string.save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }

@@ -3,18 +3,11 @@ package com.ailinkcat.mobile.data
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * JSON-RPC 2.0 协议封装。
- * 握手阶段由客户端主动发送 handshake 请求（携带配对码），
- * 服务端以 result（成功）或 error（失败）响应。
- */
+/** JSON-RPC 2.0 helpers. the client initiates the handshake request (with pairing code),
+ *  the server replies with result or error */
 object JsonRpc {
 
-    /**
-     * 构建握手请求。
-     * 示例: {"jsonrpc":"2.0","id":1,"method":"handshake",
-     *       "params":{"deviceName":"我的 Android","appVersion":"1.0.0","pairingCode":"1234"}}
-     */
+    /** e.g. {"jsonrpc":"2.0","id":1,"method":"handshake","params":{"deviceName":...,"pairingCode":...}} */
     fun buildHandshakeRequest(
         deviceName: String,
         appVersion: String,
@@ -35,9 +28,7 @@ object JsonRpc {
             .toString()
     }
 
-    /**
-     * 解析服务端下发的消息，返回消息体；非 JSON-RPC 消息返回 null。
-     */
+    /** returns null for non-JSON-RPC messages */
     fun parseMessage(json: String): RpcMessage? {
         return try {
             val root = JSONObject(json)
@@ -54,9 +45,6 @@ object JsonRpc {
         }
     }
 
-    /**
-     * 解析握手响应（handshake 的 result 或 error）。
-     */
     fun parseHandshakeResponse(json: String): HandshakeResult {
         return try {
             val root = JSONObject(json)
@@ -91,10 +79,6 @@ object JsonRpc {
         }
     }
 
-    /**
-     * 构建 JSON-RPC 请求。
-     * 示例: {"jsonrpc":"2.0","id":2,"method":"action.execute","params":{...}}
-     */
     fun buildRequest(method: String, params: JSONObject, id: Int): String {
         return JSONObject()
             .put("jsonrpc", "2.0")
@@ -104,10 +88,6 @@ object JsonRpc {
             .toString()
     }
 
-    /**
-     * 构建 JSON-RPC 成功响应。
-     * 示例: {"jsonrpc":"2.0","id":1,"result":{"status":"ready","themeId":"perf-dashboard"}}
-     */
     fun buildResponse(id: Int, result: JSONObject): String {
         return JSONObject()
             .put("jsonrpc", "2.0")
@@ -116,10 +96,6 @@ object JsonRpc {
             .toString()
     }
 
-    /**
-     * 构建 JSON-RPC 错误响应。
-     * 示例: {"jsonrpc":"2.0","id":1,"error":{"code":-32020,"message":"User rejected the push"}}
-     */
     fun buildErrorResponse(id: Int, code: Int, message: String): String {
         return JSONObject()
             .put("jsonrpc", "2.0")

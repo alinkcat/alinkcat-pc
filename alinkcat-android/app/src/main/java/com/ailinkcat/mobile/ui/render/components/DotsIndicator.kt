@@ -14,9 +14,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-/**
- * 页面指示点：当前页为主色圆点，其他页为灰色圆点。
- */
 @Composable
 fun DotsIndicator(
     pageCount: Int,

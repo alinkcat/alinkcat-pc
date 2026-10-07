@@ -23,6 +23,7 @@ service/        HTTP 服务、天气数据服务
 websocket/      连接管理、主题包推送接收
 ui/             页面、渲染引擎、控件渲染器、ViewModel
 utils/          图片、文件、颜色、农历等工具
+i18n/           多语言：LanguageManager、LanguagePackParser、LanguagePackContextWrapper、LanguageViewModel
 cpp/            native 签名校验
 ```
 
@@ -31,6 +32,15 @@ cpp/            native 签名校验
 - `MainActivity`（竖屏入口，release 校验签名）→ `AlinkcatApp` 组合根 → `Navigation`（6 个目的地：splash / onboarding / main / scanner / settings / profile）。
 - `ThemeRenderActivity`（主题包渲染页，全屏沉浸，横竖屏跟随主题）独立于 NavHost，通过 `themeId` 启动。
 - 主界面 4 个 Tab（主题 / 宏 / 配置 / 我的），Tab 切换为 `when(selectedTab)` 直换屏幕。
+- 两个 Activity 均通过 `attachBaseContext` 注入语言；`AlinkcatApplication`（manifest `android:name`）在 attachBaseContext 同步初始化 LanguageManager。
+
+## 多语言（i18n）
+
+- 入口单例 `i18n/LanguageManager`：语言选择（原生 en/zh / 动态包）持久化于 SharedPreferences（`ilinkcat_prefs` / `app_language`），首启严格英文。
+- **运行时拦截**：`i18n/LanguagePackContextWrapper`（`ContextWrapper` + `Resources` 子类 `PackResources`）在 Activity attachBaseContext 注入，重写 `getString`/`getText` 查动态包 Map；Compose `stringResource` 经 `LocalContext.resources` 自动路由，**UI 调用点零迁移**。
+- 服务层（非 Compose 类，持有 applicationContext）显式用 `LanguageManager.getString(resId, args)`。
+- 语言包校验 `i18n/LanguagePackParser`（纯函数，可单测）；设置页 `ui/config/LanguageSettingsSection` + `i18n/LanguageViewModel` 提供选择/SAF 导入/URL 下载/导出模板/包管理。
+- 兜底语义：动态包缺 key 回退英文（激活期间强制 locale=en）；详细协议见 `docs/多语言与语言包协议.md`。
 
 ## 状态管理
 

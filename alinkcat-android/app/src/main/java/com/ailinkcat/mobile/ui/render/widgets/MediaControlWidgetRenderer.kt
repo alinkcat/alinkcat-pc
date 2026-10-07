@@ -53,12 +53,10 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * 本地插值：播放中的进度条以 60fps 平滑滚动，不依赖后端推送。
- * - remember 与 LaunchedEffect 的键完全一致（含 position/duration），
- *   避免 position 变化时 remember 重建而插值循环未重启，导致进度冻结/回跳；
- * - baseSystemTime <= 0（MediaState 默认 0）时后端未推插值基线：
- *   以当前 position + 当前时间为基准重建基线，进度从当前位置继续平滑前进；
- * - 插值结果 clamp 到 [0, duration]，避免进度条满格或负数。
+ * Interpolates the progress bar locally at 60fps instead of waiting for pushes.
+ * remember/LaunchedEffect keys must stay in sync so a position change doesn't
+ * freeze or rewind the bar; rebuilds the baseline when baseSystemTime <= 0;
+ * clamps to [0, duration].
  */
 @Composable
 private fun useDisplayPosition(state: MediaState): Float {
@@ -72,7 +70,7 @@ private fun useDisplayPosition(state: MediaState): Float {
             displayPos.value = state.position.toFloat()
             return@LaunchedEffect
         }
-        // 基线兜底：baseSystemTime <= 0 时用当前时间，basePosition 缺失时用当前 position 重建
+        // fallback baseline when baseSystemTime <= 0 (MediaState's default)
         val baseTime = if (state.baseSystemTime > 0L) state.baseSystemTime else System.currentTimeMillis()
         val basePos = if (state.baseSystemTime > 0L) state.basePosition else state.position
         while (true) {
@@ -86,10 +84,7 @@ private fun useDisplayPosition(state: MediaState): Float {
     return displayPos.value
 }
 
-/**
- * 媒体播放与控制组件：毛玻璃深色卡片，显示封面、歌名、进度条、控制按钮。
- * 支持 displayMode = always / playing_only。
- */
+/** media player card: cover, title, progress, controls. displayMode = always / playing_only. */
 @Composable
 fun MediaControlWidgetRenderer(
     widget: MediaControlWidget,
@@ -130,135 +125,276 @@ private fun ActiveMediaCard(
             .padding(4.dp)
     ) {
         val cw = maxWidth.value
-        val coverSize = (maxHeight - 8.dp).coerceAtMost((cw * 0.18f).dp)
+        val ch = maxHeight.value
+        when {
+            // full card needs ~280dp of width for cover + text + controls
+            cw >= 280f && ch >= 130f ->
+                FullMediaLayout(widget, state, cw, ch, onPlayPause, onPrev, onNext, onVolumeChange)
+            cw >= 170f && ch >= 70f ->
+                CompactMediaLayout(widget, state, cw, ch, onPlayPause, onPrev, onNext)
+            else ->
+                MiniMediaLayout(widget, state, cw, ch, onPlayPause, onNext)
+        }
+    }
+}
+
+@Composable
+private fun MediaCardBackground(content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xCC1E1E2E),
+                        Color(0xCC2A1A3A)
+                    )
+                )
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content
+    )
+}
+
+@Composable
+private fun CoverImage(state: MediaState, size: Int) {
+    Box(
+        modifier = Modifier
+            .size(size.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF333344)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (state.coverUrl.isNullOrBlank()) {
+            Text("🎵", fontSize = (size * 0.5f).sp)
+        } else {
+            AsyncImage(
+                model = state.coverUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+/** full layout: cover + title/artist/progress/controls/volume, for large cells */
+@Composable
+private fun FullMediaLayout(
+    widget: MediaControlWidget,
+    state: MediaState,
+    cw: Float,
+    ch: Float,
+    onPlayPause: () -> Unit,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onVolumeChange: (Int) -> Unit
+) {
+    MediaCardBackground {
+        val coverSize = (ch - 16f).coerceAtMost(cw * 0.18f).toInt()
         val titleSize = (cw * 0.045f).coerceIn(11f, 18f).sp
         val artistSize = (cw * 0.035f).coerceIn(9f, 14f).sp
         val timeSize = (cw * 0.03f).coerceIn(8f, 11f).sp
         val btnSize = (cw * 0.07f).coerceIn(24f, 40f)
 
-        Row(
+        if (widget.showCover) {
+            Box(modifier = Modifier.padding(8.dp)) {
+                CoverImage(state, coverSize)
+            }
+            Spacer(Modifier.width(10.dp))
+        }
+
+        // scrollable when the cell is short so progress/volume don't get crushed
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(14.dp))
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            Color(0xCC1E1E2E),
-                            Color(0xCC2A1A3A)
-                        )
-                    )
-                )
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center
         ) {
-            // 封面区
-            if (widget.showCover) {
-                Box(
-                    modifier = Modifier
-                        .size(coverSize)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF333344)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (state.coverUrl.isNullOrBlank()) {
-                        Text("🎵", fontSize = (coverSize * 0.5f).value.sp)
-                    } else {
-                        AsyncImage(
-                            model = state.coverUrl,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-                Spacer(Modifier.width(10.dp))
+            Text(
+                text = state.title ?: stringResource(R.string.not_playing),
+                color = Color.White,
+                fontSize = titleSize,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = state.artist ?: "",
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = artistSize,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            MediaProgressSection(showProgress = widget.showProgress, state = state, timeSize = timeSize)
+
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ControlButton("⏮", btnSize, onPrev)
+                Spacer(Modifier.width((btnSize * 0.6f).dp))
+                ControlButton(
+                    text = if (state.isPlaying) "⏸" else "▶️",
+                    size = btnSize,
+                    onClick = onPlayPause
+                )
+                Spacer(Modifier.width((btnSize * 0.6f).dp))
+                ControlButton("⏭", btnSize, onNext)
             }
 
-            // 文本信息 + 进度 + 控制
-            // 容器高度不足时内容可纵向滚动，避免进度条/音量被挤压
-            Column(
+            // volume
+            Spacer(Modifier.height(4.dp))
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.Center
+                    .fillMaxWidth()
+                    .height(32.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // 歌名
-                Text(
-                    text = state.title ?: stringResource(R.string.not_playing),
-                    color = Color.White,
-                    fontSize = titleSize,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                Text("🔊", fontSize = (timeSize.value + 2).sp, color = Color.White.copy(alpha = 0.5f))
+                Spacer(Modifier.width(6.dp))
+                // clamp to 0..100; the backend can push out-of-range values
+                val clampedVolume = state.volume.coerceIn(0, 100)
+                val sliderVolume = remember(clampedVolume) { mutableStateOf(clampedVolume.toFloat()) }
+                Slider(
+                    value = sliderVolume.value,
+                    onValueChange = { sliderVolume.value = it },
+                    onValueChangeFinished = { onVolumeChange(sliderVolume.value.roundToInt().coerceIn(0, 100)) },
+                    valueRange = 0f..100f,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp),
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color(0xFF4F6EF7),
+                        activeTrackColor = Color(0xFF4F6EF7),
+                        inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+                    )
                 )
-                // 歌手
                 Text(
-                    text = state.artist ?: "",
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = artistSize,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = String.format("%.0f", sliderVolume.value),
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = timeSize
                 )
-
-                // 进度条（本地插值）：插值状态只存在于 MediaProgressSection 内部，
-                // 60fps 更新不会导致封面 AsyncImage / 音量 Slider 等兄弟组件每帧重组
-                MediaProgressSection(showProgress = widget.showProgress, state = state, timeSize = timeSize)
-
-                // 控制按钮
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ControlButton("⏮", btnSize, onPrev)
-                    Spacer(Modifier.width((btnSize * 0.6f).dp))
-                    ControlButton(
-                        text = if (state.isPlaying) "⏸" else "▶️",
-                        size = btnSize,
-                        onClick = onPlayPause
-                    )
-                    Spacer(Modifier.width((btnSize * 0.6f).dp))
-                    ControlButton("⏭", btnSize, onNext)
-                }
-
-                // 音量调节
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("🔊", fontSize = (timeSize.value + 2).sp, color = Color.White.copy(alpha = 0.5f))
-                    Spacer(Modifier.width(6.dp))
-                    // 音量 clamp 到 0..100：兼容后端可能推送越界值（展示与上报同源）
-                    val clampedVolume = state.volume.coerceIn(0, 100)
-                    val sliderVolume = remember(clampedVolume) { mutableStateOf(clampedVolume.toFloat()) }
-                    Slider(
-                        value = sliderVolume.value,
-                        onValueChange = { sliderVolume.value = it },
-                        onValueChangeFinished = { onVolumeChange(sliderVolume.value.roundToInt().coerceIn(0, 100)) },
-                        valueRange = 0f..100f,
-                        modifier = Modifier.weight(1f),
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFF4F6EF7),
-                            activeTrackColor = Color(0xFF4F6EF7),
-                            inactiveTrackColor = Color.White.copy(alpha = 0.15f)
-                        )
-                    )
-                    Text(
-                        text = String.format("%.0f", sliderVolume.value),
-                        color = Color.White.copy(alpha = 0.5f),
-                        fontSize = timeSize
-                    )
-                }
             }
         }
     }
 }
 
-/**
- * 进度条 + 时间文本：60fps 插值状态局部化在此组件内，
- * 高频重组不会扩散到封面 / 音量滑块等兄弟组件。
- */
+/** compact layout: cover + text + progress + controls, volume hidden below ~280dp width */
+@Composable
+private fun CompactMediaLayout(
+    widget: MediaControlWidget,
+    state: MediaState,
+    cw: Float,
+    ch: Float,
+    onPlayPause: () -> Unit,
+    onPrev: () -> Unit,
+    onNext: () -> Unit
+) {
+    MediaCardBackground {
+        val coverSize = (ch - 12f).coerceAtMost(52f).toInt()
+        val titleSize = (cw * 0.055f).coerceIn(11f, 15f).sp
+        val artistSize = (cw * 0.04f).coerceIn(9f, 12f).sp
+        val timeSize = 9.sp
+        val btnPlay = 30f
+        val btnSide = 22f
+
+        if (widget.showCover) {
+            Box(modifier = Modifier.padding(6.dp)) {
+                CoverImage(state, coverSize)
+            }
+            Spacer(Modifier.width(8.dp))
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 4.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = state.title ?: stringResource(R.string.not_playing),
+                color = Color.White,
+                fontSize = titleSize,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (widget.showProgress && state.duration > 0L) {
+                Spacer(Modifier.height(3.dp))
+                val progress = useDisplayPosition(state)
+                LinearProgressIndicator(
+                    progress = { (progress / state.duration.toFloat()).coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = Color(0xFF4F6EF7),
+                    trackColor = Color.White.copy(alpha = 0.15f)
+                )
+            } else if (!state.artist.isNullOrBlank()) {
+                Text(
+                    text = state.artist,
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = artistSize,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ControlButton("⏮", btnSide, onPrev)
+                Spacer(Modifier.width(12.dp))
+                ControlButton(
+                    text = if (state.isPlaying) "⏸" else "▶️",
+                    size = btnPlay,
+                    onClick = onPlayPause
+                )
+                Spacer(Modifier.width(12.dp))
+                ControlButton("⏭", btnSide, onNext)
+            }
+        }
+    }
+}
+
+/** mini layout (1x1-ish cells): just cover + play/next, everything else dropped */
+@Composable
+private fun MiniMediaLayout(
+    widget: MediaControlWidget,
+    state: MediaState,
+    cw: Float,
+    ch: Float,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit
+) {
+    MediaCardBackground {
+        val btn = (ch * 0.62f).coerceIn(26f, 40f)
+        if (widget.showCover && cw >= 100f) {
+            Box(modifier = Modifier.padding(5.dp)) {
+                CoverImage(state, (ch - 10f).toInt())
+            }
+            Spacer(Modifier.width(8.dp))
+        }
+        ControlButton(
+            text = if (state.isPlaying) "⏸" else "▶️",
+            size = btn,
+            onClick = onPlayPause
+        )
+        if (cw >= 120f) {
+            Spacer(Modifier.width(10.dp))
+            ControlButton("⏭", btn * 0.8f, onNext)
+        }
+    }
+}
+
+/** progress + time; the 60fps interpolation state stays local so siblings don't recompose every frame. */
 @Composable
 private fun MediaProgressSection(showProgress: Boolean, state: MediaState, timeSize: TextUnit) {
     if (!showProgress || state.duration <= 0L) return
@@ -294,7 +430,7 @@ private fun MediaProgressSection(showProgress: Boolean, state: MediaState, timeS
 
 @Composable
 private fun PlaceholderMediaCard(widget: MediaControlWidget, onPlayPause: () -> Unit = {}) {
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(4.dp)
@@ -302,28 +438,11 @@ private fun PlaceholderMediaCard(widget: MediaControlWidget, onPlayPause: () -> 
             .background(Color(0x661E1E2E)),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // 灰色唱片占位
+        if (maxHeight < 70.dp) {
+            // small cell: play button only
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x33FFFFFF)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("🎵", fontSize = 18.sp, color = Color.White.copy(alpha = 0.3f))
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = widget.label,
-                color = Color.White.copy(alpha = 0.4f),
-                fontSize = 13.sp
-            )
-            Spacer(Modifier.height(8.dp))
-            // 播放按钮，点击唤起 PC 端播放
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
+                    .size(34.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.12f))
                     .clickable(
@@ -333,7 +452,43 @@ private fun PlaceholderMediaCard(widget: MediaControlWidget, onPlayPause: () -> 
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text("▶️", fontSize = 16.sp)
+                Text("▶️", fontSize = 15.sp)
+            }
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x33FFFFFF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🎵", fontSize = 18.sp, color = Color.White.copy(alpha = 0.3f))
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = widget.label,
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.12f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onPlayPause
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("▶️", fontSize = 16.sp)
+                }
             }
         }
     }

@@ -29,9 +29,6 @@ import com.ailinkcat.mobile.ui.theme.BrandBlue
 import com.ailinkcat.mobile.ui.theme.BrandPurple
 import kotlinx.coroutines.delay
 
-/**
- * 启动页：品牌渐变背景 + Logo，停留 1 秒后自动跳转首页。
- */
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
     LaunchedEffect(Unit) {
@@ -77,7 +74,7 @@ fun SplashScreen(onFinished: () -> Unit) {
         }
 
         Text(
-            text = "v1.0.0",
+            text = "v${com.ailinkcat.mobile.BuildConfig.VERSION_NAME}",
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 32.dp),

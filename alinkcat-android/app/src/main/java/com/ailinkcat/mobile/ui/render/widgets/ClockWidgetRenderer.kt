@@ -3,6 +3,7 @@ package com.ailinkcat.mobile.ui.render.widgets
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,16 +33,13 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.min
 import com.ailinkcat.mobile.domain.models.ClockWidget
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.cos
 import kotlin.math.sin
 
-/**
- * 时钟组件：支持数字时钟和模拟时钟两种模式。
- * 数字时钟保留原有逻辑，模拟时钟用 Compose Canvas 绘制。
- */
 @Composable
 fun ClockWidgetRenderer(widget: ClockWidget) {
     if (widget.clockDisplay == "analog") {
@@ -51,16 +49,13 @@ fun ClockWidgetRenderer(widget: ClockWidget) {
     }
 }
 
-// 数字时钟
-
 @Composable
 private fun DigitalClockContent(widget: ClockWidget) {
     var timeText by remember { mutableStateOf("") }
     var weekText by remember { mutableStateOf("") }
     var shownDate by remember { mutableStateOf(java.time.LocalDate.now()) }
-    // 每秒循环，但只在内容真正变化时写入状态（state 写入才触发重组）：
-    // - 秒模式：每秒更新；分钟模式：跨分钟后立即更新，避免原 60s 间隔造成的 1 分钟滞后；
-    // - 星期/日期仅在跨天时更新（午夜 ticker 效果）。
+    // poll every second but only write state when the content changed;
+    // minute mode updates right after rollover, weekday/date only at midnight
     LaunchedEffect(Unit) {
         while (true) {
             val now = LocalTime.now()
@@ -85,7 +80,7 @@ private fun DigitalClockContent(widget: ClockWidget) {
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(6.dp)
@@ -95,11 +90,15 @@ private fun DigitalClockContent(widget: ClockWidget) {
             ),
         contentAlignment = Alignment.Center
     ) {
+        val edge = min(maxWidth.value, maxHeight.value)
+        val timeSize = adaptiveSp(edge, null, 28f, 13f, 120f)
+        val weekSize = (timeSize.value * 0.5f).coerceAtLeast(10f).sp
+        val labelSize = (timeSize.value * 0.4f).coerceAtLeast(9f).sp
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = timeText,
                 color = Color.White,
-                fontSize = 28.sp,
+                fontSize = timeSize,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 2.sp
             )
@@ -108,7 +107,7 @@ private fun DigitalClockContent(widget: ClockWidget) {
                 Text(
                     text = weekText,
                     color = Color.White.copy(alpha = 0.85f),
-                    fontSize = 16.sp,
+                    fontSize = weekSize,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -117,14 +116,12 @@ private fun DigitalClockContent(widget: ClockWidget) {
                 Text(
                     text = widget.label,
                     color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 12.sp
+                    fontSize = labelSize
                 )
             }
         }
     }
 }
-
-// 模拟时钟
 
 private fun parseColor(hex: String): Color {
     return try {
@@ -147,9 +144,9 @@ private fun AnalogClockContent(widget: ClockWidget) {
 
     val faceColor = remember(widget.faceColor) { parseColor(widget.faceColor) }
     val handColor = remember(widget.handColor) { parseColor(widget.handColor) }
-    // 纯 Compose 文本绘制：TextMeasurer 与 Canvas 其余 draw 调用处于同一坐标空间
+    // pure Compose text drawing: TextMeasurer shares the Canvas coordinate space
     val textMeasurer = rememberTextMeasurer()
-    // Canvas DrawScope 内的 density 在本版本解析不稳定，从组合层捕获使用
+    // density resolution inside DrawScope is flaky in this Compose version; grab it in composition
     val density = LocalDensity.current
 
     Box(
@@ -199,10 +196,10 @@ private fun AnalogClockContent(widget: ClockWidget) {
             }
 
             // ── Numbers (12, 1, …, 11) ──
-            // 纯 Compose 绘制：TextMeasurer + drawText 与其余 draw 调用处于同一坐标空间，
-            // 不再混用 nativeCanvas（原生 Paint 与 Compose 的坐标/变换不一致，会导致数字偏移）
+            // no nativeCanvas mixing here: native Paint and Compose transforms
+            // disagree, which used to offset the numbers
             if (widget.showNumbers) {
-                // px → sp：radius 为像素值，先除以 density.density 转 dp 再转 sp（忽略 fontScale 近似）
+                // radius is in px; divide by density then convert to sp (fontScale ignored)
                 val textSize = (radius * 0.16f / density.density).sp
                 val numRadius = radius * 0.75f
                 val numbers = listOf(12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
@@ -219,7 +216,7 @@ private fun AnalogClockContent(widget: ClockWidget) {
                             textAlign = TextAlign.Center
                         )
                     )
-                    // 以文本中心对齐刻度位置（等价于原 Paint 的 CENTER 对齐）
+                    // center the text on the tick position
                     drawText(
                         textLayoutResult = layout,
                         topLeft = Offset(nx - layout.size.width / 2f, ny - layout.size.height / 2f)

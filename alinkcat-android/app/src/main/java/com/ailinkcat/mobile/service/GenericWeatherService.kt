@@ -7,9 +7,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * 把 widget JSON 中的请求配置转成 WeatherInfo DTO：经 GenericHttpService 发请求，按映射路径抽取字段。
- */
+/** turns a widget's request config into a WeatherInfo: fetch via GenericHttpService, extract fields by mapping paths */
 object GenericWeatherService {
     data class WeatherWidgetConfig(
         val requestUrl: String,
@@ -56,13 +54,12 @@ object GenericWeatherService {
     )
 
     suspend fun fetchWeather(config: WeatherWidgetConfig): WeatherInfo = withContext(Dispatchers.IO) {
-        // 1. 渲染占位符
         val vars = mutableMapOf<String, String>("city" to config.city, "apiKey" to config.apiKey)
         config.extraParams?.forEach { (k, v) -> vars[k] = v }
         fun render(tpl: String): String = tpl.replace(Regex("\$\\{([^}]+)}")) { match ->
             vars[match.groupValues[1].trim()] ?: ""
         }
-        // URL 占位符值做百分号编码，避免中文等非 ASCII 字符破坏 URL
+        // percent-encode url placeholder values so cjk etc. don't break the url
         fun renderUrl(tpl: String): String = tpl.replace(Regex("\$\\{([^}]+)}")) { match ->
             val v = vars[match.groupValues[1].trim()] ?: ""
             URLEncoder.encode(v, "UTF-8")
@@ -71,7 +68,6 @@ object GenericWeatherService {
         val headers = config.requestHeaders?.mapValues { (_, v) -> render(v) } ?: emptyMap()
         val body = config.requestBody?.let { render(it) }
 
-        // 2. 发请求
         val raw: JSONObject = GenericHttpService.request(
             url = url,
             method = config.requestMethod,
@@ -79,9 +75,8 @@ object GenericWeatherService {
             body = body
         )
 
-        // 3. 映射字段
         val map = config.responseMapping
-        // wttr.in j1 的数字字段是字符串（如 "27"），统一兼容 Number / String / JSONArray{value}
+        // wttr.in j1 numbers come as strings ("27"), accept Number/String/JSONArray{value}
         fun jsonToNumber(v: Any?): Double? = when (v) {
             is Number -> v.toDouble()
             is String -> v.toDoubleOrNull()
@@ -100,12 +95,12 @@ object GenericWeatherService {
         val forecastArray = map.forecastPath?.let { JsonPath.get(raw, it) as? JSONArray }
         if (forecastArray != null) {
             for (i in 0 until forecastArray.length()) {
-                // optJSONObject：坏项跳过，不影响整条预报
+                // skip bad entries so one broken day doesn't kill the forecast
                 val obj = forecastArray.optJSONObject(i) ?: continue
-                // 字段名兼容：maxtempC/mintempC、tempMax/tempMin、temp_max/temp_min
+                // field name variants: maxtempC/mintempC, tempMax/tempMin, temp_max/temp_min
                 var condition = obj.optString("weather", obj.optString("condition", ""))
                 var icon = obj.optString("icon", "")
-                // wttr 的 condition/icon 在 hourly[0]（weatherDesc / weatherCode）
+                // wttr keeps condition/icon in hourly[0] (weatherDesc / weatherCode)
                 val hourly = obj.optJSONArray("hourly")
                 if (hourly != null && hourly.length() > 0) {
                     val h0 = hourly.optJSONObject(0) ?: continue

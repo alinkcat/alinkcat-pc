@@ -32,17 +32,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * 页面渲染器：
- * 1. 背景层：底色（按 backgroundOpacity 应用透明度）-> 背景图（Coil 加载，cover/contain/stretch）
- * 2. tile 平铺模式用 BitmapShader
- * 3. GRID：gridRow/gridCol 精确定位 + 自动填充
- *    FREE：百分比坐标 / 设计像素坐标等比缩放
- * 4. isLandscape 参数用于横竖屏适配，传递给子布局组件
- *
- * 安全区域：
- * - 背景层保持整屏边缘到边延伸，视觉连续
- * - 控件层应用 WindowInsets.safeDrawing（状态栏 + 导航栏 + 刘海/挖孔），
- *   保证主题内容不被刘海/挖孔遮挡
+ * Page renderer: background layer (color + image, cover/contain/stretch, tile
+ * via BitmapShader), then the widget layer inset by safe area insets. The
+ * background bleeds edge-to-edge; only widgets avoid notch/cutout.
  */
 @Composable
 fun PageRenderer(
@@ -60,7 +52,7 @@ fun PageRenderer(
     val bgMode = page.backgroundMode ?: "cover"
     val isTile = bgMode == "tile" || bgMode == "repeat"
 
-    // 背景图路径规范化：拒绝绝对路径与 .. 穿越（主题包输入不可信，防止越界读文件）
+    // theme pack input isn't trusted: reject absolute paths and ".." traversal
     val bgImagePath = remember(themeId, page.backgroundImage) {
         page.backgroundImage?.takeIf { it.isNotBlank() && !it.startsWith("data:") }?.let { raw ->
             val normalized = raw.replace('\\', '/')
@@ -75,7 +67,7 @@ fun PageRenderer(
         bgImagePath?.let { File(themeDir, "$themeId/$it") }
     }
 
-    // tile 模式需要原始位图做 BitmapShader
+    // tile mode needs the raw bitmap for BitmapShader
     val bgBitmap by produceState<Bitmap?>(initialValue = null, themeId, bgImagePath, isTile) {
         value = if (isTile) {
             withContext(Dispatchers.IO) {
@@ -95,14 +87,12 @@ fun PageRenderer(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 背景底色
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(bgColor.copy(alpha = bgColor.alpha * bgOpacity))
         )
 
-        // 背景图（非 tile 用 Coil）
         if (!isTile && bgFile != null && bgFile.exists()) {
             val scale = when (bgMode) {
                 "contain" -> ContentScale.Fit
@@ -118,7 +108,6 @@ fun PageRenderer(
             )
         }
 
-        // 背景图（tile 平铺）
         if (tileBrush != null) {
             Box(
                 modifier = Modifier
@@ -127,7 +116,6 @@ fun PageRenderer(
             )
         }
 
-        // 控件层（避开刘海/挖孔安全区）
         Box(
             modifier = Modifier
                 .fillMaxSize()

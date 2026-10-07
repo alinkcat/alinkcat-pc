@@ -6,20 +6,20 @@ import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
-/** 文件操作工具：大小/速度格式化、SHA-256 校验、.alc（zip）解压。 */
+/** file helpers: size/speed formatting, sha-256, .alc (zip) extraction */
 object FileUtils {
 
-    /** zip 炸弹防护：累计解压字节上限（500MB）。 */
+    // zip bomb guard: 500MB total uncompressed
     private const val MAX_UNZIP_BYTES = 500L * 1024 * 1024
 
-    /** zip 炸弹防护：entry 数量上限（5000）。 */
+    // zip bomb guard: 5000 entries
     private const val MAX_UNZIP_ENTRIES = 5000
 
     fun ensureDirs(vararg dirs: File) {
         dirs.forEach { if (!it.exists()) it.mkdirs() }
     }
 
-    /** 存储空间检查：目录可用空间需大于 requiredBytes × reserveMultiplier（默认 1.5 倍）。 */
+    /** usable space must exceed requiredBytes x reserveMultiplier (default 1.5) */
     fun hasEnoughSpace(
         directory: File,
         requiredBytes: Long,
@@ -46,7 +46,7 @@ object FileUtils {
         return String.format("%.2f MB/s", kbPerSecond / 1024f)
     }
 
-    /** 计算文件 SHA-256（小写十六进制）。 */
+    /** file sha-256 as lowercase hex */
     fun sha256(file: File): String? {
         return try {
             val digest = MessageDigest.getInstance("SHA-256")
@@ -64,7 +64,8 @@ object FileUtils {
         }
     }
 
-    /** 解压 .alc（zip）到目标目录，带路径穿越与 zip 炸弹防护（超限立即中断并清理）。 */
+    /** unzip a .alc to destDir with path traversal and zip bomb protection;
+     *  bails out and cleans up when a limit is hit */
     fun unzipTo(zipFile: File, destDir: File): Boolean {
         return try {
             destDir.mkdirs()
@@ -76,7 +77,7 @@ object FileUtils {
                     val entry = entries.nextElement()
                     entryCount++
                     if (entryCount > MAX_UNZIP_ENTRIES) {
-                        // entry 数超限，视为 zip 炸弹
+                        // too many entries, treat as a zip bomb
                         destDir.deleteRecursively()
                         return false
                     }
@@ -94,7 +95,7 @@ object FileUtils {
                                     output.write(buffer, 0, read)
                                     totalBytes += read
                                     if (totalBytes > MAX_UNZIP_BYTES) {
-                                        // 解压字节超限，视为 zip 炸弹
+                                        // too many bytes, treat as a zip bomb
                                         destDir.deleteRecursively()
                                         return false
                                     }

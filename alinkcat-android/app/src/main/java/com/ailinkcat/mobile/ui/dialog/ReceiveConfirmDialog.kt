@@ -34,10 +34,9 @@ import com.ailinkcat.mobile.utils.FileUtils
 import com.ailinkcat.mobile.websocket.models.ReceiveState
 
 /**
- * 收到推送后的确认对话框：询问用户是否接收主题包。
- * - 不可通过返回键 / 点击外部关闭
- * - 10 秒无操作自动拒绝（由 ViewModel 定时触发）
- * - 用户"接收"后回复 ready 开始传输；"拒绝"后回复 rejected（-32020）
+ * Push dialog asking whether to accept an incoming theme pack. Can't be
+ * dismissed with back/outside tap; auto-rejects after 10s of no action
+ * (timer lives in the ViewModel). Replying ready/rejected drives the transfer.
  */
 @Composable
 fun ReceiveConfirmDialog(

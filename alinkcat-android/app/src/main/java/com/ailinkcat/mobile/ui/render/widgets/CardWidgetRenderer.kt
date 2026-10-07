@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,18 +28,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.min
 import coil.compose.AsyncImage
 import com.ailinkcat.mobile.domain.models.CardWidget
 import com.ailinkcat.mobile.ui.render.parseFontWeight
 import com.ailinkcat.mobile.utils.ColorParser
 import java.io.File
 
-/**
- * 信息卡片控件：整合文本（标题/描述）+ 配图 + 标签 + 底部辅助文字。
- * 图片位置支持 top / left / right，使用 Coil 加载。
- * 图片路径解析：data: URI 直接使用，否则相对于 themeDir/themeId 目录。
- * 适配移动端：自适应容器尺寸，文字溢出省略号，标签药丸样式。
- */
+/** info card widget: title/desc + image (top/left/right) + tags + footer. */
 @Composable
 fun CardWidgetRenderer(
     widget: CardWidget,
@@ -51,13 +48,7 @@ fun CardWidgetRenderer(
     )
     val fg = ColorParser.parse(widget.textColor, Color(0xFF333333))
     val radius = (widget.borderRadius ?: 6).dp
-    val baseFontSize = (widget.fontSize ?: 12).sp
-    val titleFontSize = if (baseFontSize.value < 14f) 14.sp else baseFontSize
-    val descFontSize = baseFontSize
-    val tagFontSize = (baseFontSize.value * 0.75f).coerceAtLeast(9f).sp
-
     val hasImage = !widget.cardImage.isNullOrBlank()
-    // 解析图片路径：data: URI 直接使用，否则拼接主题目录
     val resolvedImage = remember(widget.cardImage) {
         when {
             widget.cardImage.isNullOrBlank() -> null
@@ -69,12 +60,17 @@ fun CardWidgetRenderer(
     // top layout: column, side layout: row
     val isSide = widget.cardImagePosition == "left" || widget.cardImagePosition == "right"
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(radius))
             .background(bg)
     ) {
+        val cardEdge = min(maxWidth.value, maxHeight.value)
+        val baseFontSize = adaptiveSp(cardEdge, widget.fontSize, 12f, 9f, 24f)
+        val titleFontSize = if (baseFontSize.value < 14f) 14.sp else baseFontSize
+        val descFontSize = baseFontSize
+        val tagFontSize = (baseFontSize.value * 0.75f).coerceAtLeast(9f).sp
         if (isSide) {
             // left/right: Row layout
             Row(

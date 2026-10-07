@@ -24,10 +24,7 @@ import com.ailinkcat.mobile.domain.models.ButtonWidget
 import com.ailinkcat.mobile.ui.render.parseFontWeight
 import com.ailinkcat.mobile.utils.ColorParser
 
-/**
- * 按钮控件：图标 + 标签，点击触发 action.execute。
- * 文字/图标大小随控件容器等比缩放。
- */
+/** button widget: icon + label, tap sends action.execute. Font scales with the cell. */
 @Composable
 fun ButtonWidgetRenderer(
     widget: ButtonWidget,

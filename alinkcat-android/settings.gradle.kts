@@ -7,7 +7,7 @@ pluginManagement {
                 includeGroupByRegex("androidx.*")
             }
         }
-        // 阿里云镜像（优先，替代直连 mavenCentral，国内网络更稳定）
+        // aliyun mirror first, more reliable than hitting mavenCentral directly from cn networks
         maven { url = uri("https://maven.aliyun.com/repository/public") }
         maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
         mavenCentral()
@@ -21,7 +21,7 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
-        // 阿里云镜像（优先，替代直连 mavenCentral，国内网络更稳定）
+        // aliyun mirror first, more reliable than hitting mavenCentral directly from cn networks
         maven { url = uri("https://maven.aliyun.com/repository/public") }
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         mavenCentral()

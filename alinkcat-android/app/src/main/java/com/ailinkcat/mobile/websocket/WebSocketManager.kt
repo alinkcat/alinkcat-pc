@@ -25,10 +25,8 @@ import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * 主题包推送原始消息处理器（接收 ThemePush* 消息，交由 PushReceiveManager 实现）。
- * 携带 JSON-RPC 请求 id 用于回执（ready/rejected/chunk ack 等）。
- */
+/** raw handler for theme.push.* messages; carries the JSON-RPC request id for replies */
+
 interface PushMessageHandler {
     fun onThemePushStart(requestId: Int, params: ThemePushStart)
     fun onThemePushChunk(requestId: Int, params: ThemePushChunk)
@@ -37,9 +35,7 @@ interface PushMessageHandler {
     fun onThemePushError(requestId: Int, params: ThemePushError)
 }
 
-/**
- * 推送接收状态监听器（注册在 ViewModel 中，用于驱动进度对话框）。
- */
+/** push receive state listener, registered on the ViewModel to drive the progress dialog */
 interface PushReceiveListener {
     fun onPushStart(state: ReceiveState)
     fun onPushProgress(state: ReceiveState)
@@ -49,11 +45,8 @@ interface PushReceiveListener {
 }
 
 /**
- * 基于 OkHttp 的 WebSocket 客户端。
- * - URL 格式：ws://{ip}:{port}，不附加任何路径
- * - 连接超时：5 秒；握手超时：10 秒
- * - 连接建立后自动发送 JSON-RPC handshake 请求（携带配对码）
- * - 解析主题包推送通知（theme.push.*）并转发给 [PushMessageHandler]
+ * OkHttp websocket client. url is ws://{ip}:{port} with no extra path; sends the JSON-RPC
+ * handshake (with pairing code) right after connect and routes theme.push.* to [PushMessageHandler]
  */
 class WebSocketManager(
     private val context: Context,
@@ -81,6 +74,8 @@ class WebSocketManager(
         private const val ERR_INVALID_PAIRING_CODE = -32001
         private const val ERR_HANDSHAKE_TIMEOUT = -32002
         private const val ERR_DUPLICATE_CONNECTION = -32003
+        private const val ERR_RATE_LIMITED = -32004
+        private const val ERR_DEVICE_LIMIT = -32005
     }
 
     private val client = OkHttpClient.Builder()
@@ -96,11 +91,12 @@ class WebSocketManager(
     @Volatile
     private var expectedClose = false
 
-    /** 连接代数：每次 connect() 递增，回调校验代数一致才上报，防止旧连接孤儿回调触发重复重连。 */
+    // bumped on every connect(); callbacks from stale generations are dropped so an old
+    // connection can't trigger a duplicate reconnect
     @Volatile
     private var connectionGeneration = 0L
 
-    /** PC 端远程切换主题监听器（theme.switch）。 */
+    /** remote theme switch (theme.switch) from the PC */
     @Volatile
     var themeSwitchListener: ((themeId: String) -> Unit)? = null
 
@@ -109,7 +105,7 @@ class WebSocketManager(
     private val handshakeTimeoutTask = Runnable {
         if (handshakePending.compareAndSet(true, false)) {
             Log.e(TAG, "Handshake timeout: no response in ${HANDSHAKE_TIMEOUT_MS / 1000}s")
-            // 必须关闭底层连接，否则重连后新旧连接并存（双连接双订阅）
+            // cancel the underlying socket or a reconnect leaves two live connections
             try {
                 webSocket?.cancel()
             } catch (_: Exception) {
@@ -121,12 +117,8 @@ class WebSocketManager(
         }
     }
 
-    /**
-     * 建立连接并自动发送握手请求。
-     * @param url 形如 ws://192.168.1.100:9527
-     */
+    /** connects and sends the handshake; url like ws://192.168.1.100:9527 */
     fun connect(url: String, pairingCode: String, deviceName: String, appVersion: String) {
-        // 递增代数，让旧连接的后续回调失效
         connectionGeneration++
         val gen = connectionGeneration
         expectedClose = false
@@ -158,7 +150,26 @@ class WebSocketManager(
                 val message = JsonRpc.parseMessage(text) ?: return
                 val method = message.method
                 if (method == null) {
-                    // 无 method 的是 JSON-RPC 响应：id=1 为握手响应，其余（media.get_current 等）转发原始监听器
+                    // kick/ban errors (-32003/-32004) come without an id, intercept
+                    // them or they just show as a generic disconnect
+                    val errCode = message.error?.optInt("code", 0) ?: 0
+                    if (errCode == ERR_DUPLICATE_CONNECTION || errCode == ERR_RATE_LIMITED) {
+                        handshakePending.set(false)
+                        mainHandler.removeCallbacks(handshakeTimeoutTask)
+                        try {
+                            webSocket.cancel()
+                        } catch (_: Exception) {
+                        }
+                        listener.onConnectionFailed(
+                            if (errCode == ERR_DUPLICATE_CONNECTION) ConnectionErrorType.DUPLICATE_CONNECTION
+                            else ConnectionErrorType.UNKNOWN,
+                            message.error?.optString("message")
+                                ?: context.getString(R.string.duplicate_connection)
+                        )
+                        return
+                    }
+                    // no method = JSON-RPC response: id=1 is the handshake reply,
+                    // the rest (media.get_current etc.) goes to the raw listener
                     if (message.id == 1) {
                         handleHandshakeResponse(text)
                     } else {
@@ -238,12 +249,20 @@ class WebSocketManager(
                 ERR_INVALID_PAIRING_CODE -> ConnectionErrorType.PAIRING_CODE_ERROR
                 ERR_HANDSHAKE_TIMEOUT -> ConnectionErrorType.HANDSHAKE_TIMEOUT
                 ERR_DUPLICATE_CONNECTION -> ConnectionErrorType.DUPLICATE_CONNECTION
+                ERR_DEVICE_LIMIT -> ConnectionErrorType.DEVICE_LIMIT
                 else -> ConnectionErrorType.UNKNOWN
             }
             if (handshakePending.compareAndSet(true, false)) {
                 mainHandler.removeCallbacks(handshakeTimeoutTask)
                 Log.e(TAG, "Handshake failed: ${result.errorMessage}")
-                listener.onConnectionFailed(type, result.errorMessage)
+                // device limit gets a localized message; other codes pass the
+                // server's message straight through
+                val message = if (type == ConnectionErrorType.DEVICE_LIMIT) {
+                    context.getString(R.string.device_limit)
+                } else {
+                    result.errorMessage
+                }
+                listener.onConnectionFailed(type, message)
             }
         }
     }
@@ -265,9 +284,7 @@ class WebSocketManager(
         }
     }
 
-    /**
-     * 发送 JSON-RPC 消息。返回是否真正下发（连接不存在/未打开时为 false，调用方需感知）。
-     */
+    /** sends a JSON-RPC message; returns false when there's no open socket so callers can react */
     fun send(text: String): Boolean {
         val ws = webSocket
         if (ws == null) {
@@ -282,16 +299,11 @@ class WebSocketManager(
         }
     }
 
-    /**
-     * 发送 JSON-RPC 响应（推送确认 / 拒绝 / 错误等）。返回是否真正下发。
-     */
     fun sendResponse(responseJson: String): Boolean {
         return send(responseJson)
     }
 
-    /**
-     * 关闭当前连接（保留 OkHttpClient 以便下次重连）。
-     */
+    /** closes the connection, keeps the client around for reconnects */
     fun close() {
         expectedClose = true
         mainHandler.removeCallbacks(handshakeTimeoutTask)
@@ -302,9 +314,7 @@ class WebSocketManager(
         webSocket = null
     }
 
-    /**
-     * 释放底层资源（在 ViewModel onCleared 时调用）。
-     */
+    /** shuts down the client's executor, call from ViewModel onCleared */
     fun release() {
         close()
         client.dispatcher.executorService.shutdown()

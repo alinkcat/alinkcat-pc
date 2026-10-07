@@ -24,9 +24,6 @@ import coil.compose.AsyncImage
 import com.ailinkcat.mobile.domain.models.LauncherIconWidget
 import java.io.File
 
-/**
- * 单体应用启动图标：从主题包 assets/ 目录加载图标，点击触发 launcher.open。
- */
 @Composable
 fun LauncherIconWidgetRenderer(
     widget: LauncherIconWidget,
@@ -34,7 +31,7 @@ fun LauncherIconWidgetRenderer(
     themeId: String,
     onClick: () -> Unit
 ) {
-    // data: URI 图标直接交给 Coil 解码（与 CardWidgetRenderer 行为一致）；否则视为主题包 assets 内文件
+    // data: URIs go straight to Coil; anything else is a file in the theme assets
     val iconModel = remember(widget.icon, themeId) {
         widget.icon?.takeIf { it.isNotBlank() }?.let { icon ->
             if (icon.startsWith("data:")) icon else File(themeDir, "$themeId/$icon")
@@ -54,7 +51,6 @@ fun LauncherIconWidgetRenderer(
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // 图标：优先加载本地文件 / data: URI，其次 emoji，最后占位符
             if (hasIconFile || isDataIcon) {
                 AsyncImage(
                     model = iconModel,

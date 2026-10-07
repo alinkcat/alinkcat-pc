@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "ailinkcat_config")
 
-/** 本地配置持久化：DataStore 保存 IP、端口、配对码及上次连接记录。 */
+/** DataStore-backed persistence for ip/port/pairing code and last connection */
 class DataStoreManager(private val context: Context) {
 
     private object Keys {
@@ -61,14 +61,14 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
-    /** 天气组件刷新间隔（秒），0 表示跟随主题默认。 */
+    /** weather widget refresh interval in seconds, 0 = theme default */
     suspend fun saveWeatherRefreshSeconds(seconds: Int) {
         context.dataStore.edit { prefs ->
             prefs[Keys.WEATHER_REFRESH_SECONDS] = seconds
         }
     }
 
-    /** 定位失败兜底城市名，空表示跟随主题默认。 */
+    /** fallback city when location fails, empty = theme default */
     suspend fun saveFallbackCity(city: String) {
         context.dataStore.edit { prefs ->
             prefs[Keys.FALLBACK_CITY] = city

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -66,10 +67,8 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * Tab 1：主题包列表。
- * - 未连接 PC 时显示本地已安装主题（离线模式）
- * - 连接后显示 PC 同步的主题列表
- * - 支持点击切换、长按删除。
+ * Theme list tab: local themes when offline, the PC-synced list when
+ * connected. Tap to open, long-press to delete.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -83,9 +82,9 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
     var localLoaded by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
 
-    // ThemeMeta -> ThemePackage（用真实页数和封面信息）
+    // ThemeMeta -> ThemePackage, filling in real page count and cover info
     fun List<ThemeMeta>.toThemePackages(): List<ThemePackage> = mapIndexed { index, meta ->
-        // 从 theme.json 读取真实页数（meta.json 可能来自旧版本没有 pageCount）
+        // older meta.json versions lack pageCount, so read the real count from theme.json
         val realPageCount = try {
             val themeFile = File(context.filesDir, "themes/${meta.themeId}/theme.json")
             if (themeFile.exists()) {
@@ -106,10 +105,9 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
         )
     }
 
-    // 页面加载时扫描本地已安装主题（不依赖连接）
+    // scan installed local themes on entry; no connection needed
     LaunchedEffect(Unit) {
         val repo = ThemeRepository(context)
-        // 文件 IO 都在 IO 线程执行
         val packages = withContext(Dispatchers.IO) {
             repo.loadThemes().toThemePackages()
         }
@@ -117,7 +115,6 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
         localLoaded = true
     }
 
-    // 下拉刷新
     val scope = rememberCoroutineScope()
     val onRefresh: () -> Unit = {
         isRefreshing = true
@@ -135,7 +132,6 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
         }
     }
 
-    // 连接后刷新已安装主题包
     LaunchedEffect(state.status) {
         if (state.status == ConnectionStatus.Connected) {
             viewModel.refreshThemePackages()
@@ -145,7 +141,8 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
     fun onThemeClick(pkg: ThemePackage) {
         val themeId = pkg.themeId
         if (themeId.isNullOrBlank()) {
-            // PC 列表项 themeId 为空（未下载）：同名已安装旧主题仍可打开
+            // PC list entries without a themeId aren't downloaded; an installed
+            // theme of the same name can still open
             val localMatch = localThemes.firstOrNull { it.name == pkg.name && !it.themeId.isNullOrBlank() }
             if (localMatch?.themeId != null) {
                 context.startActivity(
@@ -175,6 +172,16 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
             confirmButton = {
                 TextButton(onClick = {
                     target.themeId?.let(viewModel::deleteTheme)
+                    // offline list keeps its own state — reload it or the entry
+                    // stays visible after deletion
+                    if (state.status != ConnectionStatus.Connected) {
+                        scope.launch {
+                            val packages = withContext(Dispatchers.IO) {
+                                ThemeRepository(context).loadThemes().toThemePackages()
+                            }
+                            localThemes = packages
+                        }
+                    }
                     deleteTarget = null
                 }) { Text(stringResource(R.string.delete), color = ErrorRed) }
             },
@@ -184,11 +191,10 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
         )
     }
 
-    // 连接时显示 PC 列表，否则本地
     val displayThemes = if (state.status == ConnectionStatus.Connected) csThemes else localThemes
 
     when {
-        !localLoaded -> { /* 加载中，不显示 */ }
+        !localLoaded -> { /* still loading, render nothing */ }
         state.status != ConnectionStatus.Connected && displayThemes.isEmpty() -> EmptyState(
             emoji = "📦",
             title = stringResource(R.string.no_themes),
@@ -208,7 +214,7 @@ fun ThemeListScreen(viewModel: ConnectionViewModel) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(displayThemes, key = { it.themeId ?: it.name }) { pkg ->
+                itemsIndexed(displayThemes, key = { idx, item -> item.themeId ?: "remote-$idx-${item.name}" }) { _, pkg ->
                     ThemeCard(
                         pkg = pkg,
                         onClick = { onThemeClick(pkg) },

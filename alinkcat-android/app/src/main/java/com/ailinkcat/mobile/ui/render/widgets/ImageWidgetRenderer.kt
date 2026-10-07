@@ -20,9 +20,7 @@ import com.ailinkcat.mobile.domain.models.Action
 import com.ailinkcat.mobile.domain.models.ImageWidget
 import java.io.File
 
-/**
- * 图片控件：从主题包目录加载本地图片（Coil），支持 cover/contain/stretch 缩放与圆角。支持点击动作。
- */
+/** image widget loaded from the theme pack dir via Coil. */
 @Composable
 fun ImageWidgetRenderer(
     widget: ImageWidget,
@@ -31,7 +29,7 @@ fun ImageWidgetRenderer(
 ) {
     val model = remember(widget.imagePath) {
         widget.imagePath?.takeIf { it.isNotBlank() }?.let { path ->
-            // data: URI 直接交给 Coil 解码（与 CardWidgetRenderer 行为一致），否则视为主题目录内文件
+            // data: URIs go straight to Coil; anything else is a file in the theme dir
             if (path.startsWith("data:")) path else File(baseDir, path)
         }
     }

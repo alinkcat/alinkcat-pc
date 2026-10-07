@@ -29,12 +29,7 @@ import com.ailinkcat.mobile.domain.models.Action
 import com.ailinkcat.mobile.domain.models.QuickActionCell
 import com.ailinkcat.mobile.domain.models.QuickActionWidget
 
-/**
- * 快捷面板控件：2x2 或自定义行列的网格，每格为应用启动器或文本片段集合。
- * - launcher：显示图标 + 名称，点击发送 launcher_open 指令
- * - snippet：显示标题 + 片段数量，点击注入第一个片段
- * 使用 BoxWithConstraints 自适应容器尺寸。
- */
+/** quick action panel: grid of cells, each an app launcher or snippet group. */
 @Composable
 fun QuickActionWidgetRenderer(
     widget: QuickActionWidget,
@@ -56,7 +51,6 @@ fun QuickActionWidgetRenderer(
         val spacing = 4.dp
         val spacingPx = 4f
 
-        // 自适应字体尺寸基于单元格最小边长
         val cellWidth = (cw - spacingPx * (cols + 1)) / cols
         val cellHeight = (ch - spacingPx * (rows + 1)) / rows
         val cellSize = minOf(cellWidth, cellHeight)
@@ -97,7 +91,6 @@ fun QuickActionWidgetRenderer(
                                     .fillMaxSize()
                             )
                         } else {
-                            // 空单元格占位
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -113,9 +106,6 @@ fun QuickActionWidgetRenderer(
     }
 }
 
-/**
- * 单个快捷面板单元格渲染。
- */
 @Composable
 private fun QuickActionCellRenderer(
     cell: QuickActionCell,
@@ -163,7 +153,6 @@ private fun QuickActionCellRenderer(
                 )
             }
         } else {
-            // 文本片段：标题 + 片段数量
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center

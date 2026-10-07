@@ -26,6 +26,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -94,10 +95,7 @@ import kotlin.math.max
 private val ScanGreen = Color(0xFF00E676)
 private val ScrimColor = Color.Black.copy(alpha = 0.55f)
 
-/**
- * 扫码页：CameraX 实时预览 + ZXing 解码 + 自定义扫描框视觉引导。
- * 扫码成功 -> 震动反馈 -> 回调结果并自动关闭。
- */
+/** scan screen: CameraX preview + ZXing decode. Success vibrates, returns the result and closes. */
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun ScannerScreen(
@@ -109,7 +107,7 @@ fun ScannerScreen(
     val scope = rememberCoroutineScope()
     val cameraPermission = rememberPermissionState(Manifest.permission.CAMERA)
 
-    // 防止重复触发
+    // one decode per scan
     val decoded = remember { AtomicBoolean(false) }
 
     fun handleContent(content: String) {
@@ -125,20 +123,26 @@ fun ScannerScreen(
         uri?.let {
             scope.launch {
                 val content = withContext(Dispatchers.IO) { decodeImageFromUri(context, it) }
-                content?.let(::handleContent)
+                if (content != null) {
+                    handleContent(content)
+                } else {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.qr_not_found_in_image),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
 
-    // 相机预览需先创建，以便绑定 surfaceProvider
+    // created up front so the preview can bind its surfaceProvider
     val previewView = remember { PreviewView(context) }
 
-    // 相机绑定状态：错误信息、重试计数、已绑定 provider（dispose 时解绑）
     var cameraError by remember { mutableStateOf<String?>(null) }
     var retryNonce by remember { mutableIntStateOf(0) }
     val boundProvider = remember { mutableStateOf<ProcessCameraProvider?>(null) }
 
-    // 协程等待 CameraX 就绪，dispose 时随协程取消
     DisposableEffect(lifecycleOwner, cameraPermission.status.isGranted, retryNonce) {
         if (!cameraPermission.status.isGranted) {
             onDispose {}
@@ -164,15 +168,14 @@ fun ScannerScreen(
                         }
                     )
                 } catch (e: Exception) {
-                    // 绑定失败：置错误状态，渲染重试 UI
                     Log.e("ScannerScreen", "Camera bind failed", e)
-                    cameraError = e.message ?: "相机启动失败"
+                    cameraError = e.message ?: context.getString(R.string.camera_start_failed)
                 }
             }
 
             onDispose {
                 job.cancel()
-                // 已就绪的 provider 解绑；未就绪的已随协程取消
+                // only a bound provider needs unbinding; the rest is cancelled with the job
                 boundProvider.value?.let { provider ->
                     runCatching { provider.unbindAll() }
                 }
@@ -204,15 +207,23 @@ fun ScannerScreen(
                 onPickAlbum = { albumLauncher.launch("image/*") }
             )
             else -> PermissionRequestView(
-                onRequest = { cameraPermission.launchPermissionRequest() }
+                onRequest = { cameraPermission.launchPermissionRequest() },
+                onOpenSettings = {
+                    context.startActivity(
+                        android.content.Intent(
+                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            android.net.Uri.fromParts("package", context.packageName, null)
+                        ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }
             )
         }
     }
 }
 
 /**
- * 协程化等待 CameraX 就绪：future 完成前可被取消（dispose）。
- * listener 内检查 isActive，避免 resume 已取消的协程。
+ * Await CameraX readiness as a cancellable coroutine; the isActive check
+ * guards against resuming an already-cancelled continuation.
  */
 private suspend fun awaitCameraProvider(context: Context): ProcessCameraProvider =
     suspendCancellableCoroutine { cont ->
@@ -227,7 +238,7 @@ private suspend fun awaitCameraProvider(context: Context): ProcessCameraProvider
             }
         }
         future.addListener(listener, ContextCompat.getMainExecutor(context))
-        // 不在取消时移除 listener：由 isActive 检查保证不会 resume 已取消的协程
+        // listener isn't removed on cancellation; the isActive check covers it
         cont.invokeOnCancellation { }
     }
 
@@ -246,7 +257,7 @@ private fun startCamera(
         .build()
     analysis.setAnalyzer(analyzerExecutor, QrAnalyzer(onQrDetected))
 
-    // 异常由调用方捕获并置错误状态
+    // exceptions are handled by the caller
     cameraProvider.unbindAll()
     cameraProvider.bindToLifecycle(
         lifecycleOwner,
@@ -256,9 +267,6 @@ private fun startCamera(
     )
 }
 
-/**
- * 解码帧图像（YUV_420_888 -> PlanarYUVLuminanceSource -> ZXing）。
- */
 private class QrAnalyzer(
     private val onQrDetected: (String) -> Unit
 ) : ImageAnalysis.Analyzer {
@@ -298,13 +306,10 @@ private class QrAnalyzer(
     }
 }
 
-/**
- * 从相册图片解码二维码（先 inJustDecodeBounds 预检尺寸并采样到 ≤1024 再解码，
- * 避免 12MP 原图 ≈48MB + getPixels 再一份的内存峰值）。
- */
+/** decode a QR from a gallery image; samples to <=1024 first so a 12MP photo doesn't spike memory */
 private fun decodeImageFromUri(context: Context, uri: Uri): String? {
     return try {
-        // 第一遍：仅读边界，确定采样率
+        // pass 1: bounds only, to pick the sample size
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         context.contentResolver.openInputStream(uri)?.use { input ->
             BitmapFactory.decodeStream(input, null, bounds)
@@ -313,7 +318,7 @@ private fun decodeImageFromUri(context: Context, uri: Uri): String? {
         var sample = 1
         while (max(bounds.outWidth, bounds.outHeight) / sample > 1024) sample *= 2
 
-        // 第二遍：按采样率解码
+        // pass 2: decode with the sample size
         val opts = BitmapFactory.Options().apply { inSampleSize = sample }
         val input2 = context.contentResolver.openInputStream(uri) ?: return null
         val bitmap = input2.use { BitmapFactory.decodeStream(it, null, opts) } ?: return null
@@ -352,16 +357,13 @@ private fun vibrate(context: Context) {
             vibrator.vibrate(200)
         }
     } catch (_: SecurityException) {
-        // 缺 VIBRATE 权限时静默跳过
+        // no VIBRATE permission: skip silently
     } catch (_: Exception) {
-        // 个别设备震动服务异常时静默跳过
+        // some devices throw from the vibrator service; skip silently
     }
 }
 
-/**
- * 扫描框视觉引导层：
- * 70% 屏宽的方形框 + L 形角标 + 框外暗色遮罩 + 绿色渐变扫描线 + 提示文字 + 按钮。
- */
+/** scan overlay: 70%-width frame, corner marks, dark scrim, animated scan line. */
 @Composable
 private fun ScanOverlay(
     onCancel: () -> Unit,
@@ -373,7 +375,6 @@ private fun ScanOverlay(
         val top = (maxHeight - boxSize) / 2f
         val lineHeight = 14.dp
 
-        // 框外暗色遮罩（上下左右四块）
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -403,7 +404,6 @@ private fun ScanOverlay(
                 .background(ScrimColor)
         )
 
-        // L 形角标
         Box(
             modifier = Modifier
                 .size(boxSize)
@@ -412,7 +412,6 @@ private fun ScanOverlay(
             ScanCorners(color = ScanGreen)
         }
 
-        // 扫描线动画
         val transition = rememberInfiniteTransition(label = "scanLine")
         val progress by transition.animateFloat(
             initialValue = 0f,
@@ -441,7 +440,6 @@ private fun ScanOverlay(
                 )
         )
 
-        // 上方提示文字
         Text(
             text = stringResource(R.string.scan_qr_hint),
             color = Color.White,
@@ -452,7 +450,6 @@ private fun ScanOverlay(
                 .padding(top = (top - 56.dp).coerceAtLeast(24.dp))
         )
 
-        // 下方按钮
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -493,7 +490,7 @@ private fun ScanCorners(color: Color, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun PermissionRequestView(onRequest: () -> Unit) {
+private fun PermissionRequestView(onRequest: () -> Unit, onOpenSettings: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -510,10 +507,19 @@ private fun PermissionRequestView(onRequest: () -> Unit) {
         Button(onClick = onRequest) {
             Text(stringResource(R.string.grant_camera))
         }
+        Spacer(Modifier.height(8.dp))
+        // permanently denied users get nothing from re-requesting —
+        // point them at the system settings page instead
+        TextButton(onClick = onOpenSettings) {
+            Text(
+                text = stringResource(R.string.open_system_settings),
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 13.sp
+            )
+        }
     }
 }
 
-/** 相机绑定失败提示 + 重试。 */
 @Composable
 private fun CameraErrorView(
     message: String,
@@ -528,7 +534,7 @@ private fun CameraErrorView(
         Text("⚠️", fontSize = 48.sp)
         Spacer(Modifier.height(12.dp))
         Text(
-            text = "相机启动失败：$message",
+            text = stringResource(R.string.camera_start_failed_msg, message),
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -544,7 +550,6 @@ private fun CameraErrorView(
     }
 }
 
-/** 已识别到二维码后的「重新扫描 / 取消」操作层。 */
 @Composable
 private fun RescanOverlay(
     onRescan: () -> Unit,

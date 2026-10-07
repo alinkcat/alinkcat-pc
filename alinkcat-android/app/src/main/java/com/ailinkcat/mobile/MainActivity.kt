@@ -1,5 +1,6 @@
 package com.ailinkcat.mobile
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -26,16 +27,22 @@ import coil.Coil
 import coil.ImageLoader
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
+import com.ailinkcat.mobile.i18n.LanguageManager
 import com.ailinkcat.mobile.ui.AlinkcatApp
 import com.ailinkcat.mobile.ui.theme.AlinkcatTheme
 import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
 import com.ailinkcat.mobile.utils.SignatureVerifier
 
 class MainActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LanguageManager.get(newBase).attachBaseContext(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 显式注册 GIF 解码器：release 混淆后 ServiceLoader 自动发现会失效
+        // register gif decoders explicitly, ServiceLoader discovery breaks under release minification
         Coil.setImageLoader(
             ImageLoader.Builder(this)
                 .components {
@@ -45,7 +52,7 @@ class MainActivity : ComponentActivity() {
                 .build()
         )
 
-        // debug 构建跳过校验（签名不同）；release 构建必须通过 Native 签名校验
+        // debug builds skip verification (different signing key); release must pass the native check
         val isDebuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
         val signatureValid = isDebuggable || SignatureVerifier.verify(this)
 
@@ -63,10 +70,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/**
- * 签名校验失败提示页：签名不匹配说明应用可能被篡改重打包，
- * 展示警告信息并引导用户退出，而不是白屏。
- */
+/** signature mismatch means the apk was likely repackaged; warn and offer exit instead of a blank screen */
 @Composable
 private fun SignatureErrorScreen(onExit: () -> Unit) {
     Box(

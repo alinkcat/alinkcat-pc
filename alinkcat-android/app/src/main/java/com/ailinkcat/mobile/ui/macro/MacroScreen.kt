@@ -48,9 +48,7 @@ import com.ailinkcat.mobile.R
 import com.ailinkcat.mobile.data.model.ConnectionStatus
 import com.ailinkcat.mobile.ui.viewmodel.ConnectionViewModel
 
-/**
- * 宏与片段中心：快捷启动图标看板 + 文本片段速记列表。
- */
+/** macro center: quick-launch icon grid + text snippet list. */
 @Composable
 fun MacroScreen(viewModel: ConnectionViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
