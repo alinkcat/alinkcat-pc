@@ -1,0 +1,41 @@
+{
+  "dialog": {
+    "title": "Push to Phone",
+    "device": "Target Device",
+    "noDevice": "No available devices",
+    "theme": "Theme Package",
+    "progress": "Push Progress",
+    "sent": "Sent",
+    "speed": "Speed",
+    "status": "Status",
+    "start": "Start Push",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "resume": "Resume",
+    "close": "Close",
+    "selectAll": "Select All",
+    "connected": "Connected",
+    "needStart": "Please start the service and connect a device first",
+    "interrupted": "Transfer interrupted ({{pct}}% sent). Resume?",
+    "resumeHint": "Click Resume to continue from the breakpoint, or Retry to start over",
+    "unknownDevice": "Unknown Device",
+    "unknownError": "Unknown error",
+    "eta": "ETA",
+    "etaSeconds": "{{s}}s",
+    "etaMinutes": "{{m}}m {{s}}s",
+    "autoRetry": "Auto retrying ({{n}}/{{max}})...",
+    "cancelAutoRetry": "Cancel auto retry",
+    "doNotRetry": "Stop retrying"
+  },
+  "status": {
+    "packing": "Packing...",
+    "awaiting_confirm": "Waiting for phone confirmation...",
+    "connecting": "Connecting...",
+    "pushing": "Pushing...",
+    "completed": "Push completed",
+    "failed": "Push failed",
+    "cancelled": "Cancelled",
+    "idle": "Ready",
+    "retrying": "Auto retrying..."
+  }
+}

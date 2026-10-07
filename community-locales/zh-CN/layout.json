@@ -1,0 +1,35 @@
+{
+  "sidebar": {
+    "themes": "主题包管理",
+    "devices": "设备管理",
+    "snippets": "快捷输入",
+    "market": "主题市场",
+    "profile": "个人中心",
+    "settings": "系统设置",
+    "admin": "管理后台",
+    "adminThemes": "主题审核",
+    "adminTickets": "工单管理",
+    "loginRegister": "登录 / 注册",
+    "logout": "退出登录",
+    "loginTip": "登录/注册",
+    "member": "会员中心",
+    "mycloud": "云备份",
+    "points": "积分中心",
+    "tickets": "工单",
+    "invite": "邀请",
+    "cloudServices": "云服务",
+    "cloudLoginRequired": "登录后使用云服务"
+  },
+  "header": {
+    "switchLight": "切换到浅色模式",
+    "switchDark": "切换到深色模式",
+    "notifications": "通知中心",
+    "settings": "设置"
+  },
+  "footer": {
+    "running": "服务运行中",
+    "stopped": "服务已停止",
+    "port": "端口",
+    "devices": "设备"
+  }
+}

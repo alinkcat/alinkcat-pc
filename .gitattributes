@@ -1,0 +1,28 @@
+# Enforce LF line endings for cross-platform development (Windows / macOS / Linux) to avoid CRLF warnings and line-ending drift
+* text=auto eol=lf
+
+# Windows scripts keep CRLF (batch files are sensitive to line endings)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files (no line-ending or encoding conversion)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.zip binary
+*.tgz binary
+*.alc binary
+*.exe binary
+*.dll binary
+*.dylib binary
+*.so binary
+*.node binary

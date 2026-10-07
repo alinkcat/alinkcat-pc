@@ -1,0 +1,43 @@
+{
+  "id": "snippet-helper",
+  "name": "Snippet Helper",
+  "version": "1.0.0",
+  "author": "ailinkcat",
+  "description": "Quick-paste common phrases",
+  "pages": [
+    {
+      "id": "snippets",
+      "label": "Phrases",
+      "layout": { "type": "list" },
+      "widgets": [
+        {
+          "type": "snippet-list",
+          "id": "snippet-list",
+          "label": "Quick Phrases",
+          "snippets": [
+            { "id": "s1", "label": "Welcome", "content": "Hello, welcome to the stream!" },
+            { "id": "s2", "label": "Thanks for following", "content": "Thank you for following, we'll keep improving!" },
+            { "id": "s3", "label": "Question received", "content": "Your question has been received and is being processed..." },
+            { "id": "s4", "label": "Closing", "content": "Thank you for your inquiry, have a great day!" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "templates",
+      "label": "Templates",
+      "layout": { "type": "list" },
+      "widgets": [
+        {
+          "type": "snippet-list",
+          "id": "template-list",
+          "label": "Template Library",
+          "snippets": [
+            { "id": "t1", "label": "Email signature", "content": "Best regards,\n\n\nJohn Doe\nSenior Engineer\nPhone: 138-xxxx-xxxx" },
+            { "id": "t2", "label": "Meeting notes", "content": "Meeting time: \nAttendees: \nAgenda: \nNext steps: " }
+          ]
+        }
+      ]
+    }
+  ]
+}
